@@ -990,6 +990,8 @@ Acceptance:
 
 Status: not-started
 
+Detailed multi-phase plan: [`docs/plans/p1-capability-expansion.md`](docs/plans/p1-capability-expansion.md). P1.0–P1.6 cover contract hardening, Blueprint construction, interaction gameplay, UI, AI/navigation, animation, and combined certification.
+
 Add only operations required by verified fixtures:
 
 - Blueprint creation.
@@ -1000,15 +1002,15 @@ Add only operations required by verified fixtures:
 - Basic AI controller, NavMesh, Blackboard, and Behavior Tree.
 - Animation Blueprint basics.
 
-Acceptance per capability:
+Acceptance per capability, where applicable to its read/mutation/runtime contract:
 
 1. Schema valid.
 2. Discoverable.
 3. Handler reaches correct UE API.
 4. Mutation reads back.
-5. Blueprint compiles.
-6. Asset persists after restart.
-7. PIE behavior is observed when relevant.
+5. Authored Blueprint compiles.
+6. Durable authored state persists after restart.
+7. PIE behavior is observed for runtime capabilities.
 8. Dedicated fixture identifies supported engine cell and known limits.
 
 Fixture order:
@@ -1016,6 +1018,7 @@ Fixture order:
 1. `interaction-loop`
 2. `ui-state-loop`
 3. `ai-navigation-loop`
+4. `animation-state-loop`
 
 ### M7 — Production pipeline
 

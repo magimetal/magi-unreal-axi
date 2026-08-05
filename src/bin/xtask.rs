@@ -160,7 +160,8 @@ fn guidance(check: bool) -> Result<(), String> {
             .map_err(|error| format!("guidance example does not parse: `{example}`: {error}"))?;
     }
     let generated = format!(
-        "---\nname: magi-unreal-axi\ndescription: Use when an agent must inspect, mutate, save, run, build, test, cook, package, or diagnose an Unreal Engine project through the non-interactive magi-unreal-axi CLI. Not for non-Unreal work or general shell automation.\n---\n\n{source}\n"
+        "---\nname: magi-unreal-axi\ndescription: Use when an agent must inspect, mutate, save, run, build, test, cook, package, or diagnose an Unreal Engine project through the non-interactive magi-unreal-axi CLI. Not for non-Unreal work or general shell automation.\n---\n\n{}\n",
+        source.trim_end()
     );
     let output = root.join("skills/magi-unreal-axi/SKILL.md");
     if check {
