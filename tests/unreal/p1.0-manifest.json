@@ -1,0 +1,59 @@
+{
+  "phase": "P1.0",
+  "engine": {
+    "version": "5.8.1",
+    "changelist": 56057345,
+    "hostArchitecture": "arm64"
+  },
+  "catalog": {
+    "count": 34,
+    "sha256": "8f947b51381647334ccbb35b99ab3f15c4cb50d779e90737dc7a0a414f0390a6"
+  },
+  "limits": {
+    "requestBytes": 8388608,
+    "responseBytes": 16777216,
+    "gameThreadQueue": 64,
+    "ledgerRecords": 1024,
+    "ledgerTtlSeconds": 86400
+  },
+  "generatedSafetyFields": [
+    "id",
+    "mutates",
+    "destructive",
+    "idempotency",
+    "saveBehavior",
+    "transactionBehavior",
+    "reversibility",
+    "allowedEditorStates",
+    "requiresModules",
+    "readback",
+    "targetFields",
+    "failureReceipt"
+  ],
+  "automationTests": [
+    "MagiUnrealAXI.Bridge.AdversarialFrames",
+    "MagiUnrealAXI.Bridge.Authentication",
+    "MagiUnrealAXI.Bridge.AuthenticationLimit",
+    "MagiUnrealAXI.Bridge.QueueBounds",
+    "MagiUnrealAXI.Bridge.ResponseIdentity",
+    "MagiUnrealAXI.LiveFixture.DirtyPackage",
+    "MagiUnrealAXI.LiveFixture.ReadData",
+    "MagiUnrealAXI.M6.BlueprintDiagnosticsContract",
+    "MagiUnrealAXI.M6.ComponentWorldSettingsContracts",
+    "MagiUnrealAXI.M6.PlayReceiptContracts",
+    "MagiUnrealAXI.Mutation.ActorUpdateDelete",
+    "MagiUnrealAXI.Mutation.LevelOperations",
+    "MagiUnrealAXI.Mutation.UnsafeStates",
+    "MagiUnrealAXI.Read.CatalogContract",
+    "MagiUnrealAXI.Read.PaginationContract",
+    "MagiUnrealAXI.Runtime.GeneratedMetadataAndIdentity"
+  ],
+  "liveAssertions": [
+    "native-availability-complete",
+    "offline-native-availability-unknown-editor-offline",
+    "failed-compile-non-atomic-dirty-receipt",
+    "failed-compile-no-saved-persistence-or-rollback",
+    "offline-operation-view-recovery",
+    "retained-evidence-token-absence"
+  ]
+}

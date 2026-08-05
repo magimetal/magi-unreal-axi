@@ -1,6 +1,7 @@
 #pragma once
 
-#define MAGI_AXI_CATALOG_HASH TEXT("b1888d3416a0873e31b1b600f6c84a7e01cdce982fedc8088ab42e8b76c3b506")
+#define MAGI_AXI_VERSION TEXT("0.1.0")
+#define MAGI_AXI_CATALOG_HASH TEXT("8f947b51381647334ccbb35b99ab3f15c4cb50d779e90737dc7a0a414f0390a6")
 #define MAGI_AXI_CATALOG_COUNT 34
 #define MAGI_AXI_NATIVE_CAPABILITY_COUNT 32
 #define MAGI_AXI_PUBLIC_OPERATION_COUNT 35
@@ -75,7 +76,66 @@
     X(TEXT("operation.view")) \
     X(TEXT("editor.stop"))
 
-#define MAGI_AXI_INVALID_OUTPUT_FIXTURES_JSON TEXT("[{\"operation\":\"actor.delete\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.delete\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dryRun\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"actor.spawn\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.spawn\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.update_transform\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.update_transform\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.create_input_action\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.create_input_action\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"class\":\"x\",\"valueType\":\"Boolean\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.create_input_mapping_context\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.create_input_mapping_context\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"class\":\"x\",\"mappingCount\":0,\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.save\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.save\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.compile\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.compile\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"unknown\":true}},{\"operation\":\"blueprint.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.add\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.add\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"component.remove\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.remove\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dryRun\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.update\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.update\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.set_game_mode\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.set_game_mode\",\"case\":\"root-not-closed\",\"result\":{\"levelId\":\"x\",\"gameModeClass\":\"x\",\"defaultPawnClass\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.settings\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.settings\",\"case\":\"root-not-closed\",\"result\":{\"levelId\":\"x\",\"gameModeClass\":\"\",\"defaultPawnClass\":\"\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.input\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.input\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"key\":\"x\",\"event\":\"pressed\",\"accepted\":false,\"changed\":false,\"beforeRevision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"afterRevision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.observe\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.observe\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"worldId\":null,\"levelId\":null,\"actors\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.screenshot\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.screenshot\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"path\":\"x\",\"width\":1,\"height\":1,\"format\":\"png\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.start\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.start\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"state\":\"starting\",\"worldId\":null,\"levelId\":null,\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.status\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.status\",\"case\":\"root-not-closed\",\"result\":{\"state\":\"stopped\",\"sessionId\":null,\"worldId\":null,\"levelId\":null,\"playerCount\":0,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.stop\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.stop\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"state\":\"stopping\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"asset.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"packagePath\":\"x\",\"objectPath\":\"x\",\"name\":\"x\",\"class\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"capability.describe\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"capability.describe\",\"case\":\"root-not-closed\",\"result\":{\"capability\":{\"id\":\"x\",\"version\":1,\"domain\":\"x\",\"summary\":\"x\",\"execution\":\"local\",\"mutates\":false,\"destructive\":false,\"idempotency\":\"x\",\"saveBehavior\":\"x\",\"transactionBehavior\":\"x\",\"reversibility\":\"x\",\"allowedEditorStates\":[],\"requiresModules\":[],\"inputSchema\":\"xx\",\"outputSchema\":\"xx\",\"verification\":\"xx\",\"engineSupport\":\"xx\"},\"runtime\":{\"available\":false,\"catalogHash\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"},\"unknown\":true}},{\"operation\":\"capability.search\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"capability.search\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"editor.status\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"editor.status\",\"case\":\"root-not-closed\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":0,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0,\"unknown\":true}},{\"operation\":\"level.create\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.create\",\"case\":\"root-not-closed\",\"result\":{\"level\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.current\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.current\",\"case\":\"root-not-closed\",\"result\":{\"level\":{\"id\":\"x\",\"name\":\"x\",\"worldType\":\"x\",\"persistent\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"},\"scope\":\"x\",\"unknown\":true}},{\"operation\":\"level.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"level.open\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.open\",\"case\":\"root-not-closed\",\"result\":{\"level\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.save\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.save\",\"case\":\"root-not-closed\",\"result\":{\"level\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"operation.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"operation.view\",\"case\":\"root-not-closed\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false},\"unknown\":true}},{\"operation\":\"actor.list\",\"case\":\"missing-list-id\",\"result\":{\"count\":1,\"total\":1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"label\":\"actor\"}],\"nextCursor\":null}},{\"operation\":\"level.current\",\"case\":\"nested-not-closed\",\"result\":{\"level\":{\"id\":\"x\",\"name\":\"x\",\"worldType\":\"x\",\"persistent\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true},\"scope\":\"x\"}},{\"operation\":\"editor.status\",\"case\":\"wrong-type\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":\"not-an-integer\",\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0}},{\"operation\":\"editor.status\",\"case\":\"enum\",\"result\":{\"state\":\"invalid\",\"projectId\":\"x\",\"editorPid\":0,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0}},{\"operation\":\"actor.view\",\"case\":\"string-bound\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"short\"}},{\"operation\":\"asset.list\",\"case\":\"array-bound\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"}],\"nextCursor\":null}}]")
+struct FMagiAxiCapabilityMetadata
+{
+const TCHAR* Id;
+bool Mutates;
+bool Destructive;
+const TCHAR* Idempotency;
+const TCHAR* SaveBehavior;
+const TCHAR* TransactionBehavior;
+const TCHAR* Reversibility;
+const TCHAR* AllowedEditorStates;
+const TCHAR* RequiredModules;
+const TCHAR* Readback;
+const TCHAR* TargetFields;
+const TCHAR* FailureReceipt;
+};
+
+static const FMagiAxiCapabilityMetadata MagiAxiCapabilityMetadata[] =
+{
+    {TEXT("actor.delete"), true, true, TEXT("request-key"), TEXT("dirty-only"), TEXT("atomic"), TEXT("destructive"), TEXT("editing"), TEXT("UnrealEd"), TEXT("actor.view"), TEXT("id"), TEXT("")},
+    {TEXT("actor.list"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("UnrealEd"), TEXT("actor.view"), TEXT(""), TEXT("")},
+    {TEXT("actor.spawn"), true, false, TEXT("natural-key"), TEXT("dirty-only"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("actor.view"), TEXT("id"), TEXT("")},
+    {TEXT("actor.update_transform"), true, false, TEXT("request-key"), TEXT("dirty-only"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("actor.view"), TEXT("id"), TEXT("")},
+    {TEXT("actor.view"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("UnrealEd"), TEXT(""), TEXT(""), TEXT("")},
+    {TEXT("asset.create_input_action"), true, false, TEXT("natural-key"), TEXT("explicit"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("asset.view"), TEXT("id"), TEXT("")},
+    {TEXT("asset.create_input_mapping_context"), true, false, TEXT("natural-key"), TEXT("explicit"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("asset.view"), TEXT("id"), TEXT("")},
+    {TEXT("asset.save"), true, false, TEXT("natural-key"), TEXT("explicit"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("asset.view"), TEXT("id"), TEXT("")},
+    {TEXT("blueprint.compile"), true, false, TEXT("request-key"), TEXT("dirty-only"), TEXT("non-atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd|KismetCompiler"), TEXT("blueprint.view"), TEXT("id"), TEXT("preserved-dirty")},
+    {TEXT("blueprint.view"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("UnrealEd|KismetCompiler"), TEXT(""), TEXT(""), TEXT("")},
+    {TEXT("component.add"), true, false, TEXT("natural-key"), TEXT("dirty-only"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("component.view"), TEXT("id"), TEXT("")},
+    {TEXT("component.list"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("UnrealEd"), TEXT(""), TEXT(""), TEXT("")},
+    {TEXT("component.remove"), true, true, TEXT("request-key"), TEXT("dirty-only"), TEXT("atomic"), TEXT("destructive"), TEXT("editing"), TEXT("UnrealEd"), TEXT("component.view"), TEXT("id"), TEXT("")},
+    {TEXT("component.update"), true, false, TEXT("natural-key"), TEXT("dirty-only"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("component.view"), TEXT("id"), TEXT("")},
+    {TEXT("component.view"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("UnrealEd"), TEXT(""), TEXT(""), TEXT("")},
+    {TEXT("level.set_game_mode"), true, false, TEXT("natural-key"), TEXT("dirty-only"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("level.settings"), TEXT("levelId"), TEXT("")},
+    {TEXT("level.settings"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("UnrealEd"), TEXT(""), TEXT(""), TEXT("")},
+    {TEXT("play.input"), true, false, TEXT("request-key"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("playing"), TEXT("UnrealEd"), TEXT("play.observe"), TEXT("sessionId|key|event"), TEXT("")},
+    {TEXT("play.observe"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("playing"), TEXT("UnrealEd"), TEXT(""), TEXT(""), TEXT("")},
+    {TEXT("play.screenshot"), true, false, TEXT("request-key"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("playing"), TEXT("UnrealEd"), TEXT("artifact"), TEXT("path"), TEXT("")},
+    {TEXT("play.start"), true, false, TEXT("natural-key"), TEXT("none"), TEXT("atomic"), TEXT("none"), TEXT("editing"), TEXT("UnrealEd"), TEXT("play.status"), TEXT("sessionId"), TEXT("")},
+    {TEXT("play.status"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing|playing"), TEXT("UnrealEd"), TEXT(""), TEXT(""), TEXT("")},
+    {TEXT("play.stop"), true, false, TEXT("natural-key"), TEXT("none"), TEXT("atomic"), TEXT("none"), TEXT("playing"), TEXT("UnrealEd"), TEXT("play.status"), TEXT("sessionId"), TEXT("")},
+    {TEXT("asset.list"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("AssetRegistry"), TEXT("asset.view"), TEXT(""), TEXT("")},
+    {TEXT("asset.view"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("AssetRegistry"), TEXT(""), TEXT(""), TEXT("")},
+    {TEXT("editor.status"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("UnrealEd"), TEXT(""), TEXT(""), TEXT("")},
+    {TEXT("level.create"), true, false, TEXT("natural-key"), TEXT("explicit"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("level.current"), TEXT("level"), TEXT("")},
+    {TEXT("level.current"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("UnrealEd"), TEXT(""), TEXT(""), TEXT("")},
+    {TEXT("level.list"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("AssetRegistry"), TEXT(""), TEXT(""), TEXT("")},
+    {TEXT("level.open"), true, false, TEXT("natural-key"), TEXT("none"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("level.current"), TEXT("level"), TEXT("")},
+    {TEXT("level.save"), true, false, TEXT("natural-key"), TEXT("explicit"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("level.current"), TEXT("level"), TEXT("")},
+    {TEXT("operation.view"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing|playing"), TEXT("UnrealEd"), TEXT(""), TEXT(""), TEXT("")},
+};
+
+static const FMagiAxiCapabilityMetadata* MagiAxiFindCapabilityMetadata(const FString& Operation)
+{
+for (const FMagiAxiCapabilityMetadata& Metadata : MagiAxiCapabilityMetadata)
+if (Operation == Metadata.Id) return &Metadata;
+return nullptr;
+}
+
+#define MAGI_AXI_INVALID_OUTPUT_FIXTURES_JSON TEXT("[{\"operation\":\"actor.delete\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.delete\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dryRun\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"actor.spawn\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.spawn\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.update_transform\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.update_transform\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.create_input_action\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.create_input_action\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"class\":\"x\",\"valueType\":\"Boolean\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.create_input_mapping_context\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.create_input_mapping_context\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"class\":\"x\",\"mappingCount\":0,\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.save\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.save\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.compile\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.compile\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"unknown\":true}},{\"operation\":\"blueprint.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.add\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.add\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"component.remove\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.remove\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dryRun\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.update\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.update\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.set_game_mode\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.set_game_mode\",\"case\":\"root-not-closed\",\"result\":{\"levelId\":\"x\",\"gameModeClass\":\"x\",\"defaultPawnClass\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.settings\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.settings\",\"case\":\"root-not-closed\",\"result\":{\"levelId\":\"x\",\"gameModeClass\":\"\",\"defaultPawnClass\":\"\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.input\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.input\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"key\":\"x\",\"event\":\"pressed\",\"accepted\":false,\"changed\":false,\"beforeRevision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"afterRevision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.observe\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.observe\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"worldId\":null,\"levelId\":null,\"actors\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.screenshot\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.screenshot\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"path\":\"x\",\"width\":1,\"height\":1,\"format\":\"png\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.start\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.start\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"state\":\"starting\",\"worldId\":null,\"levelId\":null,\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.status\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.status\",\"case\":\"root-not-closed\",\"result\":{\"state\":\"stopped\",\"sessionId\":null,\"worldId\":null,\"levelId\":null,\"playerCount\":0,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.stop\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.stop\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"state\":\"stopping\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"asset.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"packagePath\":\"x\",\"objectPath\":\"x\",\"name\":\"x\",\"class\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"capability.describe\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"capability.describe\",\"case\":\"root-not-closed\",\"result\":{\"capability\":{\"id\":\"x\",\"version\":1,\"domain\":\"x\",\"summary\":\"x\",\"execution\":\"local\",\"mutates\":false,\"destructive\":false,\"idempotency\":\"x\",\"saveBehavior\":\"x\",\"transactionBehavior\":\"x\",\"reversibility\":\"x\",\"allowedEditorStates\":[],\"requiresModules\":[],\"inputSchema\":\"xx\",\"outputSchema\":\"xx\",\"verification\":\"xx\",\"engineSupport\":\"xx\"},\"runtime\":{\"availability\":\"available\",\"reasons\":[],\"catalogHash\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"},\"unknown\":true}},{\"operation\":\"capability.search\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"capability.search\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"editor.status\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"editor.status\",\"case\":\"root-not-closed\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":0,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0,\"unknown\":true}},{\"operation\":\"level.create\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.create\",\"case\":\"root-not-closed\",\"result\":{\"level\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.current\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.current\",\"case\":\"root-not-closed\",\"result\":{\"level\":{\"id\":\"x\",\"name\":\"x\",\"worldType\":\"x\",\"persistent\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"},\"scope\":\"x\",\"unknown\":true}},{\"operation\":\"level.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"level.open\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.open\",\"case\":\"root-not-closed\",\"result\":{\"level\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.save\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.save\",\"case\":\"root-not-closed\",\"result\":{\"level\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"operation.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"operation.view\",\"case\":\"root-not-closed\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false},\"unknown\":true}},{\"operation\":\"actor.list\",\"case\":\"missing-list-id\",\"result\":{\"count\":1,\"total\":1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"label\":\"actor\"}],\"nextCursor\":null}},{\"operation\":\"level.current\",\"case\":\"nested-not-closed\",\"result\":{\"level\":{\"id\":\"x\",\"name\":\"x\",\"worldType\":\"x\",\"persistent\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true},\"scope\":\"x\"}},{\"operation\":\"editor.status\",\"case\":\"wrong-type\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":\"not-an-integer\",\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0}},{\"operation\":\"editor.status\",\"case\":\"enum\",\"result\":{\"state\":\"invalid\",\"projectId\":\"x\",\"editorPid\":0,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0}},{\"operation\":\"actor.view\",\"case\":\"string-bound\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"short\"}},{\"operation\":\"asset.list\",\"case\":\"array-bound\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"}],\"nextCursor\":null}}]")
 
 static int32 MagiAxiUnicodeScalarCount(const FString& Text)
 {
@@ -2481,16 +2541,47 @@ static bool MagiAxiValidateOutput(const FString& Operation, const TSharedRef<FJs
         if (!Value39.IsValid()) return false;
         if (!Value39.IsValid() || Value39->Type != EJson::Object) return false;
         const TSharedPtr<FJsonObject> Object40 = Value39->AsObject();
-        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object40->Values) if (Entry.Key != TEXT("available") && Entry.Key != TEXT("catalogHash")) return false;
-        const TSharedPtr<FJsonValue> Value41 = Object40->TryGetField(TEXT("available"));
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object40->Values) if (Entry.Key != TEXT("availability") && Entry.Key != TEXT("reasons") && Entry.Key != TEXT("catalogHash")) return false;
+        const TSharedPtr<FJsonValue> Value41 = Object40->TryGetField(TEXT("availability"));
         if (!Value41.IsValid()) return false;
-        if (!Value41.IsValid() || Value41->Type != EJson::Boolean) return false;
-        const TSharedPtr<FJsonValue> Value42 = Object40->TryGetField(TEXT("catalogHash"));
-        if (!Value42.IsValid()) return false;
-        if (!Value42.IsValid() || Value42->Type != EJson::String) return false;
-        const FString Text43 = Value42->AsString();
-        if (MagiAxiUnicodeScalarCount(Text43) < 64) return false;
-        if (MagiAxiUnicodeScalarCount(Text43) > 64) return false;
+        if (!Value41.IsValid() || Value41->Type != EJson::String) return false;
+        const FString Text42 = Value41->AsString();
+        if (MagiAxiUnicodeScalarCount(Text42) > 11) return false;
+        if (Text42 != TEXT("available") && Text42 != TEXT("unavailable") && Text42 != TEXT("unknown")) return false;
+        const TSharedPtr<FJsonValue> Value43 = Object40->TryGetField(TEXT("reasons"));
+        if (!Value43.IsValid()) return false;
+        if (!Value43.IsValid() || Value43->Type != EJson::Array) return false;
+        const TArray<TSharedPtr<FJsonValue>>& Array44 = Value43->AsArray();
+        if (Array44.Num() > 16) return false;
+        for (const TSharedPtr<FJsonValue>& Value45 : Array44)
+        {
+            if (!Value45.IsValid() || Value45->Type != EJson::Object) return false;
+            const TSharedPtr<FJsonObject> Object46 = Value45->AsObject();
+            for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object46->Values) if (Entry.Key != TEXT("code") && Entry.Key != TEXT("subject") && Entry.Key != TEXT("message")) return false;
+            const TSharedPtr<FJsonValue> Value47 = Object46->TryGetField(TEXT("code"));
+            if (!Value47.IsValid()) return false;
+            if (!Value47.IsValid() || Value47->Type != EJson::String) return false;
+            const FString Text48 = Value47->AsString();
+            if (MagiAxiUnicodeScalarCount(Text48) < 1) return false;
+            if (MagiAxiUnicodeScalarCount(Text48) > 32) return false;
+            const TSharedPtr<FJsonValue> Value49 = Object46->TryGetField(TEXT("subject"));
+            if (!Value49.IsValid()) return false;
+            if (!Value49.IsValid() || Value49->Type != EJson::String) return false;
+            const FString Text50 = Value49->AsString();
+            if (MagiAxiUnicodeScalarCount(Text50) > 128) return false;
+            const TSharedPtr<FJsonValue> Value51 = Object46->TryGetField(TEXT("message"));
+            if (!Value51.IsValid()) return false;
+            if (!Value51.IsValid() || Value51->Type != EJson::String) return false;
+            const FString Text52 = Value51->AsString();
+            if (MagiAxiUnicodeScalarCount(Text52) < 1) return false;
+            if (MagiAxiUnicodeScalarCount(Text52) > 512) return false;
+        }
+        const TSharedPtr<FJsonValue> Value53 = Object40->TryGetField(TEXT("catalogHash"));
+        if (!Value53.IsValid()) return false;
+        if (!Value53.IsValid() || Value53->Type != EJson::String) return false;
+        const FString Text54 = Value53->AsString();
+        if (MagiAxiUnicodeScalarCount(Text54) < 64) return false;
+        if (MagiAxiUnicodeScalarCount(Text54) > 64) return false;
         return true;
     }
     if (Operation == TEXT("capability.search"))
@@ -2525,7 +2616,7 @@ static bool MagiAxiValidateOutput(const FString& Operation, const TSharedRef<FJs
         {
             if (!Value9.IsValid() || Value9->Type != EJson::Object) return false;
             const TSharedPtr<FJsonObject> Object10 = Value9->AsObject();
-            for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object10->Values) if (Entry.Key != TEXT("id") && Entry.Key != TEXT("domain") && Entry.Key != TEXT("summary") && Entry.Key != TEXT("available")) return false;
+            for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object10->Values) if (Entry.Key != TEXT("id") && Entry.Key != TEXT("domain") && Entry.Key != TEXT("summary") && Entry.Key != TEXT("availability") && Entry.Key != TEXT("reasons")) return false;
             const TSharedPtr<FJsonValue> Value11 = Object10->TryGetField(TEXT("id"));
             if (!Value11.IsValid()) return false;
             if (!Value11.IsValid() || Value11->Type != EJson::String) return false;
@@ -2544,17 +2635,48 @@ static bool MagiAxiValidateOutput(const FString& Operation, const TSharedRef<FJs
             const FString Text16 = Value15->AsString();
             if (MagiAxiUnicodeScalarCount(Text16) < 1) return false;
             if (MagiAxiUnicodeScalarCount(Text16) > 512) return false;
-            const TSharedPtr<FJsonValue> Value17 = Object10->TryGetField(TEXT("available"));
+            const TSharedPtr<FJsonValue> Value17 = Object10->TryGetField(TEXT("availability"));
             if (!Value17.IsValid()) return false;
-            if (!Value17.IsValid() || Value17->Type != EJson::Boolean) return false;
+            if (!Value17.IsValid() || Value17->Type != EJson::String) return false;
+            const FString Text18 = Value17->AsString();
+            if (MagiAxiUnicodeScalarCount(Text18) > 11) return false;
+            if (Text18 != TEXT("available") && Text18 != TEXT("unavailable") && Text18 != TEXT("unknown")) return false;
+            const TSharedPtr<FJsonValue> Value19 = Object10->TryGetField(TEXT("reasons"));
+            if (!Value19.IsValid()) return false;
+            if (!Value19.IsValid() || Value19->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array20 = Value19->AsArray();
+            if (Array20.Num() > 16) return false;
+            for (const TSharedPtr<FJsonValue>& Value21 : Array20)
+            {
+                if (!Value21.IsValid() || Value21->Type != EJson::Object) return false;
+                const TSharedPtr<FJsonObject> Object22 = Value21->AsObject();
+                for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object22->Values) if (Entry.Key != TEXT("code") && Entry.Key != TEXT("subject") && Entry.Key != TEXT("message")) return false;
+                const TSharedPtr<FJsonValue> Value23 = Object22->TryGetField(TEXT("code"));
+                if (!Value23.IsValid()) return false;
+                if (!Value23.IsValid() || Value23->Type != EJson::String) return false;
+                const FString Text24 = Value23->AsString();
+                if (MagiAxiUnicodeScalarCount(Text24) < 1) return false;
+                if (MagiAxiUnicodeScalarCount(Text24) > 32) return false;
+                const TSharedPtr<FJsonValue> Value25 = Object22->TryGetField(TEXT("subject"));
+                if (!Value25.IsValid()) return false;
+                if (!Value25.IsValid() || Value25->Type != EJson::String) return false;
+                const FString Text26 = Value25->AsString();
+                if (MagiAxiUnicodeScalarCount(Text26) > 128) return false;
+                const TSharedPtr<FJsonValue> Value27 = Object22->TryGetField(TEXT("message"));
+                if (!Value27.IsValid()) return false;
+                if (!Value27.IsValid() || Value27->Type != EJson::String) return false;
+                const FString Text28 = Value27->AsString();
+                if (MagiAxiUnicodeScalarCount(Text28) < 1) return false;
+                if (MagiAxiUnicodeScalarCount(Text28) > 512) return false;
+            }
         }
-        const TSharedPtr<FJsonValue> Value18 = Object0->TryGetField(TEXT("nextCursor"));
-        if (!Value18.IsValid()) return false;
-        if (Value18->Type != EJson::Null)
+        const TSharedPtr<FJsonValue> Value29 = Object0->TryGetField(TEXT("nextCursor"));
+        if (!Value29.IsValid()) return false;
+        if (Value29->Type != EJson::Null)
         {
-            if (!Value18.IsValid() || Value18->Type != EJson::String) return false;
-            const FString Text19 = Value18->AsString();
-            if (MagiAxiUnicodeScalarCount(Text19) > 256) return false;
+            if (!Value29.IsValid() || Value29->Type != EJson::String) return false;
+            const FString Text30 = Value29->AsString();
+            if (MagiAxiUnicodeScalarCount(Text30) > 256) return false;
         }
         return true;
     }
@@ -2948,7 +3070,7 @@ static bool MagiAxiValidateOutput(const FString& Operation, const TSharedRef<FJs
         if (!Value30.IsValid()) return false;
         if (!Value30.IsValid() || Value30->Type != EJson::Object) return false;
         const TSharedPtr<FJsonObject> Object31 = Value30->AsObject();
-        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object31->Values) if (Entry.Key != TEXT("readback") && Entry.Key != TEXT("target") && Entry.Key != TEXT("matched") && Entry.Key != TEXT("exists") && Entry.Key != TEXT("observedRevision") && Entry.Key != TEXT("accepted") && Entry.Key != TEXT("beforeRevision") && Entry.Key != TEXT("afterRevision")) return false;
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object31->Values) if (Entry.Key != TEXT("readback") && Entry.Key != TEXT("target") && Entry.Key != TEXT("matched") && Entry.Key != TEXT("exists") && Entry.Key != TEXT("observedRevision") && Entry.Key != TEXT("accepted") && Entry.Key != TEXT("beforeRevision") && Entry.Key != TEXT("afterRevision") && Entry.Key != TEXT("observedStatus") && Entry.Key != TEXT("failureType") && Entry.Key != TEXT("errorCount") && Entry.Key != TEXT("warningCount") && Entry.Key != TEXT("diagnostics") && Entry.Key != TEXT("changedObjects")) return false;
         const TSharedPtr<FJsonValue> Value32 = Object31->TryGetField(TEXT("readback"));
         if (!Value32.IsValid()) return false;
         if (!Value32.IsValid() || Value32->Type != EJson::String) return false;
@@ -2997,6 +3119,92 @@ static bool MagiAxiValidateOutput(const FString& Operation, const TSharedRef<FJs
             const FString Text44 = Value43->AsString();
             if (MagiAxiUnicodeScalarCount(Text44) < 64) return false;
             if (MagiAxiUnicodeScalarCount(Text44) > 64) return false;
+        }
+        const TSharedPtr<FJsonValue> Value45 = Object31->TryGetField(TEXT("observedStatus"));
+        if (Value45.IsValid())
+        {
+            if (!Value45.IsValid() || Value45->Type != EJson::String) return false;
+            const FString Text46 = Value45->AsString();
+            if (MagiAxiUnicodeScalarCount(Text46) > 16) return false;
+            if (Text46 != TEXT("error")) return false;
+        }
+        const TSharedPtr<FJsonValue> Value47 = Object31->TryGetField(TEXT("failureType"));
+        if (Value47.IsValid())
+        {
+            if (!Value47.IsValid() || Value47->Type != EJson::String) return false;
+            const FString Text48 = Value47->AsString();
+            if (MagiAxiUnicodeScalarCount(Text48) > 32) return false;
+            if (Text48 != TEXT("blueprint_compile_failed")) return false;
+        }
+        const TSharedPtr<FJsonValue> Value49 = Object31->TryGetField(TEXT("errorCount"));
+        if (Value49.IsValid())
+        {
+            double Number50 = 0;
+            if (!Value49.IsValid() || !Value49->TryGetNumber(Number50) || !FMath::IsFinite(Number50) || FMath::FloorToDouble(Number50) != Number50) return false;
+            if (Number50 < 1) return false;
+            if (Number50 > 100) return false;
+        }
+        const TSharedPtr<FJsonValue> Value51 = Object31->TryGetField(TEXT("warningCount"));
+        if (Value51.IsValid())
+        {
+            double Number52 = 0;
+            if (!Value51.IsValid() || !Value51->TryGetNumber(Number52) || !FMath::IsFinite(Number52) || FMath::FloorToDouble(Number52) != Number52) return false;
+            if (Number52 < 0) return false;
+            if (Number52 > 100) return false;
+        }
+        const TSharedPtr<FJsonValue> Value53 = Object31->TryGetField(TEXT("diagnostics"));
+        if (Value53.IsValid())
+        {
+            if (!Value53.IsValid() || Value53->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array54 = Value53->AsArray();
+            if (Array54.Num() < 1) return false;
+            if (Array54.Num() > 100) return false;
+            for (const TSharedPtr<FJsonValue>& Value55 : Array54)
+            {
+                if (!Value55.IsValid() || Value55->Type != EJson::Object) return false;
+                const TSharedPtr<FJsonObject> Object56 = Value55->AsObject();
+                for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object56->Values) if (Entry.Key != TEXT("severity") && Entry.Key != TEXT("message") && Entry.Key != TEXT("graph") && Entry.Key != TEXT("nodeGuid") && Entry.Key != TEXT("nodeTitle")) return false;
+                const TSharedPtr<FJsonValue> Value57 = Object56->TryGetField(TEXT("severity"));
+                if (!Value57.IsValid()) return false;
+                if (!Value57.IsValid() || Value57->Type != EJson::String) return false;
+                const FString Text58 = Value57->AsString();
+                if (MagiAxiUnicodeScalarCount(Text58) > 8) return false;
+                if (Text58 != TEXT("error") && Text58 != TEXT("warning")) return false;
+                const TSharedPtr<FJsonValue> Value59 = Object56->TryGetField(TEXT("message"));
+                if (!Value59.IsValid()) return false;
+                if (!Value59.IsValid() || Value59->Type != EJson::String) return false;
+                const FString Text60 = Value59->AsString();
+                if (MagiAxiUnicodeScalarCount(Text60) < 1) return false;
+                if (MagiAxiUnicodeScalarCount(Text60) > 1024) return false;
+                const TSharedPtr<FJsonValue> Value61 = Object56->TryGetField(TEXT("graph"));
+                if (!Value61.IsValid()) return false;
+                if (!Value61.IsValid() || Value61->Type != EJson::String) return false;
+                const FString Text62 = Value61->AsString();
+                if (MagiAxiUnicodeScalarCount(Text62) > 512) return false;
+                const TSharedPtr<FJsonValue> Value63 = Object56->TryGetField(TEXT("nodeGuid"));
+                if (!Value63.IsValid()) return false;
+                if (!Value63.IsValid() || Value63->Type != EJson::String) return false;
+                const FString Text64 = Value63->AsString();
+                if (MagiAxiUnicodeScalarCount(Text64) > 128) return false;
+                const TSharedPtr<FJsonValue> Value65 = Object56->TryGetField(TEXT("nodeTitle"));
+                if (!Value65.IsValid()) return false;
+                if (!Value65.IsValid() || Value65->Type != EJson::String) return false;
+                const FString Text66 = Value65->AsString();
+                if (MagiAxiUnicodeScalarCount(Text66) > 512) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value67 = Object31->TryGetField(TEXT("changedObjects"));
+        if (Value67.IsValid())
+        {
+            if (!Value67.IsValid() || Value67->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array68 = Value67->AsArray();
+            if (Array68.Num() > 100) return false;
+            for (const TSharedPtr<FJsonValue>& Value69 : Array68)
+            {
+                if (!Value69.IsValid() || Value69->Type != EJson::String) return false;
+                const FString Text70 = Value69->AsString();
+                if (MagiAxiUnicodeScalarCount(Text70) > 512) return false;
+            }
         }
         return true;
     }

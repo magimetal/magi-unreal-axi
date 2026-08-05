@@ -974,7 +974,7 @@ Completed fixture loop:
 - Deferred `play.input` success until next-tick `play.observe` readback; receipts validate exact project/editor/operation/target identity plus declared transaction, reversibility, persistence, and safety metadata.
 - Compiled valid Blueprint as stable no-op on repeat and returned structured graph/node diagnostics for invalid Blueprint. Blueprint authoring remains excluded.
 - Built source-backed fixture project successfully. This proves `project build` for M6 fixture; full build/test/cook/package pipeline normalization remains M7.
-- Canonical catalog contains 34 records with SHA-256 `b1888d3416a0873e31b1b600f6c84a7e01cdce982fedc8088ab42e8b76c3b506`.
+- Canonical catalog contains 34 records with SHA-256 `8f947b51381647334ccbb35b99ab3f15c4cb50d779e90737dc7a0a414f0390a6`.
 
 Acceptance:
 
@@ -988,7 +988,7 @@ Acceptance:
 
 ### P1 — Post-V1 Blueprint authoring and reusable gameplay construction
 
-Status: not-started
+Status: active
 
 Detailed multi-phase plan: [`docs/plans/p1-capability-expansion.md`](docs/plans/p1-capability-expansion.md). P1.0–P1.6 cover contract hardening, Blueprint construction, interaction gameplay, UI, AI/navigation, animation, and combined certification.
 
@@ -1058,13 +1058,13 @@ Completed evidence:
 - Staged with rollback on write/commit error, idempotent setup supports Claude Code, Codex, and OpenCode target selection. Claude receives SessionStart context; Codex/OpenCode receive Agent Skills with documented ambient-context N/A reasons.
 - Guidance and release checks are wired into hosted CI and release workflow.
 - Tagged release workflow builds once, ad-hoc signs, packages archive/checksum, certifies exact artifact on approved self-hosted UE host, then publishes with GitHub provenance.
-- Hardened exact-artifact clean-install pass: `~/Library/Caches/magi-unreal-axi/m8/live/latest` (final archive SHA-256 `080010e6c3a89b200873dde311a9dff91b7f35c5f408703d82295788cdab98ff`).
+- Hardened exact-artifact clean-install pass: `~/Library/Caches/magi-unreal-axi/m8/live/evidence.w517tz` (current archive SHA-256 `4be0341503bf63cc8ea7ed928f4cd3864764ad16a4608b08c59f626243c16424`).
 - Representative jobs 1–8: `~/Library/Caches/magi-unreal-axi/m8/agent-evaluation/run.Gy9dcQ/evidence`; jobs 2–7 succeeded for intent, job 1 was partial orientation, C++ source job 8 exposed pre-fix 14/15 automation and game-target arm64 link failure/no package, and distinct Blueprint-only job 8b packaged 37 files/1,389,331,062 bytes.
 - Concrete input-action fixture correction followed by source build and full 15/15 automation: `~/Library/Caches/magi-unreal-axi/read-fixture-fix.KGV2FR/evidence`.
 
 Final gate:
 
-- Current hardened `certify-m8-live.sh` passed with checksum binding, allowlisted archive inventory, ad-hoc codesign, artifact/source identity, full 15-test automation, clean-install lifecycle, and retained-evidence token scan.
+- Current hardened `certify-m8-live.sh` passed with checksum binding, allowlisted archive inventory, ad-hoc codesign, artifact/source identity, full 16-test automation, clean-install lifecycle, and retained-evidence token scan.
 
 Acceptance:
 

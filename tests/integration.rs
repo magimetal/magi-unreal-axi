@@ -11,7 +11,7 @@ mod m3_fake_bridge {
 
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    const CATALOG_HASH: &str = "b1888d3416a0873e31b1b600f6c84a7e01cdce982fedc8088ab42e8b76c3b506";
+    const CATALOG_HASH: &str = magi_unreal_axi::capability::CATALOG_HASH;
 
     fn process_start(pid: u32) -> String {
         let mut info = std::mem::MaybeUninit::<libc::proc_bsdinfo>::zeroed();
@@ -409,6 +409,8 @@ mod m3_fake_bridge {
         let search = json_output(&search);
         assert_eq!(search["count"], 5);
         assert!(search["items"][0].get("inputSchema").is_none());
+        assert_eq!(search["items"][0]["availability"], "unknown");
+        assert_eq!(search["items"][0]["reasons"][0]["code"], "editor_offline");
 
         let describe = harness.command(
             &harness.root,
@@ -423,6 +425,8 @@ mod m3_fake_bridge {
                 .is_some_and(|schema| schema.contains("object"))
         );
         assert_eq!(describe["runtime"]["catalogHash"], CATALOG_HASH);
+        assert_eq!(describe["runtime"]["availability"], "unknown");
+        assert_eq!(describe["runtime"]["reasons"][0]["code"], "editor_offline");
     }
 
     #[test]
@@ -573,6 +577,182 @@ mod m3_fake_bridge {
             String::from_utf8_lossy(&lookup.stdout)
         );
         assert_eq!(json_output(&lookup)["operationId"], operation_id);
+    }
+
+    #[test]
+    fn p10_live_describe_merges_runtime_availability() {
+        let harness = Harness::new();
+        let project = harness.project("P10Availability", json!({}));
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let pid = std::process::id();
+        let process_start = process_start(pid);
+        install_record(
+            &harness,
+            &project,
+            pid,
+            &process_start,
+            json!({"port":listener.local_addr().unwrap().port()}),
+            TOKEN,
+        );
+        let native = magi_unreal_axi::capability::CAPABILITY_METADATA
+            .iter()
+            .filter(|metadata| metadata.execution == "native")
+            .map(|metadata| {
+                if metadata.id == "blueprint.compile" {
+                    json!({"operation":metadata.id,"availability":"unavailable","reasons":[{"code":"missing_module","subject":"KismetCompiler","message":"Required module KismetCompiler is not loaded"}]})
+                } else {
+                    json!({"operation":metadata.id,"availability":"available","reasons":[]})
+                }
+            })
+            .collect::<Vec<_>>();
+        let worker = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            assert_eq!(frame(&mut stream)["token"], TOKEN);
+            send(
+                &mut stream,
+                json!({"protocol":1,"status":"ok","pluginVersion":VERSION,"pid":pid,"processStart":process_start,"sessionNonce":"abcdef0123456789abcdef0123456789","catalogHash":CATALOG_HASH}),
+            );
+            let request = frame(&mut stream);
+            assert_eq!(request["operation"], "bridge.describe");
+            send(
+                &mut stream,
+                json!({"protocol":1,"id":request["id"],"status":"ok","result":{"protocol":1,"catalogHash":CATALOG_HASH,"operations":[],"nativeOperations":native}}),
+            );
+        });
+        let output = harness.command(
+            project.parent().unwrap(),
+            &[
+                "--project",
+                project.to_str().unwrap(),
+                "capability",
+                "describe",
+                "blueprint.compile",
+                "--format",
+                "json",
+            ],
+        );
+        worker.join().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let output = json_output(&output);
+        assert_eq!(output["runtime"]["availability"], "unavailable");
+        assert_eq!(output["runtime"]["reasons"][0]["code"], "missing_module");
+    }
+
+    #[test]
+    fn p10_failed_compile_receipt_renders_and_recovers_offline() {
+        let harness = Harness::new();
+        let project = harness.project("P10CompileFailure", json!({}));
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let pid = std::process::id();
+        let process_start = process_start(pid);
+        let session = install_record(
+            &harness,
+            &project,
+            pid,
+            &process_start,
+            json!({"port":listener.local_addr().unwrap().port()}),
+            TOKEN,
+        );
+        let project_id = format!(
+            "sha256:{:x}",
+            Sha256::digest(project.canonicalize().unwrap().to_str().unwrap().as_bytes())
+        );
+        let before = "a".repeat(64);
+        let before_server = before.clone();
+        let target = "/Game/BP.BP";
+        let worker = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            assert_eq!(frame(&mut stream)["token"], TOKEN);
+            send(
+                &mut stream,
+                json!({"protocol":1,"status":"ok","pluginVersion":VERSION,"pid":pid,"processStart":process_start,"sessionNonce":"abcdef0123456789abcdef0123456789","catalogHash":CATALOG_HASH}),
+            );
+            let request = frame(&mut stream);
+            assert_eq!(request["operation"], "blueprint.compile");
+            assert_eq!(request["expectedRevision"], before_server);
+            let operation_id = request["id"].as_str().unwrap();
+            let diagnostics = json!([{"severity":"error","message":"invalid graph","graph":"/Game/BP.BP:Graph","nodeGuid":"00000000-0000-0000-0000-000000000001","nodeTitle":"Broken"}]);
+            let receipt = json!({
+                "operationId":operation_id,"operation":"blueprint.compile","state":"failed",
+                "projectId":project_id,"editorPid":pid,"target":target,"changed":false,
+                "transaction":"non-atomic","reversibility":"source-control",
+                "dirtyPackages":["/Game/BP"],"savedPackages":[],"revision":before_server,"persistence":"dirty",
+                "verification":{"readback":"blueprint.view","target":target,"matched":true,
+                    "beforeRevision":before_server,"observedRevision":before_server,"observedStatus":"error",
+                    "failureType":"blueprint_compile_failed","errorCount":1,"warningCount":0,
+                    "diagnostics":diagnostics,"changedObjects":[]}
+            });
+            send(
+                &mut stream,
+                json!({"protocol":1,"id":operation_id,"status":"error",
+                "error":{"type":"blueprint_compile_failed","message":"Blueprint compile failed","retryable":false,
+                    "dirtyPackageCount":1,"dirtyPackages":["/Game/BP"],"errorCount":1,"warningCount":0,"diagnostics":diagnostics},
+                "receipt":receipt}),
+            );
+        });
+        let project_text = project.to_str().unwrap();
+        let output = harness.command(
+            project.parent().unwrap(),
+            &[
+                "--project",
+                project_text,
+                "blueprint",
+                "compile",
+                target,
+                "--expected-revision",
+                &before,
+                "--format",
+                "json",
+            ],
+        );
+        worker.join().unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        let output = json_output(&output);
+        assert_eq!(output["error"]["reason"], "blueprint_compile_failed");
+        assert_eq!(output["error"]["retryable"], false);
+        let receipt = &output["error"]["receipt"];
+        assert_eq!(receipt["state"], "failed");
+        assert_eq!(receipt["transaction"], "non-atomic");
+        assert_eq!(receipt["persistence"], "dirty");
+        assert_eq!(receipt["savedPackages"], json!([]));
+        assert_eq!(receipt["dirtyPackages"], json!(["/Game/BP"]));
+        assert_eq!(receipt["revision"], before);
+        assert_eq!(receipt["verification"]["beforeRevision"], before);
+        assert_eq!(receipt["verification"]["observedRevision"], before);
+        assert_eq!(receipt["verification"]["observedStatus"], "error");
+        assert_eq!(receipt["verification"]["changedObjects"], json!([]));
+        assert_eq!(
+            receipt["verification"]["diagnostics"][0]["severity"],
+            "error"
+        );
+        assert_eq!(
+            receipt["verification"]["failureType"],
+            "blueprint_compile_failed"
+        );
+        let operation_id = output["error"]["operationId"].as_str().unwrap();
+        fs::remove_dir_all(session).unwrap();
+        let lookup = harness.command(
+            project.parent().unwrap(),
+            &[
+                "--project",
+                project_text,
+                "operation",
+                "view",
+                operation_id,
+                "--format",
+                "json",
+            ],
+        );
+        assert!(
+            lookup.status.success(),
+            "{}",
+            String::from_utf8_lossy(&lookup.stdout)
+        );
+        assert_eq!(json_output(&lookup), output["error"]["receipt"]);
     }
 }
 use serde_json::{Value, json};

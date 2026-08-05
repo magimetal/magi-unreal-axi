@@ -201,7 +201,69 @@ constexpr int32 MaxLedgerRecords = 1024;
 constexpr double LedgerTtlSeconds = 24.0 * 60.0 * 60.0;
 bool IsMutationOperation(const FString& Operation)
 {
-    return Operation == TEXT("actor.spawn") || Operation == TEXT("actor.update_transform") || Operation == TEXT("actor.delete") || Operation == TEXT("component.add") || Operation == TEXT("component.update") || Operation == TEXT("component.remove") || Operation == TEXT("level.create") || Operation == TEXT("level.open") || Operation == TEXT("level.save") || Operation == TEXT("level.set_game_mode") || Operation == TEXT("asset.create_input_action") || Operation == TEXT("asset.create_input_mapping_context") || Operation == TEXT("asset.save") || Operation == TEXT("blueprint.compile") || Operation == TEXT("play.start") || Operation == TEXT("play.input") || Operation == TEXT("play.screenshot") || Operation == TEXT("play.stop");
+    const FMagiAxiCapabilityMetadata* Metadata = MagiAxiFindCapabilityMetadata(Operation);
+    return Metadata && Metadata->Mutates;
+}
+const FMagiAxiCapabilityMetadata* CapabilityMetadata(const FString& Operation)
+{
+    return MagiAxiFindCapabilityMetadata(Operation);
+}
+TArray<FString> MetadataTargetFields(const FMagiAxiCapabilityMetadata& Metadata)
+{
+    TArray<FString> Fields;
+    FString(Metadata.TargetFields).ParseIntoArray(Fields, TEXT("|"), true);
+    return Fields;
+}
+FString MetadataTarget(const FString& Operation, const TSharedRef<FJsonObject>& Result)
+{
+    const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(Operation);
+    if (!Metadata) return Operation;
+    TArray<FString> Values;
+    for (const FString& Field : MetadataTargetFields(*Metadata))
+    {
+        FString Value;
+        if (Result->TryGetStringField(*Field, Value) && !Value.IsEmpty()) Values.Add(Value);
+    }
+    return Values.IsEmpty() ? Operation : FString::Join(Values, TEXT("#"));
+}
+bool MetadataModulesLoaded(const FMagiAxiCapabilityMetadata& Metadata, TArray<FString>& Reasons)
+{
+    TArray<FString> Modules;
+    FString(Metadata.RequiredModules).ParseIntoArray(Modules, TEXT("|"), true);
+    for (const FString& Module : Modules)
+        if (!FModuleManager::Get().IsModuleLoaded(FName(*Module))) Reasons.Add(TEXT("missing_module:") + Module);
+    return Reasons.IsEmpty();
+}
+bool MetadataEditorStateAllowed(const FMagiAxiCapabilityMetadata& Metadata, TArray<FString>& Reasons)
+{
+    const bool Playing = GEditor && (GEditor->PlayWorld || GEditor->IsPlaySessionInProgress());
+    const FString State = Playing ? TEXT("playing") : TEXT("editing");
+    TArray<FString> Allowed;
+    FString(Metadata.AllowedEditorStates).ParseIntoArray(Allowed, TEXT("|"), true);
+    if (!Allowed.Contains(State)) Reasons.Add(TEXT("editor_state:") + State);
+    return Allowed.Contains(State);
+}
+bool NativePreflight(const FString& Operation, const TSharedPtr<FJsonObject>& Args, FString& ErrorType, FString& Error)
+{
+    const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(Operation);
+    if (!Metadata) return true;
+    TArray<FString> Reasons;
+    if (!MetadataModulesLoaded(*Metadata, Reasons))
+    {
+        Reasons.Sort(); ErrorType = TEXT("unsupported"); Error = FString::Join(Reasons, TEXT("; ")); return false;
+    }
+    if (!MetadataEditorStateAllowed(*Metadata, Reasons))
+    {
+        Reasons.Sort(); ErrorType = TEXT("unsafe_editor_state"); Error = FString::Join(Reasons, TEXT("; ")); return false;
+    }
+    bool DryRun = false;
+    bool Force = false;
+    if (Args.IsValid()) { Args->TryGetBoolField(TEXT("dryRun"), DryRun); Args->TryGetBoolField(TEXT("force"), Force); }
+    if (Metadata->Destructive && !DryRun && !Force)
+    {
+        ErrorType = TEXT("invalid_input"); Error = TEXT("destructive operation requires dryRun or force"); return false;
+    }
+    return true;
 }
 bool IsPlayOperation(const FString& Operation)
 {
@@ -725,10 +787,25 @@ bool MutationGate(FString& Message)
     }
     return true;
 }
+bool ValidateSaveBehavior(const FString& Operation, const TSharedRef<FJsonObject>& Result)
+{
+    const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(Operation);
+    if (!Metadata) return false;
+    const TArray<TSharedPtr<FJsonValue>>* Dirty = nullptr;
+    const TArray<TSharedPtr<FJsonValue>>* Saved = nullptr;
+    Result->TryGetArrayField(TEXT("dirtyPackages"), Dirty);
+    Result->TryGetArrayField(TEXT("savedPackages"), Saved);
+    const bool HasDirty = Dirty && !Dirty->IsEmpty();
+    const bool HasSaved = Saved && !Saved->IsEmpty();
+    if (FCString::Strcmp(Metadata->SaveBehavior, TEXT("none")) == 0) return !HasDirty && !HasSaved;
+    if (FCString::Strcmp(Metadata->SaveBehavior, TEXT("dirty-only")) == 0) return !HasSaved;
+    return FCString::Strcmp(Metadata->SaveBehavior, TEXT("explicit")) == 0;
+}
+
 TSharedRef<FJsonObject> BuildReceiptMetadata(const FString& Id, const FString& Operation, const TSharedRef<FJsonObject>& Result, const TSharedRef<FJsonObject>& Verification, const FString& Target)
 {
-    bool Changed = false;
-    Result->TryGetBoolField(TEXT("changed"), Changed);
+    const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(Operation);
+    const bool Changed = Result->GetBoolField(TEXT("changed"));
     const TArray<TSharedPtr<FJsonValue>>* Dirty = nullptr;
     const TArray<TSharedPtr<FJsonValue>>* Saved = nullptr;
     Result->TryGetArrayField(TEXT("dirtyPackages"), Dirty);
@@ -741,15 +818,19 @@ TSharedRef<FJsonObject> BuildReceiptMetadata(const FString& Id, const FString& O
     Receipt->SetNumberField(TEXT("editorPid"), FPlatformProcess::GetCurrentProcessId());
     Receipt->SetStringField(TEXT("target"), Target);
     Receipt->SetBoolField(TEXT("changed"), Changed);
-    Receipt->SetStringField(TEXT("transaction"), (Operation == TEXT("play.start") || Operation == TEXT("play.stop")) ? TEXT("atomic") : Operation.StartsWith(TEXT("play.")) ? TEXT("none") : Changed ? TEXT("atomic") : TEXT("none"));
-    Receipt->SetStringField(TEXT("reversibility"), Operation.StartsWith(TEXT("play.")) ? TEXT("none") : Operation == TEXT("actor.delete") || Operation == TEXT("component.remove") ? TEXT("destructive") : TEXT("source-control"));
+    Receipt->SetStringField(TEXT("transaction"), Metadata && Changed ? Metadata->TransactionBehavior : TEXT("none"));
+    Receipt->SetStringField(TEXT("reversibility"), Metadata ? Metadata->Reversibility : TEXT("unknown"));
     Receipt->SetArrayField(TEXT("dirtyPackages"), Dirty ? *Dirty : TArray<TSharedPtr<FJsonValue>>{});
     Receipt->SetArrayField(TEXT("savedPackages"), Saved ? *Saved : TArray<TSharedPtr<FJsonValue>>{});
     FString Revision;
     Result->TryGetStringField(TEXT("revision"), Revision);
     Receipt->SetStringField(TEXT("revision"), Revision.IsEmpty() ? Sha256(Id) : Revision);
-    if (Operation == TEXT("actor.delete") || Operation == TEXT("component.remove")) Verification->SetBoolField(TEXT("exists"), !Changed);
-    Receipt->SetStringField(TEXT("persistence"), Operation == TEXT("play.screenshot") ? TEXT("saved") : Saved && !Saved->IsEmpty() ? TEXT("saved") : Dirty && !Dirty->IsEmpty() ? TEXT("dirty") : TEXT("unchanged"));
+    if (Operation == TEXT("play.screenshot") || (Saved && !Saved->IsEmpty())) Receipt->SetStringField(TEXT("persistence"), TEXT("saved"));
+    else if (Dirty && !Dirty->IsEmpty()) Receipt->SetStringField(TEXT("persistence"), TEXT("dirty"));
+    else Receipt->SetStringField(TEXT("persistence"), TEXT("unchanged"));
+    Verification->SetStringField(TEXT("readback"), Metadata ? Metadata->Readback : TEXT(""));
+    if (Metadata && Metadata->Destructive) Verification->SetBoolField(TEXT("exists"), !Changed);
+    Verification->SetStringField(TEXT("target"), Target);
     Receipt->SetObjectField(TEXT("verification"), Verification);
     return Receipt;
 }
@@ -771,15 +852,12 @@ FString SuccessResponse(const FString& Id, const TSharedRef<FJsonObject>& Result
     Response->SetObjectField(TEXT("result"), Result);
     if (IsMutationOperation(Operation))
     {
-        FString Target = Operation;
-        if (!Result->TryGetStringField(TEXT("id"), Target))
-        {
-            if (!Result->TryGetStringField(TEXT("level"), Target)) Result->TryGetStringField(TEXT("levelId"), Target);
-        }
-        if (Operation.StartsWith(TEXT("play."))) Result->TryGetStringField(Operation == TEXT("play.screenshot") ? TEXT("path") : TEXT("sessionId"), Target);
-        FString Readback = Operation.StartsWith(TEXT("actor.")) ? TEXT("actor.view") : Operation.StartsWith(TEXT("component.")) ? TEXT("component.view") : Operation.StartsWith(TEXT("asset.")) ? TEXT("asset.view") : Operation.StartsWith(TEXT("blueprint.")) ? TEXT("blueprint.view") : Operation == TEXT("level.set_game_mode") ? TEXT("level.settings") : Operation == TEXT("play.input") ? TEXT("play.observe") : Operation == TEXT("play.screenshot") ? TEXT("artifact") : Operation.StartsWith(TEXT("play.")) ? TEXT("play.status") : TEXT("level.current");
+        FString Target = MetadataTarget(Operation, Result);
+        const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(Operation);
         const TSharedRef<FJsonObject> Verification = MakeShared<FJsonObject>();
-        Verification->SetStringField(TEXT("readback"), Readback); Verification->SetStringField(TEXT("target"), Target);
+        Verification->SetStringField(TEXT("readback"), Metadata ? Metadata->Readback : TEXT(""));
+        if (!ValidateSaveBehavior(Operation, Result)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("native result violates catalog saveBehavior"));
+        Verification->SetStringField(TEXT("target"), Target);
         if (!VerifyMutationPostcondition(Operation, Result, Target, Verification)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("mutation postcondition verification failed"));
         bool Matched = true;
         if (Operation == TEXT("play.input"))
@@ -839,39 +917,106 @@ FString BlueprintStatus(const UBlueprint& Blueprint)
     if (Blueprint.Status == BS_UpToDateWithWarnings) return TEXT("warning");
     return TEXT("dirty");
 }
+FString PercentEncodePinName(const FName& Name)
+{
+    FTCHARToUTF8 Utf8(*Name.ToString());
+    FString Encoded;
+    static constexpr TCHAR Hex[] = TEXT("0123456789ABCDEF");
+    for (int32 Index = 0; Index < Utf8.Length(); ++Index)
+    {
+        const uint8 Byte = static_cast<uint8>(Utf8.Get()[Index]);
+        if ((Byte >= 'a' && Byte <= 'z') || (Byte >= 'A' && Byte <= 'Z') || (Byte >= '0' && Byte <= '9') || Byte == '-' || Byte == '_' || Byte == '.' || Byte == '~') Encoded.AppendChar(static_cast<TCHAR>(Byte));
+        else { Encoded.AppendChar('%'); Encoded.AppendChar(Hex[Byte >> 4]); Encoded.AppendChar(Hex[Byte & 0x0f]); }
+    }
+    return Encoded;
+}
+FString CanonicalGuid(const FGuid& Guid)
+{
+    return Guid.IsValid() ? Guid.ToString(EGuidFormats::DigitsWithHyphens).ToLower() : FString();
+}
+FString BlueprintGraphKind(const UBlueprint& Blueprint, const UEdGraph& Graph);
+FString BlueprintGraphIdentity(const UBlueprint& Blueprint, const UEdGraph& Graph)
+{
+    const FString Guid = CanonicalGuid(Graph.GraphGuid);
+    return Guid.IsEmpty() ? FString() : Blueprint.GetPathName() + TEXT("#graph:") + BlueprintGraphKind(Blueprint, Graph) + TEXT(":") + Guid;
+}
+FString BlueprintNodeIdentity(const FString& GraphIdentity, const UEdGraphNode& Node)
+{
+    const FString Guid = CanonicalGuid(Node.NodeGuid);
+    return GraphIdentity.IsEmpty() || Guid.IsEmpty() ? FString() : GraphIdentity + TEXT("#node:") + Guid;
+}
+FString BlueprintPinIdentity(const FString& NodeIdentity, const UEdGraphPin& Pin)
+{
+    if (NodeIdentity.IsEmpty() || Pin.PinName.IsNone()) return FString();
+    const TCHAR* Direction = Pin.Direction == EGPD_Input ? TEXT("input:") : Pin.Direction == EGPD_Output ? TEXT("output:") : nullptr;
+    return Direction ? NodeIdentity + TEXT("#pin:") + Direction + PercentEncodePinName(Pin.PinName) : FString();
+}
+FString BlueprintSCSIdentity(const UBlueprint& Blueprint, const USCS_Node& Node)
+{
+    const FString Guid = CanonicalGuid(Node.VariableGuid);
+    return Guid.IsEmpty() ? FString() : Blueprint.GetPathName() + TEXT("#scs:") + Guid;
+}
+FString BlueprintGraphKind(const UBlueprint& Blueprint, const UEdGraph& Graph)
+{
+    for (const FBPInterfaceDescription& Interface : Blueprint.ImplementedInterfaces)
+        if (Interface.Graphs.Contains(const_cast<UEdGraph*>(&Graph))) return TEXT("interface");
+    if (Blueprint.UbergraphPages.Contains(const_cast<UEdGraph*>(&Graph))) return TEXT("ubergraph");
+    if (Blueprint.FunctionGraphs.Contains(const_cast<UEdGraph*>(&Graph))) return TEXT("function");
+    if (Blueprint.MacroGraphs.Contains(const_cast<UEdGraph*>(&Graph))) return TEXT("macro");
+    if (Blueprint.DelegateSignatureGraphs.Contains(const_cast<UEdGraph*>(&Graph))) return TEXT("delegate_signature");
+    return TEXT("other");
+}
 FString BlueprintContentRevision(const UBlueprint& Blueprint)
 {
     TArray<UEdGraph*> Graphs;
     Blueprint.GetAllGraphs(Graphs);
-    Graphs.Sort([](const UEdGraph& Left, const UEdGraph& Right) { return Left.GetPathName() < Right.GetPathName(); });
-    FString Revision = Sha256(CanonicalRow({Blueprint.GetPathName(), Blueprint.ParentClass ? Blueprint.ParentClass->GetPathName() : FString()}));
+    for (const UEdGraph* Graph : Graphs) if (Graph && BlueprintGraphIdentity(Blueprint, *Graph).IsEmpty()) return FString();
+    Graphs.Sort([&Blueprint](const UEdGraph& Left, const UEdGraph& Right) { return BlueprintGraphIdentity(Blueprint, Left) < BlueprintGraphIdentity(Blueprint, Right); });
+    const FString BlueprintPath = Blueprint.GetPathName();
+    if (BlueprintPath.IsEmpty()) return FString();
+    FString Revision = Sha256(CanonicalRow({BlueprintPath, Blueprint.ParentClass ? Blueprint.ParentClass->GetPathName() : FString()}));
     for (const UEdGraph* Graph : Graphs)
     {
         if (!Graph) continue;
-        Revision = ExtendRevision(Revision, {TEXT("graph"), Graph->GetPathName()});
+        const FString GraphIdentity = BlueprintGraphIdentity(Blueprint, *Graph);
+        Revision = ExtendRevision(Revision, {TEXT("graph"), GraphIdentity, Graph->GetName()});
         TArray<const UEdGraphNode*> Nodes;
         for (const UEdGraphNode* Node : Graph->Nodes) if (Node) Nodes.Add(Node);
-        Nodes.Sort([](const UEdGraphNode& Left, const UEdGraphNode& Right) { return Left.NodeGuid.ToString() < Right.NodeGuid.ToString(); });
+        Nodes.Sort([&GraphIdentity](const UEdGraphNode& Left, const UEdGraphNode& Right) { return BlueprintNodeIdentity(GraphIdentity, Left) < BlueprintNodeIdentity(GraphIdentity, Right); });
         for (const UEdGraphNode* Node : Nodes)
         {
-            Revision = ExtendRevision(Revision, {TEXT("node"), Node->NodeGuid.ToString(), Node->GetClass()->GetPathName(), Node->GetNodeTitle(ENodeTitleType::ListView).ToString(), FString::FromInt(Node->NodePosX), FString::FromInt(Node->NodePosY)});
+            const FString NodeIdentity = BlueprintNodeIdentity(GraphIdentity, *Node);
+            if (NodeIdentity.IsEmpty()) return FString();
+            Revision = ExtendRevision(Revision, {TEXT("node"), NodeIdentity, Node->GetClass()->GetPathName(), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString(), Node->NodeComment, LexToString(Node->GetDesiredEnabledState()), FString::FromInt(Node->NodePosX), FString::FromInt(Node->NodePosY)});
             TArray<const UEdGraphPin*> Pins;
             for (const UEdGraphPin* Pin : Node->Pins) if (Pin) Pins.Add(Pin);
-            Pins.Sort([](const UEdGraphPin& Left, const UEdGraphPin& Right) { return Left.PinId.ToString() < Right.PinId.ToString(); });
+            Pins.Sort([&NodeIdentity](const UEdGraphPin& Left, const UEdGraphPin& Right) { return BlueprintPinIdentity(NodeIdentity, Left) < BlueprintPinIdentity(NodeIdentity, Right); });
             for (const UEdGraphPin* Pin : Pins)
             {
                 const FEdGraphPinType& Type = Pin->PinType;
                 const UObject* SubCategoryObject = Type.PinSubCategoryObject.Get();
-                Revision = ExtendRevision(Revision, {TEXT("pin"), Pin->PinId.ToString(), Pin->PinName.ToString(), FString::FromInt(static_cast<int32>(Pin->Direction)), Type.PinCategory.ToString(), Type.PinSubCategory.ToString(), SubCategoryObject ? SubCategoryObject->GetPathName() : FString(), FString::FromInt(static_cast<int32>(Type.ContainerType)), Type.bIsReference ? TEXT("reference") : FString(), Type.bIsConst ? TEXT("const") : FString(), Pin->DefaultValue, Pin->DefaultObject ? Pin->DefaultObject->GetPathName() : FString(), Pin->DefaultTextValue.ToString()});
+                const FString PinIdentity = BlueprintPinIdentity(NodeIdentity, *Pin);
+                if (PinIdentity.IsEmpty()) return FString();
+                Revision = ExtendRevision(Revision, {TEXT("pin"), PinIdentity, Pin->PinName.ToString(), FString::FromInt(static_cast<int32>(Pin->Direction)), Type.PinCategory.ToString(), Type.PinSubCategory.ToString(), SubCategoryObject ? SubCategoryObject->GetPathName() : FString(), FString::FromInt(static_cast<int32>(Type.ContainerType)), Type.bIsReference ? TEXT("reference") : FString(), Type.bIsConst ? TEXT("const") : FString(), Pin->DefaultValue, Pin->DefaultObject ? Pin->DefaultObject->GetPathName() : FString(), Pin->DefaultTextValue.ToString()});
                 TArray<const UEdGraphPin*> Links;
                 for (const UEdGraphPin* Link : Pin->LinkedTo) if (Link && Link->GetOwningNode()) Links.Add(Link);
-                Links.Sort([](const UEdGraphPin& Left, const UEdGraphPin& Right) { const FString LeftKey = Left.GetOwningNode()->NodeGuid.ToString() + Left.PinId.ToString(); const FString RightKey = Right.GetOwningNode()->NodeGuid.ToString() + Right.PinId.ToString(); return LeftKey < RightKey; });
-                for (const UEdGraphPin* Link : Links) Revision = ExtendRevision(Revision, {TEXT("link"), Link->GetOwningNode()->NodeGuid.ToString(), Link->PinId.ToString()});
+                auto LinkIdentity = [&GraphIdentity](const UEdGraphPin& Candidate) { return BlueprintPinIdentity(BlueprintNodeIdentity(GraphIdentity, *Candidate.GetOwningNode()), Candidate); };
+                Links.Sort([&LinkIdentity](const UEdGraphPin& Left, const UEdGraphPin& Right) { return LinkIdentity(Left) < LinkIdentity(Right); });
+                for (const UEdGraphPin* Link : Links)
+                {
+                    const FString Identity = LinkIdentity(*Link);
+                    if (Identity.IsEmpty()) return FString();
+                    Revision = ExtendRevision(Revision, {TEXT("link"), Identity});
+                }
             }
         }
     }
     TArray<const FBPVariableDescription*> Variables;
-    for (const FBPVariableDescription& Variable : Blueprint.NewVariables) Variables.Add(&Variable);
+    for (const FBPVariableDescription& Variable : Blueprint.NewVariables)
+    {
+        if (!Variable.VarGuid.IsValid()) return FString();
+        Variables.Add(&Variable);
+    }
     Variables.Sort([](const FBPVariableDescription& Left, const FBPVariableDescription& Right) { return Left.VarGuid.ToString() < Right.VarGuid.ToString(); });
     for (const FBPVariableDescription* Variable : Variables)
     {
@@ -889,18 +1034,24 @@ FString BlueprintContentRevision(const UBlueprint& Blueprint)
     {
         Revision = ExtendRevision(Revision, {TEXT("interface"), Interface->Interface ? Interface->Interface->GetPathName() : FString()});
         TArray<UEdGraph*> InterfaceGraphs = Interface->Graphs;
-        InterfaceGraphs.Sort([](const UEdGraph& Left, const UEdGraph& Right) { return Left.GetPathName() < Right.GetPathName(); });
-        for (const UEdGraph* Graph : InterfaceGraphs) if (Graph) Revision = ExtendRevision(Revision, {TEXT("interfaceGraph"), Graph->GetPathName()});
+        InterfaceGraphs.Sort([&Blueprint](const UEdGraph& Left, const UEdGraph& Right) { return BlueprintGraphIdentity(Blueprint, Left) < BlueprintGraphIdentity(Blueprint, Right); });
+        for (const UEdGraph* Graph : InterfaceGraphs) if (Graph)
+        {
+            const FString Identity = BlueprintGraphIdentity(Blueprint, *Graph);
+            if (Identity.IsEmpty()) return FString();
+            Revision = ExtendRevision(Revision, {TEXT("interfaceGraph"), Identity});
+        }
     }
     if (Blueprint.SimpleConstructionScript)
     {
         TArray<USCS_Node*> Components = Blueprint.SimpleConstructionScript->GetAllNodes();
         Components.RemoveAll([](const USCS_Node* Node) { return Node == nullptr; });
-        Components.Sort([](const USCS_Node& Left, const USCS_Node& Right) { return Left.VariableGuid.ToString() < Right.VariableGuid.ToString(); });
+        for (const USCS_Node* Node : Components) if (BlueprintSCSIdentity(Blueprint, *Node).IsEmpty()) return FString();
+        Components.Sort([&Blueprint](const USCS_Node& Left, const USCS_Node& Right) { return BlueprintSCSIdentity(Blueprint, Left) < BlueprintSCSIdentity(Blueprint, Right); });
         for (const USCS_Node* Node : Components)
         {
             const USceneComponent* Scene = Cast<USceneComponent>(Node->ComponentTemplate);
-            Revision = ExtendRevision(Revision, {TEXT("component"), Node->VariableGuid.ToString(), Node->GetVariableName().ToString(), Node->ComponentClass ? Node->ComponentClass->GetPathName() : FString(), Node->ParentComponentOrVariableName.ToString(), Node->AttachToName.ToString(), Scene ? CanonicalTransform(Scene->GetRelativeTransform()) : FString()});
+            Revision = ExtendRevision(Revision, {TEXT("component"), BlueprintSCSIdentity(Blueprint, *Node), Node->GetVariableName().ToString(), Node->ComponentClass ? Node->ComponentClass->GetPathName() : FString(), Node->ParentComponentOrVariableName.ToString(), Node->AttachToName.ToString(), Scene ? CanonicalTransform(Scene->GetRelativeTransform()) : FString()});
         }
     }
     return Revision;
@@ -1039,19 +1190,27 @@ TArray<TSharedPtr<FJsonValue>> BlueprintDiagnostics(const UBlueprint& Blueprint,
     return Diagnostics;
 }
 
-FString BlueprintCompileErrorResponse(const FString& Id, const UBlueprint& Blueprint, const FCompilerResultsLog& Results)
+FString BlueprintCompileErrorResponse(const FString& Id, const UBlueprint& Blueprint, const FCompilerResultsLog& Results, const FString& BeforeRevision)
 {
     TArray<TSharedPtr<FJsonValue>> Diagnostics = BlueprintDiagnostics(Blueprint, Results);
     if (Diagnostics.IsEmpty()) { const TSharedRef<FJsonObject> Diagnostic = MakeShared<FJsonObject>(); Diagnostic->SetStringField(TEXT("severity"), TEXT("error")); Diagnostic->SetStringField(TEXT("message"), TEXT("Blueprint compile failed")); Diagnostic->SetStringField(TEXT("graph"), Blueprint.GetPathName()); Diagnostic->SetStringField(TEXT("nodeGuid"), TEXT("")); Diagnostic->SetStringField(TEXT("nodeTitle"), TEXT("")); Diagnostics.Add(MakeShared<FJsonValueObject>(Diagnostic)); }
-    const TSharedRef<FJsonObject> Error = MakeShared<FJsonObject>(); Error->SetStringField(TEXT("type"), TEXT("blueprint_compile_failed")); Error->SetStringField(TEXT("message"), TEXT("Blueprint compile failed")); Error->SetBoolField(TEXT("retryable"), false); Error->SetNumberField(TEXT("errorCount"), FMath::Clamp(Results.NumErrors, 1, 100)); Error->SetNumberField(TEXT("warningCount"), FMath::Clamp(Results.NumWarnings, 0, 100)); Error->SetArrayField(TEXT("diagnostics"), Diagnostics);
-    const TSharedRef<FJsonObject> Response = MakeShared<FJsonObject>(); Response->SetNumberField(TEXT("protocol"), ProtocolVersion); Response->SetStringField(TEXT("id"), Id); Response->SetStringField(TEXT("status"), TEXT("error")); Response->SetObjectField(TEXT("error"), Error); return Serialize(Response);
+    const FString ObservedRevision = BlueprintContentRevision(Blueprint);
+    const bool Changed = BeforeRevision != ObservedRevision;
+    const TArray<TSharedPtr<FJsonValue>> ChangedObjects = Changed ? TArray<TSharedPtr<FJsonValue>>{MakeShared<FJsonValueString>(Blueprint.GetPathName())} : TArray<TSharedPtr<FJsonValue>>{};
+    const TArray<TSharedPtr<FJsonValue>> DirtyPackages = Blueprint.GetOutermost() && Blueprint.GetOutermost()->IsDirty() ? TArray<TSharedPtr<FJsonValue>>{MakeShared<FJsonValueString>(Blueprint.GetOutermost()->GetName())} : TArray<TSharedPtr<FJsonValue>>{};
+    const int32 ErrorCount = FMath::Clamp(Results.NumErrors, 1, 100);
+    const int32 WarningCount = FMath::Clamp(Results.NumWarnings, 0, 100);
+    const TSharedRef<FJsonObject> Error = MakeShared<FJsonObject>(); Error->SetStringField(TEXT("type"), TEXT("blueprint_compile_failed")); Error->SetStringField(TEXT("message"), TEXT("Blueprint compile failed")); Error->SetBoolField(TEXT("retryable"), false); Error->SetNumberField(TEXT("dirtyPackageCount"), DirtyPackages.Num()); Error->SetArrayField(TEXT("dirtyPackages"), DirtyPackages); Error->SetNumberField(TEXT("errorCount"), ErrorCount); Error->SetNumberField(TEXT("warningCount"), WarningCount); Error->SetArrayField(TEXT("diagnostics"), Diagnostics);
+    const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(TEXT("blueprint.compile"));
+    const TSharedRef<FJsonObject> Verification = MakeShared<FJsonObject>(); Verification->SetStringField(TEXT("readback"), Metadata ? Metadata->Readback : TEXT("")); Verification->SetStringField(TEXT("target"), Blueprint.GetPathName()); Verification->SetBoolField(TEXT("matched"), BlueprintStatus(Blueprint) == TEXT("error")); Verification->SetStringField(TEXT("beforeRevision"), BeforeRevision); Verification->SetStringField(TEXT("observedRevision"), ObservedRevision); Verification->SetStringField(TEXT("observedStatus"), TEXT("error")); Verification->SetStringField(TEXT("failureType"), TEXT("blueprint_compile_failed")); Verification->SetNumberField(TEXT("errorCount"), ErrorCount); Verification->SetNumberField(TEXT("warningCount"), WarningCount); Verification->SetArrayField(TEXT("diagnostics"), Diagnostics); Verification->SetArrayField(TEXT("changedObjects"), ChangedObjects);
+    const TSharedRef<FJsonObject> Receipt = MakeShared<FJsonObject>(); Receipt->SetStringField(TEXT("operationId"), Id); Receipt->SetStringField(TEXT("operation"), TEXT("blueprint.compile")); Receipt->SetStringField(TEXT("state"), TEXT("failed")); Receipt->SetStringField(TEXT("projectId"), ProjectId); Receipt->SetNumberField(TEXT("editorPid"), FPlatformProcess::GetCurrentProcessId()); Receipt->SetStringField(TEXT("target"), Blueprint.GetPathName()); Receipt->SetBoolField(TEXT("changed"), Changed); Receipt->SetStringField(TEXT("transaction"), Metadata ? Metadata->TransactionBehavior : TEXT("non-atomic")); Receipt->SetStringField(TEXT("reversibility"), Metadata ? Metadata->Reversibility : TEXT("source-control")); Receipt->SetArrayField(TEXT("dirtyPackages"), DirtyPackages); Receipt->SetArrayField(TEXT("savedPackages"), {}); Receipt->SetStringField(TEXT("revision"), ObservedRevision); Receipt->SetStringField(TEXT("persistence"), DirtyPackages.IsEmpty() ? TEXT("unchanged") : TEXT("dirty")); Receipt->SetObjectField(TEXT("verification"), Verification);
+    if (!MagiAxiValidateOutput(TEXT("operation.view"), Receipt)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("failed mutation receipt violates generated operation.view schema"));
+    const TSharedRef<FJsonObject> Response = MakeShared<FJsonObject>(); Response->SetNumberField(TEXT("protocol"), ProtocolVersion); Response->SetStringField(TEXT("id"), Id); Response->SetStringField(TEXT("status"), TEXT("error")); Response->SetObjectField(TEXT("error"), Error); Response->SetObjectField(TEXT("receipt"), Receipt); return Serialize(Response);
 }
-
 void SetIfSelected(const TSharedRef<FJsonObject>& Object, const TSet<FString>& Fields, const TCHAR* Name, const FString& Value)
 {
     if (FCString::Strcmp(Name, TEXT("id")) == 0 || Fields.IsEmpty() || Fields.Contains(Name)) Object->SetStringField(Name, Value);
 }
-
 FString ComponentId(const AActor& Actor, const UActorComponent& Component)
 {
     return ActorId(Actor) + TEXT("#component:") + Component.GetName();
@@ -1189,9 +1348,55 @@ TSharedRef<FJsonObject> LevelSettingsResult(const UWorld& World)
     const AWorldSettings* Settings = World.GetWorldSettings(); const UClass* GameMode = Settings ? Settings->DefaultGameMode.Get() : nullptr; const UClass* Pawn = GameMode && GameMode->GetDefaultObject<AGameModeBase>() ? GameMode->GetDefaultObject<AGameModeBase>()->DefaultPawnClass : nullptr;
     const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("levelId"), World.GetOutermost()->GetName()); Result->SetStringField(TEXT("gameModeClass"), GameMode ? GameMode->GetPathName() : FString()); Result->SetStringField(TEXT("defaultPawnClass"), Pawn ? Pawn->GetPathName() : FString()); Result->SetStringField(TEXT("revision"), LevelSettingsRevision(World)); return Result;
 }
+TSharedRef<FJsonObject> BridgeDescribeResultOnGameThread()
+{
+    check(IsInGameThread());
+    const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetNumberField(TEXT("protocol"), ProtocolVersion);
+    Result->SetStringField(TEXT("catalogHash"), MAGI_AXI_CATALOG_HASH);
+    Result->SetArrayField(TEXT("operations"), GeneratedPublicOperations());
+    TArray<TSharedPtr<FJsonValue>> Availability;
+    TArray<FString> NativeNames;
+    #define MAGI_AXI_ADD_NATIVE_NAME(Name) NativeNames.Add(Name);
+    MAGI_AXI_NATIVE_CAPABILITIES(MAGI_AXI_ADD_NATIVE_NAME)
+    #undef MAGI_AXI_ADD_NATIVE_NAME
+    NativeNames.Sort();
+    for (const FString& NativeOperation : NativeNames)
+    {
+        const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(NativeOperation);
+        TArray<FString> Reasons;
+        if (Metadata) { MetadataModulesLoaded(*Metadata, Reasons); MetadataEditorStateAllowed(*Metadata, Reasons); }
+        Reasons.Sort();
+        const TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+        Entry->SetStringField(TEXT("operation"), NativeOperation);
+        Entry->SetStringField(TEXT("availability"), Reasons.IsEmpty() ? TEXT("available") : TEXT("unavailable"));
+        TArray<TSharedPtr<FJsonValue>> ReasonValues;
+        for (const FString& Reason : Reasons)
+        {
+            FString Code, Subject;
+            Reason.Split(TEXT(":"), &Code, &Subject);
+            const TSharedRef<FJsonObject> ReasonObject = MakeShared<FJsonObject>();
+            ReasonObject->SetStringField(TEXT("code"), Code);
+            ReasonObject->SetStringField(TEXT("subject"), Subject);
+            ReasonObject->SetStringField(TEXT("message"), Code == TEXT("missing_module") ? TEXT("Required module ") + Subject + TEXT(" is not loaded") : TEXT("Current editor state ") + Subject + TEXT(" is not allowed"));
+            ReasonValues.Add(MakeShared<FJsonValueObject>(ReasonObject));
+        }
+        Entry->SetArrayField(TEXT("reasons"), ReasonValues);
+        Availability.Add(MakeShared<FJsonValueObject>(Entry));
+    }
+    Result->SetArrayField(TEXT("nativeOperations"), Availability);
+    return Result;
+}
+
 FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, const TSharedPtr<FJsonObject>& Args, const FString& ExpectedRevision = FString())
 {
     check(IsInGameThread());
+    if (Operation == TEXT("bridge.describe")) return SuccessResponse(Id, BridgeDescribeResultOnGameThread());
+    if (CapabilityMetadata(Operation))
+    {
+        FString PreflightType, PreflightError;
+        if (!NativePreflight(Operation, Args, PreflightType, PreflightError)) return ErrorResponse(Id, *PreflightType, *PreflightError);
+    }
     if (Operation == TEXT("editor.status"))
     {
         if (!ClosedArgs(Args, {})) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("editor.status accepts no arguments"));
@@ -1602,7 +1807,7 @@ FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, co
         const FString BeforeRevision = BlueprintContentRevision(*Blueprint);
         if (ExpectedRevision.IsEmpty() || ExpectedRevision != BeforeRevision) return ErrorResponse(Id, ExpectedRevision.IsEmpty() ? TEXT("invalid_input") : TEXT("conflict"), TEXT("Blueprint revision is stale; re-read blueprint.view before retrying"));
         FCompilerResultsLog Results; Results.bSilentMode = true; FKismetEditorUtilities::CompileBlueprint(Blueprint, EBlueprintCompileOptions::SkipSave, &Results);
-        if (Blueprint->Status == BS_Error || Results.NumErrors > 0) return BlueprintCompileErrorResponse(Id, *Blueprint, Results);
+        if (Blueprint->Status == BS_Error || Results.NumErrors > 0) return BlueprintCompileErrorResponse(Id, *Blueprint, Results, BeforeRevision);
         const FString AfterRevision = BlueprintContentRevision(*Blueprint);
         const TSharedRef<FJsonObject> Result = BlueprintResult(*Blueprint, true); Result->SetBoolField(TEXT("changed"), BeforeRevision != AfterRevision); Result->SetArrayField(TEXT("dirtyPackages"), Blueprint->GetOutermost() && Blueprint->GetOutermost()->IsDirty() ? TArray<TSharedPtr<FJsonValue>>{MakeShared<FJsonValueString>(Blueprint->GetOutermost()->GetName())} : TArray<TSharedPtr<FJsonValue>>{}); Result->SetArrayField(TEXT("diagnostics"), BlueprintDiagnostics(*Blueprint, Results)); Result->SetNumberField(TEXT("errorCount"), FMath::Clamp(Results.NumErrors, 0, 100)); Result->SetNumberField(TEXT("warningCount"), FMath::Clamp(Results.NumWarnings, 0, 100)); return SuccessResponse(Id, Result, Operation);
     }
@@ -1657,7 +1862,7 @@ bool Authenticate(const TSharedPtr<FJsonObject>& Object)
         && StringField(Object, TEXT("projectId"), SuppliedProject) && SuppliedProject == ProjectId
         && StringField(Object, TEXT("sessionNonce"), SuppliedNonce) && SuppliedNonce == SessionNonce
         && StringField(Object, TEXT("processStart"), SuppliedProcessStart) && SuppliedProcessStart == ProcessStartIdentity(FPlatformProcess::GetCurrentProcessId())
-        && StringField(Object, TEXT("cliVersion"), ClientVersion) && ClientVersion == TEXT("0.1.0");
+        && StringField(Object, TEXT("cliVersion"), ClientVersion) && ClientVersion == MAGI_AXI_VERSION;
 }
 
 FString HandshakeResponse()
@@ -1665,7 +1870,7 @@ FString HandshakeResponse()
     const TSharedRef<FJsonObject> Response = MakeShared<FJsonObject>();
     Response->SetNumberField(TEXT("protocol"), ProtocolVersion);
     Response->SetStringField(TEXT("status"), TEXT("ok"));
-    Response->SetStringField(TEXT("pluginVersion"), TEXT("0.1.0"));
+    Response->SetStringField(TEXT("pluginVersion"), MAGI_AXI_VERSION);
     Response->SetNumberField(TEXT("pid"), FPlatformProcess::GetCurrentProcessId());
     Response->SetStringField(TEXT("processStart"), ProcessStartIdentity(FPlatformProcess::GetCurrentProcessId()));
     Response->SetStringField(TEXT("sessionNonce"), SessionNonce);
@@ -1845,32 +2050,36 @@ void Handle(FSocket* Socket)
         return;
     }
     if (Operation == TEXT("editor.stop") && !ClosedArgs(Args, {})) { SendResponse(ErrorResponse(Id, TEXT("invalid_input"), TEXT("args must be closed"))); return; }
-    if (Operation == TEXT("bridge.health") || Operation == TEXT("bridge.describe"))
+    if (Operation == TEXT("bridge.health"))
     {
         const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
-        if (Operation == TEXT("bridge.health"))
-        {
-            const ELifecycle State = Lifecycle.load();
-            Result->SetStringField(TEXT("state"), State == ELifecycle::Starting ? TEXT("starting") : State == ELifecycle::Stopping ? TEXT("stopping") : TEXT("ready"));
-        }
-        else
-        {
-            Result->SetNumberField(TEXT("protocol"), ProtocolVersion);
-            Result->SetStringField(TEXT("catalogHash"), MAGI_AXI_CATALOG_HASH);
-            Result->SetArrayField(TEXT("operations"), GeneratedPublicOperations());
-        }
+        const ELifecycle State = Lifecycle.load();
+        Result->SetStringField(TEXT("state"), State == ELifecycle::Starting ? TEXT("starting") : State == ELifecycle::Stopping ? TEXT("stopping") : TEXT("ready"));
         SendResponse(SuccessResponse(Id, Result));
         return;
+    }
+    if (Operation == TEXT("bridge.describe"))
+    {
+        if (!ClosedArgs(Args, {})) { SendResponse(ErrorResponse(Id, TEXT("invalid_input"), TEXT("bridge.describe accepts no arguments"))); return; }
     }
     if (!IsGeneratedPublicOperation(Operation))
     {
         SendResponse(ErrorResponse(Id, TEXT("unsupported"), TEXT("operation is not generated in public registry")));
         return;
     }
-    if (Operation != TEXT("editor.stop") && !MagiAxiValidateInput(Operation, Args.ToSharedRef()))
+    if (Operation != TEXT("editor.stop") && Operation != TEXT("bridge.describe") && !MagiAxiValidateInput(Operation, Args.ToSharedRef()))
     {
         SendResponse(ErrorResponse(Id, TEXT("invalid_input"), TEXT("arguments do not match generated capability schema")));
         return;
+    }
+    if (!IdempotencyKey.IsEmpty())
+    {
+        const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(Operation);
+        if (!Metadata || FString(Metadata->Idempotency) == TEXT("natural-key") || FString(Metadata->Idempotency) == TEXT("read-only"))
+        {
+            SendResponse(ErrorResponse(Id, TEXT("invalid_input"), TEXT("idempotencyKey is allowed only for request-key operations")));
+            return;
+        }
     }
     const TSharedRef<FGameThreadRequest> Request = MakeShared<FGameThreadRequest>();
     Request->Id = Id;
@@ -2151,7 +2360,7 @@ bool FMagiUnrealAXIAuthentication::RunTest(const FString&)
     Handshake->SetNumberField(TEXT("pid"), FPlatformProcess::GetCurrentProcessId());
     Handshake->SetStringField(TEXT("processStart"), ProcessStartIdentity(FPlatformProcess::GetCurrentProcessId()));
     Handshake->SetStringField(TEXT("sessionNonce"), SessionNonce);
-    Handshake->SetStringField(TEXT("cliVersion"), TEXT("0.1.0"));
+    Handshake->SetStringField(TEXT("cliVersion"), MAGI_AXI_VERSION);
     TestTrue(TEXT("matching handshake authenticates"), Authenticate(Handshake));
     for (const TCHAR* Field : {TEXT("token"), TEXT("projectId"), TEXT("processStart"), TEXT("sessionNonce"), TEXT("cliVersion")})
     {
@@ -2233,7 +2442,7 @@ bool FMagiUnrealAXIAuthenticationLimit::RunTest(const FString&)
     ValidHandshake->SetNumberField(TEXT("pid"), FPlatformProcess::GetCurrentProcessId());
     ValidHandshake->SetStringField(TEXT("processStart"), ProcessStartIdentity(FPlatformProcess::GetCurrentProcessId()));
     ValidHandshake->SetStringField(TEXT("sessionNonce"), SessionNonce);
-    ValidHandshake->SetStringField(TEXT("cliVersion"), TEXT("0.1.0"));
+    ValidHandshake->SetStringField(TEXT("cliVersion"), MAGI_AXI_VERSION);
     TestTrue(TEXT("valid authentication succeeds during failure window"), Authenticate(ValidHandshake));
     for (int32 Attempt = MaxFailedHandshakes / 2; Attempt < MaxFailedHandshakes; ++Attempt)
     {
@@ -2480,23 +2689,124 @@ bool FMagiUnrealAXIDirtyPackageFixture::RunTest(const FString&)
     UPackage* Package = CreatePackage(TEXT("/Game/MagiUnrealAXIDirtyFixture"));
     Package->AddToRoot();
     Package->MarkPackageDirty();
+    FString DirtyBlueprintFilename;
+    UBlueprint* DirtyBlueprint = FPackageName::DoesPackageExist(TEXT("/Game/MagiM6/BP_InvalidCompile"), &DirtyBlueprintFilename) ? LoadObject<UBlueprint>(nullptr, TEXT("/Game/MagiM6/BP_InvalidCompile.BP_InvalidCompile")) : nullptr;
+    UPackage* DirtyBlueprintPackage = DirtyBlueprint ? DirtyBlueprint->GetOutermost() : nullptr;
+    if (DirtyBlueprint) FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(DirtyBlueprint);
+    if (DirtyBlueprintPackage) DirtyBlueprintPackage->MarkPackageDirty();
     TestTrue(TEXT("live fixture package is dirty"), Package->IsDirty());
-    FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Package](float)
+    if (DirtyBlueprint) TestTrue(TEXT("invalid Blueprint fixture is dirty"), DirtyBlueprintPackage && DirtyBlueprintPackage->IsDirty());
+    FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Package, DirtyBlueprintPackage](float)
     {
         Package->SetDirtyFlag(false);
+        if (DirtyBlueprintPackage) DirtyBlueprintPackage->SetDirtyFlag(false);
         Package->RemoveFromRoot();
         return false;
     }), 20.0f);
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagiUnrealAXIRuntimeContract, "MagiUnrealAXI.Runtime.GeneratedMetadataAndIdentity", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FMagiUnrealAXIRuntimeContract::RunTest(const FString&)
+{
+    const TSharedRef<FJsonObject> Describe = BridgeDescribeResultOnGameThread();
+    TestTrue(TEXT("describe availability is built on game thread"), IsInGameThread());
+    TestEqual(TEXT("describe protocol is preserved"), Describe->GetIntegerField(TEXT("protocol")), ProtocolVersion);
+    TestTrue(TEXT("describe catalog identity is preserved"), Describe->GetStringField(TEXT("catalogHash")) == MAGI_AXI_CATALOG_HASH);
+    const TArray<TSharedPtr<FJsonValue>>* Operations = nullptr; const TArray<TSharedPtr<FJsonValue>>* NativeOperations = nullptr;
+    TestTrue(TEXT("describe operations are present"), Describe->TryGetArrayField(TEXT("operations"), Operations) && Describe->TryGetArrayField(TEXT("nativeOperations"), NativeOperations));
+    const FMagiAxiCapabilityMetadata* CompileMetadata = MagiAxiFindCapabilityMetadata(TEXT("blueprint.compile"));
+    TestNotNull(TEXT("generated metadata covers blueprint compile"), CompileMetadata);
+    UPackage* Package = CreatePackage(TEXT("/Game/MagiUnrealAXIRuntimeContract"));
+    Package->AddToRoot();
+    UBlueprint* Blueprint = NewObject<UBlueprint>(Package, TEXT("ContractBlueprint"));
+    UEdGraph* Graph = NewObject<UEdGraph>(Blueprint, TEXT("ContractGraph"));
+    Graph->GraphGuid = FGuid(1, 2, 3, 4);
+    UEdGraphNode* Node = NewObject<UEdGraphNode>(Graph, TEXT("ContractNode"));
+    Node->NodeGuid = FGuid(5, 6, 7, 8);
+    UEdGraphPin* Pin = Node->CreatePin(EGPD_Input, FName(TEXT("exec")), FName(TEXT("Pin Name")));
+    Graph->Nodes.Add(Node);
+    Blueprint->FunctionGraphs.Add(Graph);
+    USCS_Node* ScsNode = NewObject<USCS_Node>(Blueprint, TEXT("ContractSCSNode"));
+    ScsNode->VariableGuid = FGuid(9, 10, 11, 12);
+    const FString GraphIdentity = BlueprintGraphIdentity(*Blueprint, *Graph);
+    const FString NodeIdentity = BlueprintNodeIdentity(GraphIdentity, *Node);
+    TestTrue(TEXT("valid graph identity is stable"), !GraphIdentity.IsEmpty());
+    TestTrue(TEXT("valid node identity is stable"), !NodeIdentity.IsEmpty());
+    TestTrue(TEXT("valid SCS identity is stable"), !BlueprintSCSIdentity(*Blueprint, *ScsNode).IsEmpty());
+    TestTrue(TEXT("pin identity includes direction and encoded semantic name"), BlueprintPinIdentity(NodeIdentity, *Pin).EndsWith(TEXT("#pin:input:Pin%20Name")));
+    TestEqual(TEXT("invalid GUID canonicalization fails closed"), CanonicalGuid(FGuid()), FString());
+    const FString BeforeRevision = BlueprintContentRevision(*Blueprint);
+    Node->NodeComment = TEXT("semantic change");
+    const FString AfterRevision = BlueprintContentRevision(*Blueprint);
+    TestTrue(TEXT("bounded node semantic change changes revision"), !BeforeRevision.IsEmpty() && BeforeRevision != AfterRevision);
+    const TSharedRef<FJsonObject> NoPackages = MakeShared<FJsonObject>();
+    NoPackages->SetArrayField(TEXT("dirtyPackages"), {}); NoPackages->SetArrayField(TEXT("savedPackages"), {});
+    TestTrue(TEXT("none save policy accepts no package effects"), ValidateSaveBehavior(TEXT("play.start"), NoPackages));
+    const TSharedRef<FJsonObject> SavedPackage = MakeShared<FJsonObject>();
+    SavedPackage->SetArrayField(TEXT("dirtyPackages"), {}); SavedPackage->SetArrayField(TEXT("savedPackages"), {MakeShared<FJsonValueString>(TEXT("/Game/Test"))});
+    TestFalse(TEXT("dirty-only save policy rejects saved package effects"), ValidateSaveBehavior(TEXT("blueprint.compile"), SavedPackage));
+    TestTrue(TEXT("explicit save policy accepts saved package effects"), ValidateSaveBehavior(TEXT("asset.save"), SavedPackage));
+    TestTrue(TEXT("compile transaction comes from generated metadata"), CompileMetadata && FString(CompileMetadata->TransactionBehavior) == TEXT("non-atomic"));
+    TestTrue(TEXT("compile reversibility comes from generated metadata"), CompileMetadata && FString(CompileMetadata->Reversibility) == TEXT("source-control"));
+    TestTrue(TEXT("compile readback comes from generated metadata"), CompileMetadata && FString(CompileMetadata->Readback) == TEXT("blueprint.view"));
+    TestTrue(TEXT("request-key idempotency comes from generated metadata"), CompileMetadata && FString(CompileMetadata->Idempotency) == TEXT("request-key"));
+    Graph->GraphGuid = FGuid();
+    TestTrue(TEXT("invalid graph identity fails closed"), BlueprintGraphIdentity(*Blueprint, *Graph).IsEmpty());
+    Graph->GraphGuid = FGuid(1, 2, 3, 4);
+    Node->NodeGuid = FGuid();
+    TestTrue(TEXT("invalid node identity fails closed"), BlueprintNodeIdentity(GraphIdentity, *Node).IsEmpty());
+    ScsNode->VariableGuid = FGuid();
+    TestTrue(TEXT("invalid SCS identity fails closed"), BlueprintSCSIdentity(*Blueprint, *ScsNode).IsEmpty());
+    Package->RemoveFromRoot();
+    return true;
+}
 #endif
 }
 
+bool ValidateGeneratedRuntimeContract()
+{
+    auto IsOneOf = [](const FString& Value, const TArray<FString>& Allowed) { return Allowed.Contains(Value); };
+    int32 Count = 0;
+    bool Valid = true;
+    #define MAGI_AXI_VALIDATE_NATIVE(Name) do { \
+        ++Count; \
+        const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(Name); \
+        if (!Metadata || FString(Metadata->Id) != FString(Name)) { Valid = false; break; } \
+        const FString Idempotency = Metadata->Idempotency; \
+        const FString SaveBehavior = Metadata->SaveBehavior; \
+        const FString Transaction = Metadata->TransactionBehavior; \
+        const FString Reversibility = Metadata->Reversibility; \
+        const FString FailureReceipt = Metadata->FailureReceipt; \
+        TArray<FString> States; FString(Metadata->AllowedEditorStates).ParseIntoArray(States, TEXT("|"), true); \
+        TArray<FString> Modules; FString(Metadata->RequiredModules).ParseIntoArray(Modules, TEXT("|"), true); \
+        if (!IsOneOf(Idempotency, {TEXT("read-only"), TEXT("natural-key"), TEXT("request-key")}) || \
+            !IsOneOf(SaveBehavior, {TEXT("none"), TEXT("explicit"), TEXT("dirty-only")}) || \
+            !IsOneOf(Transaction, {TEXT("none"), TEXT("atomic"), TEXT("non-atomic")}) || \
+            !IsOneOf(Reversibility, {TEXT("none"), TEXT("source-control"), TEXT("destructive")}) || \
+            !IsOneOf(FailureReceipt, {FString(), TEXT("preserved-dirty")}) || States.IsEmpty() || Modules.IsEmpty()) { Valid = false; break; } \
+        for (const FString& State : States) if (!IsOneOf(State, {TEXT("editing"), TEXT("playing")})) { Valid = false; break; } \
+        if (!Valid || (!Metadata->Mutates && (Metadata->Destructive || Idempotency != TEXT("read-only") || SaveBehavior != TEXT("none") || Transaction != TEXT("none") || Reversibility != TEXT("none") || Metadata->TargetFields[0] != 0)) || \
+            (Metadata->Mutates && (Idempotency == TEXT("read-only") || Metadata->Readback[0] == 0 || Metadata->TargetFields[0] == 0)) || \
+            (Metadata->Destructive && (!Metadata->Mutates || Idempotency != TEXT("request-key"))) || \
+            (!FailureReceipt.IsEmpty() && (!Metadata->Mutates || Transaction != TEXT("non-atomic")))) { Valid = false; break; } \
+    } while (false);
+    MAGI_AXI_NATIVE_CAPABILITIES(MAGI_AXI_VALIDATE_NATIVE)
+    #undef MAGI_AXI_VALIDATE_NATIVE
+    const FMagiAxiCapabilityMetadata* Compile = CapabilityMetadata(TEXT("blueprint.compile"));
+    const bool CompileContract = Compile && Compile->Mutates && !Compile->Destructive && FString(Compile->Idempotency) == TEXT("request-key") && FString(Compile->SaveBehavior) == TEXT("dirty-only") && FString(Compile->TransactionBehavior) == TEXT("non-atomic") && FString(Compile->Reversibility) == TEXT("source-control") && FString(Compile->AllowedEditorStates) == TEXT("editing") && FString(Compile->RequiredModules) == TEXT("UnrealEd|KismetCompiler") && FString(Compile->Readback) == TEXT("blueprint.view") && FString(Compile->TargetFields) == TEXT("id") && FString(Compile->FailureReceipt) == TEXT("preserved-dirty");
+    const bool LifecycleContract = IsGeneratedPublicOperation(TEXT("bridge.health")) && IsGeneratedPublicOperation(TEXT("bridge.describe")) && IsGeneratedPublicOperation(TEXT("editor.stop")) && !CapabilityMetadata(TEXT("bridge.health")) && !CapabilityMetadata(TEXT("bridge.describe")) && !CapabilityMetadata(TEXT("editor.stop")) && !IsGeneratedNativeCapability(TEXT("bridge.health")) && !IsGeneratedNativeCapability(TEXT("bridge.describe")) && !IsGeneratedNativeCapability(TEXT("editor.stop"));
+    return Valid && Count == MAGI_AXI_NATIVE_CAPABILITY_COUNT && CompileContract && LifecycleContract && IsGeneratedNativeCapability(TEXT("operation.view")) && !IsGeneratedPublicOperation(TEXT("not.catalogued"));
+}
 void FMagiUnrealAXIModule::StartupModule()
 {
     UE_LOG(LogTemp, Display, TEXT("MAGI_UNREAL_AXI_FIXTURE_STARTUP"));
     if (IsRunningCommandlet()) return;
+    if (!ValidateGeneratedRuntimeContract())
+    {
+        UE_LOG(LogTemp, Error, TEXT("MagiUnrealAXI generated runtime contract invalid; startup refused"));
+        return;
+    }
     ProjectPath = Utf8Path(FPaths::GetProjectFilePath());
     const FString Hash = Sha256(ProjectPath);
     if (Hash.IsEmpty() || !RandomHex(32, Token) || !RandomHex(16, SessionNonce)) return;
@@ -2516,7 +2826,7 @@ void FMagiUnrealAXIModule::StartupModule()
     const FString EngineVersion = FString::Printf(TEXT("%u.%u.%u"), Version.GetMajor(), Version.GetMinor(), Version.GetPatch());
     const TSharedRef<FJsonObject> Record = MakeShared<FJsonObject>();
     Record->SetNumberField(TEXT("protocol"), ProtocolVersion);
-    Record->SetStringField(TEXT("pluginVersion"), TEXT("0.1.0"));
+    Record->SetStringField(TEXT("pluginVersion"), MAGI_AXI_VERSION);
     Record->SetNumberField(TEXT("pid"), FPlatformProcess::GetCurrentProcessId());
     Record->SetStringField(TEXT("projectPath"), ProjectPath);
     Record->SetStringField(TEXT("projectId"), ProjectId);

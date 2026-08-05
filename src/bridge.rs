@@ -115,7 +115,6 @@ struct BridgeOperationError {
     #[serde(default)]
     current_revision: Option<String>,
 }
-
 const MAX_DIRTY_PACKAGES: usize = 100;
 const MAX_DIRTY_PACKAGE_NAME: usize = 256;
 
@@ -173,14 +172,16 @@ fn outcome_unknown(id: &str) -> AppError {
     .with_operation_id(id.to_owned())
 }
 
+fn metadata(operation: &str) -> Option<&'static capability::CapabilityMetadata> {
+    capability::capability_metadata(operation)
+}
+
 fn is_mutation(operation: &str) -> bool {
-    operation == "editor.stop"
-        || capability::find(operation)
-            .is_some_and(|record| record["mutates"].as_bool() == Some(true))
+    operation == "editor.stop" || metadata(operation).is_some_and(|value| value.mutates)
 }
 
 fn requires_receipt(operation: &str) -> bool {
-    capability::find(operation).is_some_and(|record| record["mutates"].as_bool() == Some(true))
+    metadata(operation).is_some_and(|value| value.mutates)
 }
 
 #[cfg(unix)]
@@ -546,7 +547,7 @@ fn exchange_selected_args(
             .unwrap_or_default()
             .as_nanos()
     );
-    let mut envelope = json!({"protocol":PROTOCOL,"id":id,"operation":operation,"args":args,"deadlineMs":remaining(deadline)?.as_millis().min(u128::from(u32::MAX)) as u32});
+    let mut envelope = json!({"protocol":PROTOCOL,"id":id,"operation":operation,"args":args.clone(),"deadlineMs":remaining(deadline)?.as_millis().min(u128::from(u32::MAX)) as u32});
     if let Some(value) = &options.expected_revision {
         envelope["expectedRevision"] = json!(value);
     }
@@ -649,6 +650,36 @@ fn exchange_selected_args(
         "blueprint_compile_failed" => "blueprint_compile_failed",
         _ => "operation_failed",
     };
+    if operation == "blueprint.compile"
+        && error.kind == "blueprint_compile_failed"
+        && metadata(operation).and_then(|value| value.failure_receipt) == Some("preserved-dirty")
+    {
+        let receipt = response
+            .receipt
+            .as_ref()
+            .ok_or_else(|| outcome_unknown(&id))?;
+        validate_failed_receipt(operation, &id, &args, options, receipt, &error, discovery)?;
+        let app_error = AppError::operational(
+            "bridge",
+            "blueprint_compile_failed",
+            error.message.clone(),
+            "inspect `magi-unreal-axi operation view <id>` before retrying",
+        )
+        .with_bridge_details(
+            error.retryable,
+            error.dirty_package_count,
+            error.dirty_packages.clone(),
+        )
+        .with_bridge_diagnostics(
+            error.error_count,
+            error.warning_count,
+            error.diagnostics.clone(),
+        )
+        .with_operation_id(id.clone())
+        .with_receipt(serde_json::to_value(receipt).map_err(|_| outcome_unknown(&id))?);
+        return Err(app_error);
+    }
+
     let app_error = AppError::operational(
         "bridge",
         reason,
@@ -674,6 +705,92 @@ fn exchange_selected_args(
     })
 }
 
+fn validate_failed_receipt(
+    operation: &str,
+    id: &str,
+    args: &Value,
+    options: &ExecutionOptions,
+    receipt: &Receipt,
+    error: &BridgeOperationError,
+    discovery: &Discovery,
+) -> Result<(), AppError> {
+    let metadata = metadata(operation).ok_or_else(|| outcome_unknown(id))?;
+    let verification = receipt
+        .verification
+        .as_object()
+        .ok_or_else(|| outcome_unknown(id))?;
+    let target = args
+        .get("id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| outcome_unknown(id))?;
+    let dirty = error
+        .dirty_packages
+        .as_ref()
+        .filter(|packages| packages.len() <= MAX_DIRTY_PACKAGES)
+        .ok_or_else(|| outcome_unknown(id))?;
+    let observed_revision = verification
+        .get("observedRevision")
+        .and_then(Value::as_str)
+        .ok_or_else(|| outcome_unknown(id))?;
+    let before_revision = verification
+        .get("beforeRevision")
+        .and_then(Value::as_str)
+        .ok_or_else(|| outcome_unknown(id))?;
+    let changed_objects = verification
+        .get("changedObjects")
+        .and_then(Value::as_array)
+        .filter(|objects| objects.len() <= MAX_DIRTY_PACKAGES)
+        .ok_or_else(|| outcome_unknown(id))?;
+    let changed_objects = changed_objects
+        .iter()
+        .map(Value::as_str)
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| outcome_unknown(id))?;
+    let valid_revision =
+        |value: &str| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit());
+    let changed = before_revision != observed_revision;
+    if receipt.operation_id != id
+        || receipt.operation != operation
+        || receipt.state != "failed"
+        || receipt.project_id != discovery.project_id
+        || receipt.editor_pid != discovery.pid
+        || receipt.target != target
+        || receipt.transaction != metadata.transaction_behavior
+        || receipt.reversibility != metadata.reversibility
+        || receipt.dirty_packages != *dirty
+        || error.dirty_package_count != Some(dirty.len() as u64)
+        || dirty
+            .iter()
+            .any(|package| package.chars().count() > MAX_DIRTY_PACKAGE_NAME)
+        || !receipt.saved_packages.is_empty()
+        || receipt.revision != observed_revision
+        || !valid_revision(&receipt.revision)
+        || receipt.changed != changed
+        || changed_objects != if changed { vec![target] } else { Vec::new() }
+        || receipt.persistence
+            != if dirty.is_empty() {
+                "unchanged"
+            } else {
+                "dirty"
+            }
+        || verification.get("target").and_then(Value::as_str) != Some(target)
+        || verification.get("readback").and_then(Value::as_str) != metadata.readback
+        || verification.get("matched").and_then(Value::as_bool) != Some(true)
+        || options.expected_revision.as_deref() != Some(before_revision)
+        || !valid_revision(before_revision)
+        || !valid_revision(observed_revision)
+        || verification.get("observedStatus").and_then(Value::as_str) != Some("error")
+        || verification.get("failureType").and_then(Value::as_str)
+            != Some("blueprint_compile_failed")
+        || verification.get("errorCount").and_then(Value::as_u64) != error.error_count
+        || verification.get("warningCount").and_then(Value::as_u64) != error.warning_count
+        || verification.get("diagnostics") != error.diagnostics.as_ref()
+    {
+        return Err(outcome_unknown(id));
+    }
+    Ok(())
+}
+
 fn validate_receipt(
     operation: &str,
     id: &str,
@@ -681,7 +798,7 @@ fn validate_receipt(
     result: &Value,
     discovery: &Discovery,
 ) -> Result<(), AppError> {
-    let capability_record = capability::find(operation).ok_or_else(|| outcome_unknown(id))?;
+    let capability_record = metadata(operation).ok_or_else(|| outcome_unknown(id))?;
     let verification = receipt
         .verification
         .as_object()
@@ -694,34 +811,22 @@ fn validate_receipt(
         .get("readback")
         .and_then(Value::as_str)
         .ok_or_else(|| outcome_unknown(id))?;
-    let expected_readback = if operation == "play.screenshot" {
-        "artifact".to_owned()
-    } else {
-        capability_record["verification"]["readback"]
-            .as_str()
-            .map(str::to_owned)
-            .ok_or_else(|| outcome_unknown(id))?
-    };
+    let expected_readback = capability_record
+        .readback
+        .ok_or_else(|| outcome_unknown(id))?;
     let matched = verification
         .get("matched")
         .and_then(Value::as_bool)
         .ok_or_else(|| outcome_unknown(id))?;
-    let result_target = if operation == "play.input" {
-        format!(
-            "{}#{}#{}",
-            result["sessionId"].as_str().unwrap_or(""),
-            result["key"].as_str().unwrap_or(""),
-            result["event"].as_str().unwrap_or("")
-        )
+    let result_target = if !capability_record.target_fields.is_empty() {
+        capability_record
+            .target_fields
+            .iter()
+            .map(|field| result[*field].as_str().unwrap_or_default())
+            .collect::<Vec<_>>()
+            .join("#")
     } else {
-        result["id"]
-            .as_str()
-            .or_else(|| result["level"].as_str())
-            .or_else(|| result["levelId"].as_str())
-            .or_else(|| result["path"].as_str())
-            .or_else(|| result["sessionId"].as_str())
-            .unwrap_or("")
-            .to_owned()
+        String::new()
     };
     let result_changed = result["changed"]
         .as_bool()
@@ -747,17 +852,13 @@ fn validate_receipt(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    let catalog_transaction = capability_record["transactionBehavior"]
-        .as_str()
-        .ok_or_else(|| outcome_unknown(id))?;
+    let catalog_transaction = capability_record.transaction_behavior;
     let expected_transaction = if result_changed {
         catalog_transaction
     } else {
         "none"
     };
-    let expected_reversibility = capability_record["reversibility"]
-        .as_str()
-        .ok_or_else(|| outcome_unknown(id))?;
+    let expected_reversibility = capability_record.reversibility;
     let expected_persistence = if operation == "play.screenshot" || !result_saved.is_empty() {
         "saved"
     } else if !result_dirty.is_empty() {
@@ -834,14 +935,25 @@ fn validate_receipt(
             return Err(outcome_unknown(id));
         }
     }
-    if operation == "play.screenshot" && readback != "artifact" {
-        return Err(outcome_unknown(id));
-    }
-    if matches!(operation, "play.start" | "play.stop") && readback != "play.status" {
+    if readback != expected_readback {
         return Err(outcome_unknown(id));
     }
     Ok(())
 }
+fn live(project: &Path, pid: Option<u32>) -> Result<(PathBuf, Discovery), AppError> {
+    match select(project, pid)? {
+        Selection::Live(session, discovery) => Ok((session, *discovery)),
+        Selection::Stale => Err(bridge_error(
+            "stale_editor",
+            "only stale editor discovery exists",
+        )),
+        Selection::None => Err(bridge_error(
+            "editor_not_found",
+            "no matching editor discovery exists",
+        )),
+    }
+}
+
 fn exchange_selected(
     session: &Path,
     discovery: &Discovery,
@@ -858,50 +970,6 @@ fn exchange_selected(
     )
 }
 
-fn live(project: &Path, pid: Option<u32>) -> Result<(PathBuf, Discovery), AppError> {
-    match select(project, pid)? {
-        Selection::Live(session, discovery) => Ok((session, *discovery)),
-        Selection::Stale => Err(bridge_error(
-            "stale_editor",
-            "only stale editor discovery exists",
-        )),
-        Selection::None => Err(bridge_error(
-            "editor_not_found",
-            "no matching editor discovery exists",
-        )),
-    }
-}
-
-pub fn status(project: &Path, pid: Option<u32>, timeout: Duration) -> Result<Value, AppError> {
-    match select(project, pid)? {
-        Selection::None => Ok(json!({"editor":{"state":"stopped"}})),
-        Selection::Stale => {
-            Ok(json!({"editor":{"state":"stale"},"help":["magi-unreal-axi editor start"]}))
-        }
-        Selection::Live(session, discovery) => {
-            let status = exchange_selected(
-                &session,
-                &discovery,
-                "editor.status",
-                Instant::now() + timeout,
-            )?;
-            let status = capability::validate_output("editor.status", status)?;
-            let state = status
-                .get("state")
-                .and_then(Value::as_str)
-                .expect("validated editor status state");
-            if !matches!(state, "starting" | "ready" | "stopping") {
-                return Err(bridge_error(
-                    "invalid_health",
-                    "editor status reported unknown lifecycle state",
-                ));
-            }
-            Ok(
-                json!({"editor":{"state":state,"pid":discovery.pid,"processStart":discovery.process_start,"projectPath":discovery.project_path,"projectId":discovery.project_id,"pluginVersion":discovery.plugin_version,"engineVersion":discovery.engine_version,"ownership":if owner_matches(&session,&discovery){"launched"}else{"attached"},"level":status["levelId"],"pie":status["pie"],"dirtyPackages":status["dirtyPackageCount"]},"health":status}),
-            )
-        }
-    }
-}
 pub fn capability(
     project: &Path,
     pid: Option<u32>,
@@ -920,20 +988,174 @@ pub fn capability(
         }
         Err(error) => return Err(error),
     };
-    let value = exchange_selected_args(
+    let result = exchange_selected_args(
         &session,
         &discovery,
         operation,
         args,
         &options,
         Instant::now() + timeout,
-    )?;
-    if is_mutation(operation)
-        && let Some(receipt) = value.get("receipt")
-    {
-        journal_receipt(project, receipt)?;
+    );
+    match result {
+        Ok(value) => {
+            if is_mutation(operation)
+                && let Some(receipt) = value.get("receipt")
+            {
+                journal_receipt(project, receipt)?;
+            }
+            Ok(value)
+        }
+        Err(error) => {
+            if let Some(receipt) = error.receipt() {
+                journal_receipt(project, receipt)?;
+            }
+            Err(error)
+        }
     }
-    Ok(value)
+}
+
+pub fn status(project: &Path, pid: Option<u32>, timeout: Duration) -> Result<Value, AppError> {
+    match select(project, pid)? {
+        Selection::None => Ok(json!({"editor":{"state":"stopped"}})),
+        Selection::Stale => {
+            Ok(json!({"editor":{"state":"stale"},"help":["magi-unreal-axi editor start"]}))
+        }
+        Selection::Live(session, discovery) => {
+            let status = exchange_selected(
+                &session,
+                &discovery,
+                "editor.status",
+                Instant::now() + timeout,
+            )?;
+            let status = capability::validate_output("editor.status", status)?;
+
+            let state = status
+                .get("state")
+                .and_then(Value::as_str)
+                .expect("validated editor status state");
+            if !matches!(state, "starting" | "ready" | "stopping") {
+                return Err(bridge_error(
+                    "invalid_health",
+                    "editor status reported unknown lifecycle state",
+                ));
+            }
+            Ok(
+                json!({"editor":{"state":state,"pid":discovery.pid,"processStart":discovery.process_start,"projectPath":discovery.project_path,"projectId":discovery.project_id,"pluginVersion":discovery.plugin_version,"engineVersion":discovery.engine_version,"ownership":if owner_matches(&session,&discovery){"launched"}else{"attached"},"level":status["levelId"],"pie":status["pie"],"dirtyPackages":status["dirtyPackageCount"]},"health":status}),
+            )
+        }
+    }
+}
+
+pub fn runtime_availability(
+    project: &Path,
+    pid: Option<u32>,
+    timeout: Duration,
+) -> Result<Option<Value>, AppError> {
+    let (session, discovery) = match select(project, pid)? {
+        Selection::None | Selection::Stale => return Ok(None),
+        Selection::Live(session, discovery) => (session, discovery),
+    };
+    let description = exchange_selected(
+        &session,
+        &discovery,
+        "bridge.describe",
+        Instant::now() + timeout,
+    )?;
+    let entries = description
+        .get("nativeOperations")
+        .and_then(Value::as_array)
+        .filter(|entries| entries.len() <= capability::CATALOG_COUNT)
+        .ok_or_else(|| {
+            bridge_error(
+                "malformed_availability",
+                "bridge.describe lacks bounded native availability",
+            )
+        })?;
+    let mut availability = serde_json::Map::new();
+    for entry in entries {
+        let operation = entry
+            .get("operation")
+            .and_then(Value::as_str)
+            .filter(|operation| {
+                capability::capability_metadata(operation)
+                    .is_some_and(|metadata| metadata.execution == "native")
+            })
+            .ok_or_else(|| {
+                bridge_error(
+                    "malformed_availability",
+                    "native availability operation is invalid",
+                )
+            })?;
+        let state = entry
+            .get("availability")
+            .and_then(Value::as_str)
+            .filter(|state| matches!(*state, "available" | "unavailable"))
+            .ok_or_else(|| {
+                bridge_error(
+                    "malformed_availability",
+                    "native availability state is invalid",
+                )
+            })?;
+        let reasons = entry
+            .get("reasons")
+            .and_then(Value::as_array)
+            .filter(|reasons| reasons.len() <= 16)
+            .ok_or_else(|| {
+                bridge_error(
+                    "malformed_availability",
+                    "native availability reasons are invalid",
+                )
+            })?;
+        if (state == "available") != reasons.is_empty() {
+            return Err(bridge_error(
+                "malformed_availability",
+                "native availability reasons do not match state",
+            ));
+        }
+        for reason in reasons {
+            for (field, maximum, allow_empty) in [
+                ("code", 32, false),
+                ("subject", 128, true),
+                ("message", 512, false),
+            ] {
+                reason
+                    .get(field)
+                    .and_then(Value::as_str)
+                    .filter(|text| {
+                        text.chars().count() <= maximum && (allow_empty || !text.is_empty())
+                    })
+                    .ok_or_else(|| {
+                        bridge_error(
+                            "malformed_availability",
+                            "availability reason field is invalid",
+                        )
+                    })?;
+            }
+        }
+        if availability
+            .insert(
+                operation.to_owned(),
+                json!({"availability":state,"reasons":reasons}),
+            )
+            .is_some()
+        {
+            return Err(bridge_error(
+                "malformed_availability",
+                "native availability operation is duplicated",
+            ));
+        }
+    }
+    let expected = capability::CAPABILITY_METADATA
+        .iter()
+        .filter(|metadata| metadata.execution == "native")
+        .count();
+    if availability.len() != expected {
+        return Err(bridge_error(
+            "malformed_availability",
+            "native availability coverage is incomplete",
+        ));
+    }
+    Ok(Some(Value::Object(availability)))
 }
 
 pub fn describe(project: &Path, pid: Option<u32>, timeout: Duration) -> Result<Value, AppError> {
@@ -1624,6 +1846,126 @@ mod tests {
             validate_receipt("play.input", "id", &receipt, &result, &fake_discovery(0)).is_ok()
         );
     }
+    fn failed_compile_fixture() -> (Receipt, BridgeOperationError, Value, ExecutionOptions) {
+        let before = "a".repeat(64);
+        let observed = before.clone();
+        let diagnostics = json!([{"severity":"error","message":"invalid graph","graph":"/Game/BP.BP:Graph","nodeGuid":"00000000-0000-0000-0000-000000000001","nodeTitle":"Broken"}]);
+        let target = "/Game/BP.BP";
+        let receipt = Receipt {
+            operation_id: "id".into(),
+            operation: "blueprint.compile".into(),
+            state: "failed".into(),
+            project_id: "sha256:fixture".into(),
+            editor_pid: std::process::id(),
+            target: target.into(),
+            changed: false,
+            transaction: "non-atomic".into(),
+            reversibility: "source-control".into(),
+            dirty_packages: vec!["/Game/BP".into()],
+            saved_packages: vec![],
+            revision: observed.clone(),
+            persistence: "dirty".into(),
+            verification: json!({
+                "readback":"blueprint.view","target":target,"matched":true,
+                "beforeRevision":before,"observedRevision":observed,"observedStatus":"error",
+                "failureType":"blueprint_compile_failed","errorCount":1,"warningCount":0,
+                "diagnostics":diagnostics,"changedObjects":[]
+            }),
+        };
+        let error = BridgeOperationError {
+            kind: "blueprint_compile_failed".into(),
+            message: "Blueprint compile failed".into(),
+            retryable: false,
+            dirty_package_count: Some(1),
+            dirty_packages: Some(vec!["/Game/BP".into()]),
+            error_count: Some(1),
+            warning_count: Some(0),
+            diagnostics: Some(diagnostics),
+            current_revision: None,
+        };
+        (
+            receipt,
+            error,
+            json!({"id":target}),
+            ExecutionOptions {
+                expected_revision: Some(before),
+                idempotency_key: None,
+            },
+        )
+    }
+
+    #[test]
+    fn validate_failed_compile_receipt_accepts_preserved_dirty_state() {
+        let (receipt, error, args, options) = failed_compile_fixture();
+        assert!(
+            validate_failed_receipt(
+                "blueprint.compile",
+                "id",
+                &args,
+                &options,
+                &receipt,
+                &error,
+                &fake_discovery(0)
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn validate_failed_compile_receipt_accepts_unchanged_clean_state() {
+        let (mut receipt, mut error, args, options) = failed_compile_fixture();
+        receipt.dirty_packages.clear();
+        receipt.persistence = "unchanged".into();
+        error.dirty_package_count = Some(0);
+        error.dirty_packages = Some(vec![]);
+        assert!(
+            validate_failed_receipt(
+                "blueprint.compile",
+                "id",
+                &args,
+                &options,
+                &receipt,
+                &error,
+                &fake_discovery(0)
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn validate_failed_compile_receipt_rejects_false_atomicity_and_revision() {
+        let (receipt, error, args, options) = failed_compile_fixture();
+        let mut atomic = receipt.clone();
+        atomic.transaction = "atomic".into();
+        assert!(
+            validate_failed_receipt(
+                "blueprint.compile",
+                "id",
+                &args,
+                &options,
+                &atomic,
+                &error,
+                &fake_discovery(0)
+            )
+            .is_err()
+        );
+
+        let mut stale = options.clone();
+        stale.expected_revision = Some("b".repeat(64));
+        assert!(
+            validate_failed_receipt(
+                "blueprint.compile",
+                "id",
+                &args,
+                &stale,
+                &receipt,
+                &error,
+                &fake_discovery(0)
+            )
+            .is_err()
+        );
+    }
+
     #[test]
     fn protocol_fixtures_match_typed_client_contract() {
         let handshake: HandshakeResponse = serde_json::from_str(include_str!(

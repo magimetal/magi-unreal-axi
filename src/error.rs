@@ -8,6 +8,7 @@ struct ErrorDetails {
     error_count: Option<u64>,
     warning_count: Option<u64>,
     diagnostics: Option<Value>,
+    receipt: Option<Value>,
 }
 
 #[derive(Debug)]
@@ -79,6 +80,19 @@ impl AppError {
         self
     }
 
+    pub fn with_receipt(mut self, receipt: Value) -> Self {
+        self.details
+            .get_or_insert_with(|| Box::new(ErrorDetails::default()))
+            .receipt = Some(receipt);
+        self
+    }
+
+    pub fn receipt(&self) -> Option<&Value> {
+        self.details
+            .as_ref()
+            .and_then(|details| details.receipt.as_ref())
+    }
+
     pub fn operation_id(&self) -> Option<&str> {
         self.details
             .as_ref()
@@ -129,6 +143,9 @@ impl AppError {
             if let Some(diagnostics) = &details.diagnostics {
                 error["diagnostics"] = diagnostics.clone();
             }
+            if let Some(receipt) = &details.receipt {
+                error["receipt"] = receipt.clone();
+            }
         }
         json!({"error": error})
     }
@@ -147,5 +164,18 @@ mod tests {
         assert_eq!(error.envelope()["error"]["dirtyPackageCount"], 3);
         assert_eq!(error.envelope()["error"]["dirtyPackages"][0], "A.uasset");
         assert_eq!(error.envelope()["error"]["operationId"], "operation-1");
+    }
+
+    #[test]
+    fn envelope_preserves_failed_receipt() {
+        let receipt = json!({"operationId":"operation-1","state":"failed"});
+        let error = AppError::operational(
+            "bridge",
+            "blueprint_compile_failed",
+            "compile failed",
+            "inspect",
+        )
+        .with_receipt(receipt.clone());
+        assert_eq!(error.envelope()["error"]["receipt"], receipt);
     }
 }

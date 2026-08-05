@@ -1,20 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
+version=$(awk -F'"' '/^version = "/ { print $2; exit }' "$repo_root/Cargo.toml")
+manifest="$repo_root/tests/unreal/p1.0-manifest.json"
+[[ -f "$manifest" ]] || { echo "P1.0 manifest missing" >&2; exit 1; }
+[[ -n $version ]] || { echo "Cargo package version missing" >&2; exit 1; }
 [[ $# == 1 && -f $1 ]] || { echo "usage: $0 ARTIFACT.tar.gz" >&2; exit 2; }
 artifact=$(cd "$(dirname "$1")" && pwd -P)/$(basename "$1")
 artifact_dir=$(dirname "$artifact")
 artifact_name=$(basename "$artifact")
-[[ $artifact_name == magi-unreal-axi-0.1.0-macos-arm64.tar.gz ]] || { echo "unexpected release artifact name" >&2; exit 1; }
+[[ $artifact_name == "magi-unreal-axi-${version}-macos-arm64.tar.gz" ]] || { echo "unexpected release artifact name" >&2; exit 1; }
 checksums="$artifact_dir/SHA256SUMS"
 [[ -f $checksums ]] || { echo "SHA256SUMS missing beside artifact" >&2; exit 1; }
-[[ $(awk -v name="$artifact_name" '$2 == name { print }' "$checksums" | grep -Ec '^[0-9a-fA-F]{64}  magi-unreal-axi-0\.1\.0-macos-arm64\.tar\.gz$') == 1 ]] || { echo "exact artifact checksum entry missing or duplicated" >&2; exit 1; }
+[[ $(awk -v name="$artifact_name" '$2 == name && $1 ~ /^[0-9a-fA-F]{64}$/ && NF == 2 { count++ } END { print count + 0 }' "$checksums") == 1 ]] || { echo "exact artifact checksum entry missing or duplicated" >&2; exit 1; }
 engine_root=$(cd "${UE_ENGINE_ROOT:-/Users/Shared/Epic Games/UE_5.8}" && pwd -P)
 editor_version="$engine_root/Engine/Binaries/Mac/UnrealEditor.version"
 [[ $(uname -m) == arm64 && $(plutil -extract Changelist raw -o - "$editor_version") == 56057345 ]]
 
 cache_root="$HOME/Library/Caches/magi-unreal-axi/m8/live"
-package_root=magi-unreal-axi-0.1.0-macos-arm64
+package_root="magi-unreal-axi-${version}-macos-arm64"
 mkdir -p "$cache_root"
 work=$(mktemp -d "$cache_root/work.XXXXXX")
 evidence=$(mktemp -d "$cache_root/evidence.XXXXXX")
@@ -57,10 +62,9 @@ tar -xzf "$artifact" -C "$work"
 bin="$work/$package_root/magi-unreal-axi"
 [[ -f "$bin" && -x "$bin" && ! -L "$bin" ]]
 file "$bin" | grep -Eiq 'arm64|aarch64' || { echo "release binary is not arm64" >&2; exit 1; }
-[[ $("$bin" --version) == 'magi-unreal-axi 0.1.0' ]] || { echo "release binary version mismatch" >&2; exit 1; }
+[[ $("$bin" --version) == "magi-unreal-axi $version" ]] || { echo "release binary version mismatch" >&2; exit 1; }
 codesign --verify --strict --verbose=2 "$bin" >"$evidence/codesign.txt" 2>&1
 codesign -dv --verbose=4 "$bin" >>"$evidence/codesign.txt" 2>&1
-repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
 ditto "$repo_root/tests/unreal/MagiUnrealAXIFixture" "$project_dir"
 
 export HOME="$home"
@@ -118,8 +122,13 @@ axi project doctor >"$evidence/doctor.json"
 jq -e '.healthy == true' "$evidence/doctor.json" >/dev/null
 axi --timeout 1800 project build >"$evidence/build.json"
 jq -e '.operation.status == "passed" or .operation.status == "up_to_date"' "$evidence/build.json" >/dev/null
-axi --timeout 1800 project test run --filter MagiUnrealAXI >"$evidence/test-run.json"
-jq -e '.operation.status == "passed" and .totals.matched > 0 and .totals.failed == 0 and .totals.notRun == 0' "$evidence/test-run.json" >/dev/null
+mkdir -p "$work/report"
+axi --timeout 1800 project test run --filter MagiUnrealAXI --report "$work/report" >"$evidence/test-run.json"
+index="$work/report/index.json"
+[[ -f "$index" ]] || { echo "automation report missing" >&2; exit 1; }
+jq -e --slurpfile manifest "$manifest" '.failed == 0 and .notRun == 0 and .inProcess == 0 and (.succeeded + .succeededWithWarnings) == ($manifest[0].automationTests | length) and (all(.tests[]; .state == "Success" and .errors == 0)) and ([.tests[].fullTestPath] | sort) == ($manifest[0].automationTests | sort)' "$index" >/dev/null
+cp "$index" "$evidence/automation-index.json"
+cp "$manifest" "$evidence/p1.0-manifest.json"
 
 # Release binary owns editor lifecycle, read, mutation, explicit save, and restart persistence.
 axi --timeout 120 editor start >"$evidence/editor-start.json"
@@ -158,6 +167,6 @@ if grep -R -I -Fq -- "$token" "$evidence"; then
   exit 1
 fi
 
-printf 'target=UE 5.8.1 changelist 56057345 host=%s\nartifact=%s\nartifactSha256=%s\nsourceRevision=%s\nworkflowRun=%s\nhome=passed\nagents=claude-hook-codex-skill-opencode-skill-idempotent-context-under-400-bytes-isolated-home\nplugin=installed-matching-managed-uninstalled\neditor=health-read-mutation-save-stop-restart-persistence\nbuild=passed\nautomation=full-magi-unreal-axi-filter-passed\ntokenScan=passed\ncleanInstall=checksum-allowlisted-archive-path-install-disposable-project-agent-config-isolation\n' "$(uname -m)" "$artifact" "$artifact_hash" "${GITHUB_SHA:-unavailable-no-git-metadata}" "${GITHUB_RUN_ID:-local}" | tee "$evidence/summary.txt"
+printf 'target=UE 5.8.1 changelist 56057345 host=%s\nartifact=%s\nartifactSha256=%s\nsourceRevision=%s\nworkflowRun=%s\nhome=passed\nagents=claude-hook-codex-skill-opencode-skill-idempotent-context-under-400-bytes-isolated-home\nplugin=installed-matching-managed-uninstalled\neditor=health-read-mutation-save-stop-restart-persistence\nbuild=passed\nautomation=exact-p1.0-manifest-inventory-passed\ntokenScan=passed\ncleanInstall=checksum-allowlisted-archive-path-install-disposable-project-agent-config-isolation\n' "$(uname -m)" "$artifact" "$artifact_hash" "${GITHUB_SHA:-unavailable-no-git-metadata}" "${GITHUB_RUN_ID:-local}" | tee "$evidence/summary.txt"
 printf '%s\n' "$evidence" >"$cache_root/latest"
 echo "M8 live certification: PASS (evidence retained at $evidence; agent config isolated from $real_home)"

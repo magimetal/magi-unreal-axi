@@ -72,9 +72,9 @@ magi-unreal-axi log search failure --limit 20
 
 Project resolution: `--project`, `MAGI_UNREAL_PROJECT`, then nearest directory containing exactly one `.uproject`. Engine resolution: `--engine`, `MAGI_UNREAL_ENGINE`, project `.magi/unreal-axi.toml` `engine` key, then validated local UE paths; `MAGI_UNREAL_ENGINE_DISCOVERY_ROOT` overrides conventional discovery root. Plugin setup is explicit, atomic, idempotent, hash-managed, preserves unrelated descriptor fields, refuses modified trees, and backs up forced replacement/removal.
 
-Editor bridge uses authenticated loopback-only framed TCP. Native operations execute serially on game thread. Catalog contains 34 records with SHA-256 `b1888d3416a0873e31b1b600f6c84a7e01cdce982fedc8088ab42e8b76c3b506`; every handshake enforces Rust/C++ parity. Mutations enforce editor-state gates, expected canonical revisions, idempotency, explicit persistence, and receipts that validate project/editor/operation/target identity plus safety metadata. `play.input` completes after deferred next-tick observation readback. `play.stop` ends PIE synchronously and verifies stopped status before success. Screenshots stay under project `Saved/MagiUnrealAXI/Screenshots`, return PNG path and dimensions bounded to 1–16384, and never print binary data. Blueprint view/compile returns graph/node diagnostics; Blueprint authoring is not supported.
+Editor bridge uses authenticated loopback-only framed TCP. Native operations execute serially on game thread. Catalog contains 34 records with SHA-256 `8f947b51381647334ccbb35b99ab3f15c4cb50d779e90737dc7a0a414f0390a6`; every handshake enforces Rust/C++ parity. Discovery reports local `available`, native `unknown` with `editor_offline` when no live matching editor exists, and live native `available` or `unavailable` with structured reasons; execute only `available`. Mutations enforce editor-state gates, expected canonical revisions, idempotency, explicit persistence, and receipts that validate project/editor/operation/target identity plus safety metadata. Failed Blueprint compile returns exit 1 with `blueprint_compile_failed`, a failed non-atomic receipt, no rollback or saved-persistence claim, and `retryable:false`. Dirty invalid assets report dirty persistence and packages; already-invalid clean assets truthfully report unchanged persistence. Inspect `operation view` before retry, including journal fallback offline. Graph/node/pin/SCS identities and deterministic revision/order/cursor rules are P1.0 contracts; P1.1 operations are not supported. `play.input` completes after deferred next-tick observation readback. `play.stop` ends PIE synchronously and verifies stopped status before success. Screenshots stay under project `Saved/MagiUnrealAXI/Screenshots`, return PNG path and dimensions bounded to 1–16384, and never print binary data. Blueprint view/compile returns graph/node diagnostics; Blueprint authoring is not supported.
 
-`project build`, `project test list|run`, cook-only materialization from `Saved/Cooked/Mac`, transactional Blueprint-only package output, bounded logs, strict report parsing, and protected output paths are live-certified. M8 adds agent setup/evaluation, exact-archive clean installation, full 15/15 automation, and release gating.
+`project build`, `project test list|run`, cook-only materialization from `Saved/Cooked/Mac`, transactional Blueprint-only package output, bounded logs, strict report parsing, and protected output paths are live-certified. M8 adds agent setup/evaluation, exact-archive clean installation, full 16/16 automation, and release gating.
 
 Expected errors are structured on stdout. Exit codes: 0 success, 1 operational failure, 2 usage failure. Progress and child logs never enter structured stdout.
 
@@ -86,7 +86,7 @@ For clean-install testing, agent configuration may use an isolated `HOME`. Unrea
 
 ## Development
 
-Requires Rust 1.88. Rust gate covers 31 unit plus 42 real-binary integration tests = 73 tests. Run:
+Requires Rust 1.88. Rust gate covers 35 library tests, 4 xtask tests, and 44 real-binary integration tests = 83 tests. Run:
 
 ```sh
 cargo fmt --check

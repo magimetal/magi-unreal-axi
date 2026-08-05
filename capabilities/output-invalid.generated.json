@@ -515,7 +515,8 @@
         "engineSupport": "xx"
       },
       "runtime": {
-        "available": false,
+        "availability": "available",
+        "reasons": [],
         "catalogHash": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
       },
       "unknown": true

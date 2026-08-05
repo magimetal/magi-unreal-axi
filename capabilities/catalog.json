@@ -85,7 +85,8 @@
     },
     "verification": {
       "readback": "actor.view",
-      "persistence": "level.save"
+      "persistence": "level.save",
+      "targetFields": ["id"]
     },
     "engineSupport": {
       "certified": [
@@ -357,7 +358,8 @@
     },
     "verification": {
       "readback": "actor.view",
-      "persistence": "level.save"
+      "persistence": "level.save",
+      "targetFields": ["id"]
     },
     "engineSupport": {
       "certified": [
@@ -472,7 +474,8 @@
     },
     "verification": {
       "readback": "actor.view",
-      "persistence": "level.save"
+      "persistence": "level.save",
+      "targetFields": ["id"]
     },
     "engineSupport": {
       "certified": [
@@ -641,8 +644,7 @@
         "revision": {"type": "string", "minLength": 64, "maxLength": 64}
       }
     },
-    "verification": {"readback": "asset.view"},
-    "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+    "verification": {"readback": "asset.view", "targetFields": ["id"]}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
   },
   {
     "id": "asset.create_input_mapping_context",
@@ -689,22 +691,21 @@
         "revision": {"type": "string", "minLength": 64, "maxLength": 64}
       }
     },
-    "verification": {"readback": "asset.view"},
-    "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+    "verification": {"readback": "asset.view", "targetFields": ["id"]}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
   },
   {
     "id": "asset.save", "version": 1, "domain": "asset", "summary": "Save exact asset", "execution": "native", "mutates": true, "destructive": false,
     "idempotency": "natural-key", "saveBehavior": "explicit", "transactionBehavior": "atomic", "reversibility": "source-control", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
     "inputSchema": {"type": "object", "additionalProperties": false, "required": ["id"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}}},
     "outputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "changed", "dirtyPackages", "savedPackages", "revision"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "class": {"type": "string", "minLength": 1, "maxLength": 512}, "changed": {"type": "boolean"}, "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}}},
-    "verification": {"readback": "asset.view"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+    "verification": {"readback": "asset.view", "targetFields": ["id"]}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
   },
   {
     "id": "blueprint.compile", "version": 1, "domain": "blueprint", "summary": "Compile exact Blueprint", "execution": "native", "mutates": true, "destructive": false,
-    "idempotency": "request-key", "saveBehavior": "dirty-only", "transactionBehavior": "atomic", "reversibility": "source-control", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd", "KismetCompiler"],
+    "idempotency": "request-key", "saveBehavior": "dirty-only", "transactionBehavior": "non-atomic", "reversibility": "source-control", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd", "KismetCompiler"],
     "inputSchema": {"type": "object", "additionalProperties": false, "required": ["id"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}}},
     "outputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "parentClass", "generatedClass", "status", "graphCount", "errorCount", "warningCount", "diagnostics", "revision", "changed", "dirtyPackages", "savedPackages"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "parentClass": {"type": "string", "minLength": 1, "maxLength": 512}, "generatedClass": {"type": "string", "minLength": 1, "maxLength": 512}, "status": {"type": "string", "maxLength": 16, "enum": ["unknown", "dirty", "up_to_date", "warning", "error"]}, "graphCount": {"type": "integer", "minimum": 0, "maximum": 10000}, "errorCount": {"type": "integer", "minimum": 0, "maximum": 100}, "warningCount": {"type": "integer", "minimum": 0, "maximum": 100}, "diagnostics": {"type": "array", "maxItems": 100, "items": {"type": "object", "additionalProperties": false, "required": ["severity", "message", "graph", "nodeGuid", "nodeTitle"], "properties": {"severity": {"type": "string", "maxLength": 8, "enum": ["error", "warning"]}, "message": {"type": "string", "minLength": 1, "maxLength": 1024}, "graph": {"type": "string", "maxLength": 512}, "nodeGuid": {"type": "string", "maxLength": 128}, "nodeTitle": {"type": "string", "maxLength": 512}}}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}, "changed": {"type": "boolean"}, "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}}},
-    "verification": {"readback": "blueprint.view"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+    "verification": {"readback": "blueprint.view", "targetFields": ["id"], "failureReceipt": "preserved-dirty"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
   },
   {
     "id": "blueprint.view", "version": 1, "domain": "blueprint", "summary": "Inspect exact Blueprint", "execution": "native", "mutates": false, "destructive": false,
@@ -718,7 +719,7 @@
     "idempotency": "natural-key", "saveBehavior": "dirty-only", "transactionBehavior": "atomic", "reversibility": "source-control", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
     "inputSchema": {"type": "object", "additionalProperties": false, "required": ["actorId", "class", "name"], "properties": {"actorId": {"type": "string", "minLength": 1, "maxLength": 512}, "class": {"type": "string", "minLength": 1, "maxLength": 512}, "name": {"type": "string", "minLength": 1, "maxLength": 512}, "location": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -1000000000, "maximum": 1000000000}}}},
     "outputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "changed", "dirtyPackages", "savedPackages", "revision"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "changed": {"type": "boolean"}, "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}}},
-    "verification": {"readback": "component.view"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+    "verification": {"readback": "component.view", "targetFields": ["id"]}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
   },
   {
     "id": "component.list", "version": 1, "domain": "component", "summary": "List components", "execution": "native", "mutates": false, "destructive": false,
@@ -732,14 +733,14 @@
     "idempotency": "request-key", "saveBehavior": "dirty-only", "transactionBehavior": "atomic", "reversibility": "destructive", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
     "inputSchema": {"type": "object", "additionalProperties": false, "required": ["id"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "force": {"type": "boolean"}, "dryRun": {"type": "boolean"}}},
     "outputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "changed", "dryRun", "dirtyPackages", "savedPackages", "revision"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "changed": {"type": "boolean"}, "dryRun": {"type": "boolean"}, "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}}},
-    "verification": {"readback": "component.view"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+    "verification": {"readback": "component.view", "targetFields": ["id"]}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
   },
   {
     "id": "component.update", "version": 1, "domain": "component", "summary": "Update exact component", "execution": "native", "mutates": true, "destructive": false,
     "idempotency": "natural-key", "saveBehavior": "dirty-only", "transactionBehavior": "atomic", "reversibility": "source-control", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
     "inputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "location"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "location": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -1000000000, "maximum": 1000000000}}}},
     "outputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "changed", "dirtyPackages", "savedPackages", "revision"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "changed": {"type": "boolean"}, "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}}},
-    "verification": {"readback": "component.view"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+    "verification": {"readback": "component.view", "targetFields": ["id"]}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
   },
   {
     "id": "component.view", "version": 1, "domain": "component", "summary": "View exact component", "execution": "native", "mutates": false, "destructive": false,
@@ -753,7 +754,7 @@
     "idempotency": "natural-key", "saveBehavior": "dirty-only", "transactionBehavior": "atomic", "reversibility": "source-control", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
     "inputSchema": {"type": "object", "additionalProperties": false, "required": ["levelId", "gameModeClass"], "properties": {"levelId": {"type": "string", "minLength": 1, "maxLength": 512}, "gameModeClass": {"type": "string", "minLength": 1, "maxLength": 512}}},
     "outputSchema": {"type": "object", "additionalProperties": false, "required": ["levelId", "gameModeClass", "defaultPawnClass", "changed", "dirtyPackages", "savedPackages", "revision"], "properties": {"levelId": {"type": "string", "minLength": 1, "maxLength": 512}, "gameModeClass": {"type": "string", "minLength": 1, "maxLength": 512}, "defaultPawnClass": {"type": "string", "minLength": 1, "maxLength": 512}, "changed": {"type": "boolean"}, "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}}},
-    "verification": {"readback": "level.settings"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+    "verification": {"readback": "level.settings", "targetFields": ["levelId"]}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
   },
   {
     "id": "level.settings", "version": 1, "domain": "level", "summary": "Read level settings", "execution": "native", "mutates": false, "destructive": false,
@@ -767,7 +768,7 @@
     "idempotency": "request-key", "saveBehavior": "none", "transactionBehavior": "none", "reversibility": "none", "allowedEditorStates": ["playing"], "requiresModules": ["UnrealEd"],
     "inputSchema": {"type":"object","additionalProperties":false,"required":["sessionId","key","event"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128},"key":{"type":"string","minLength":1,"maxLength":128},"event":{"type":"string","maxLength":8,"enum":["pressed","released"]}}},
     "outputSchema": {"type":"object","additionalProperties":false,"required":["sessionId","key","event","accepted","changed","beforeRevision","afterRevision","revision"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128},"key":{"type":"string","minLength":1,"maxLength":128},"event":{"type":"string","maxLength":8,"enum":["pressed","released"]},"accepted":{"type":"boolean"},"changed":{"type":"boolean"},"beforeRevision":{"type":"string","minLength":64,"maxLength":64},"afterRevision":{"type":"string","minLength":64,"maxLength":64},"revision":{"type":"string","minLength":64,"maxLength":64}}},
-    "verification": {"readback":"play.observe"}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
+    "verification": {"readback":"play.observe", "targetFields":["sessionId","key","event"]}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
   },
   {
     "id": "play.observe", "version": 1, "domain": "play", "summary": "Observe running play session", "execution": "native", "mutates": false, "destructive": false,
@@ -781,14 +782,14 @@
     "idempotency": "request-key", "saveBehavior": "none", "transactionBehavior": "none", "reversibility": "none", "allowedEditorStates": ["playing"], "requiresModules": ["UnrealEd"],
     "inputSchema": {"type":"object","additionalProperties":false,"required":["sessionId"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128},"path":{"type":"string","minLength":1,"maxLength":512}}},
     "outputSchema": {"type":"object","additionalProperties":false,"required":["sessionId","path","width","height","format","changed","revision"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128},"path":{"type":"string","minLength":1,"maxLength":1024},"width":{"type":"integer","minimum":1,"maximum":16384},"height":{"type":"integer","minimum":1,"maximum":16384},"format":{"type":"string","maxLength":3,"enum":["png"]},"changed":{"type":"boolean"},"revision":{"type":"string","minLength":64,"maxLength":64}}},
-    "verification": {"identity":"screenshot-path"}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
+    "verification": {"readback":"artifact", "targetFields":["path"]}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
   },
   {
     "id": "play.start", "version": 1, "domain": "play", "summary": "Start play session", "execution": "native", "mutates": true, "destructive": false,
     "idempotency": "natural-key", "saveBehavior": "none", "transactionBehavior": "atomic", "reversibility": "none", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
     "inputSchema": {"type":"object","additionalProperties":false,"properties":{}},
     "outputSchema": {"type":"object","additionalProperties":false,"required":["sessionId","state","worldId","levelId","changed","revision"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128},"state":{"type":"string","maxLength":8,"enum":["starting","running"]},"worldId":{"type":["string","null"],"maxLength":512},"levelId":{"type":["string","null"],"maxLength":512},"changed":{"type":"boolean"},"revision":{"type":"string","minLength":64,"maxLength":64}}},
-    "verification": {"readback":"play.status"}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
+    "verification": {"readback":"play.status", "targetFields":["sessionId"]}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
   },
   {
     "id": "play.status", "version": 1, "domain": "play", "summary": "Read play session status", "execution": "native", "mutates": false, "destructive": false,
@@ -802,7 +803,7 @@
     "idempotency": "natural-key", "saveBehavior": "none", "transactionBehavior": "atomic", "reversibility": "none", "allowedEditorStates": ["playing"], "requiresModules": ["UnrealEd"],
     "inputSchema": {"type":"object","additionalProperties":false,"required":["sessionId"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128}}},
     "outputSchema": {"type":"object","additionalProperties":false,"required":["sessionId","state","changed","revision"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128},"state":{"type":"string","maxLength":8,"enum":["stopping","stopped"]},"changed":{"type":"boolean"},"revision":{"type":"string","minLength":64,"maxLength":64}}},
-    "verification": {"readback":"play.status"}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
+    "verification": {"readback":"play.status", "targetFields":["sessionId"]}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
   },
   {
     "id": "asset.list",
@@ -1185,12 +1186,29 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "available",
+            "availability",
+            "reasons",
             "catalogHash"
           ],
           "properties": {
-            "available": {
-              "type": "boolean"
+            "availability": {
+              "type": "string",
+              "maxLength": 11,
+              "enum": ["available", "unavailable", "unknown"]
+            },
+            "reasons": {
+              "type": "array",
+              "maxItems": 16,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["code", "subject", "message"],
+                "properties": {
+                  "code": {"type": "string", "minLength": 1, "maxLength": 32},
+                  "subject": {"type": "string", "maxLength": 128},
+                  "message": {"type": "string", "minLength": 1, "maxLength": 512}
+                }
+              }
             },
             "catalogHash": {
               "type": "string",
@@ -1284,7 +1302,8 @@
               "id",
               "domain",
               "summary",
-              "available"
+              "availability",
+              "reasons"
             ],
             "properties": {
               "id": {
@@ -1302,8 +1321,24 @@
                 "minLength": 1,
                 "maxLength": 512
               },
-              "available": {
-                "type": "boolean"
+              "availability": {
+                "type": "string",
+                "maxLength": 11,
+                "enum": ["available", "unavailable", "unknown"]
+              },
+              "reasons": {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["code", "subject", "message"],
+                  "properties": {
+                    "code": {"type": "string", "minLength": 1, "maxLength": 32},
+                    "subject": {"type": "string", "maxLength": 128},
+                    "message": {"type": "string", "minLength": 1, "maxLength": 512}
+                  }
+                }
               }
             }
           }
@@ -1486,7 +1521,8 @@
     },
     "verification": {
       "readback": "level.current",
-      "persistence": "level.save"
+      "persistence": "level.save",
+      "targetFields": ["level"]
     },
     "engineSupport": {
       "certified": [
@@ -1786,7 +1822,8 @@
       }
     },
     "verification": {
-      "readback": "level.current"
+      "readback": "level.current",
+      "targetFields": ["level"]
     },
     "engineSupport": {
       "certified": [
@@ -1871,7 +1908,8 @@
     },
     "verification": {
       "readback": "level.current",
-      "persistence": "restart"
+      "persistence": "restart",
+      "targetFields": ["level"]
     },
     "engineSupport": {
       "certified": [
@@ -1893,7 +1931,8 @@
     "transactionBehavior": "none",
     "reversibility": "none",
     "allowedEditorStates": [
-      "editing"
+      "editing",
+      "playing"
     ],
     "requiresModules": [
       "UnrealEd"
@@ -1942,7 +1981,13 @@
             "observedRevision": {"type": "string", "minLength": 64, "maxLength": 64},
             "accepted": {"type": "boolean"},
             "beforeRevision": {"type": "string", "minLength": 64, "maxLength": 64},
-            "afterRevision": {"type": "string", "minLength": 64, "maxLength": 64}
+            "afterRevision": {"type": "string", "minLength": 64, "maxLength": 64},
+            "observedStatus": {"type": "string", "maxLength": 16, "enum": ["error"]},
+            "failureType": {"type": "string", "maxLength": 32, "enum": ["blueprint_compile_failed"]},
+            "errorCount": {"type": "integer", "minimum": 1, "maximum": 100},
+            "warningCount": {"type": "integer", "minimum": 0, "maximum": 100},
+            "diagnostics": {"type": "array", "minItems": 1, "maxItems": 100, "items": {"type": "object", "additionalProperties": false, "required": ["severity", "message", "graph", "nodeGuid", "nodeTitle"], "properties": {"severity": {"type": "string", "maxLength": 8, "enum": ["error", "warning"]}, "message": {"type": "string", "minLength": 1, "maxLength": 1024}, "graph": {"type": "string", "maxLength": 512}, "nodeGuid": {"type": "string", "maxLength": 128}, "nodeTitle": {"type": "string", "maxLength": 512}}}},
+            "changedObjects": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 512}}
           }
         }
       }

@@ -88,11 +88,13 @@ mutation_when_safe() {
 assert_ok() { jq -e 'has("result") and (.error == null or (has("error") | not))' "$1" >/dev/null || { echo "assert_ok failed: $1" >&2; exit 1; }; }
 editor_alive() { kill -0 "$1" 2>/dev/null && [[ "$(ps -p "$1" -o stat= 2>/dev/null)" != Z* ]]; }
 start_editor() {
-  local run=$1 record
+  local run=$1 record exec_cmd=${2:-}
+  local -a editor_args=(-unattended -nop4 -nosplash -RenderOffscreen -ResX=640 -ResY=360 -NoSound "-log=$work/editor-$run-ue.log")
+  [[ -z "$exec_cmd" ]] || editor_args+=("-ExecCmds=$exec_cmd")
   [[ -z "$pid" ]]
   session=
   token=
-  "$editor" "$project" -unattended -nop4 -nosplash -RenderOffscreen -ResX=640 -ResY=360 -NoSound -log="$work/editor-$run-ue.log" >"$work/editor-$run.log" 2>&1 &
+  "$editor" "$project" "${editor_args[@]}" >"$work/editor-$run.log" 2>&1 &
   pid=$!
   session="$runtime_root/$pid"
   record="$session/bridge-v1.json"
@@ -146,6 +148,10 @@ stop_editor() {
 }
 
 start_editor first
+axi capability describe blueprint.compile >"$work/capability-blueprint-compile-live.json"
+jq -e '.runtime.availability == "available" and .runtime.reasons == []' "$work/capability-blueprint-compile-live.json" >/dev/null || { echo "live Blueprint compile availability mismatch" >&2; exit 1; }
+axi capability search blueprint >"$work/capability-blueprint-live-search.json"
+jq -e '.count == 2 and all(.items[]; .availability == "available" and .reasons == [])' "$work/capability-blueprint-live-search.json" >/dev/null || { echo "live Blueprint capability search mismatch" >&2; exit 1; }
 mutation_when_safe "$work/level-create.json" level create --path "$level"
 assert_ok "$work/level-create.json"
 [[ $(jq -r .result.changed "$work/level-create.json") == true && ! -e "$project_dir/Content/MagiM6/M6Interaction.umap" ]]
@@ -238,6 +244,15 @@ start_editor blueprint-restart
 mutation_when_safe "$work/level-reopen-blueprint.json" level open --path "$level"
 axi blueprint view "$valid_blueprint" >"$work/blueprint-valid-restart.json"
 [[ $(jq -r .revision "$work/blueprint-valid-restart.json") == "$valid_after" ]] || { echo "valid Blueprint revision did not persist across restart" >&2; exit 1; }
+stop_editor
+start_editor invalid-dirty-blueprint 'Automation RunTests MagiUnrealAXI.LiveFixture.DirtyPackage'
+mutation_when_safe "$work/level-reopen-invalid-dirty-blueprint.json" level open --path "$level"
+for _ in $(seq 1 200); do
+  axi blueprint view /Game/MagiM6/BP_InvalidCompile.BP_InvalidCompile >"$work/blueprint-dirty-wait.json"
+  [[ $(jq -r .status "$work/blueprint-dirty-wait.json") == dirty ]] && break
+  sleep .1
+done
+[[ $(jq -r .status "$work/blueprint-dirty-wait.json") == dirty ]] || { echo "invalid Blueprint fixture did not become dirty" >&2; exit 1; }
 blueprint=/Game/MagiM6/BP_InvalidCompile.BP_InvalidCompile
 axi blueprint view "$blueprint" >"$work/blueprint-view.json"
 blueprint_rev=$(jq -r .revision "$work/blueprint-view.json")
@@ -246,7 +261,38 @@ set +e
 axi blueprint compile "$blueprint" --expected-revision "$blueprint_rev" >"$work/blueprint-compile-invalid.json"
 blueprint_status=$?
 set -e
-[[ $blueprint_status == 1 && $(jq -r .error.reason "$work/blueprint-compile-invalid.json") == blueprint_compile_failed && $(jq -r .error.errorCount "$work/blueprint-compile-invalid.json") -gt 0 && $(jq -r '.error.diagnostics | length' "$work/blueprint-compile-invalid.json") -gt 0 && $(jq -r '[.error.diagnostics[] | select(.graph != "" and .nodeGuid != "" and .nodeTitle != "")] | length' "$work/blueprint-compile-invalid.json") -gt 0 ]] || { echo "invalid blueprint compile contract mismatch" >&2; exit 1; }
+[[ $blueprint_status == 1 ]] || { echo "invalid Blueprint compile exit status mismatch: $blueprint_status" >&2; exit 1; }
+jq -e --arg rev "$blueprint_rev" '
+  .error.reason == "blueprint_compile_failed" and .error.retryable == false and
+  .error.operationId == .error.receipt.operationId and
+  .error.receipt.operation == "blueprint.compile" and .error.receipt.state == "failed" and
+  .error.receipt.transaction == "non-atomic" and .error.receipt.reversibility == "source-control" and
+  .error.receipt.persistence == "dirty" and .error.receipt.savedPackages == [] and
+  (.error.receipt.dirtyPackages | index("/Game/MagiM6/BP_InvalidCompile")) != null and
+  (.error.receipt.revision | length) == 64 and
+  .error.receipt.changed == ($rev != .error.receipt.verification.observedRevision) and
+  .error.receipt.verification.readback == "blueprint.view" and
+  .error.receipt.verification.target == "/Game/MagiM6/BP_InvalidCompile.BP_InvalidCompile" and
+  .error.receipt.verification.matched == true and
+  .error.receipt.verification.beforeRevision == $rev and
+  .error.receipt.verification.observedRevision == .error.receipt.revision and
+  .error.receipt.verification.observedStatus == "error" and
+  .error.receipt.verification.failureType == "blueprint_compile_failed" and
+  (.error.receipt.verification.errorCount > 0) and
+  (.error.receipt.verification.diagnostics | length) > 0 and
+  ([.error.receipt.verification.diagnostics[] | select(.graph != "" and .nodeGuid != "" and .nodeTitle != "")] | length) > 0 and
+  (.error.receipt.verification.changedObjects | type) == "array"
+' "$work/blueprint-compile-invalid.json" >/dev/null || { echo "invalid Blueprint failed receipt contract mismatch" >&2; exit 1; }
+failed_compile_operation=$(jq -r .error.operationId "$work/blueprint-compile-invalid.json")
+stop_editor
+axi capability describe blueprint.compile >"$work/capability-blueprint-compile-offline.json"
+jq -e '.runtime.availability == "unknown" and (.runtime.reasons | any(.code == "editor_offline"))' "$work/capability-blueprint-compile-offline.json" >/dev/null || { echo "offline Blueprint availability mismatch" >&2; exit 1; }
+axi operation view "$failed_compile_operation" >"$work/blueprint-compile-invalid-offline-receipt.json"
+jq -e --slurpfile failed "$work/blueprint-compile-invalid.json" '. == $failed[0].error.receipt' "$work/blueprint-compile-invalid-offline-receipt.json" >/dev/null || { echo "offline failed compile receipt recovery mismatch" >&2; exit 1; }
+start_editor invalid-blueprint-restart
+mutation_when_safe "$work/level-reopen-invalid-blueprint.json" level open --path "$level"
+axi blueprint view "$blueprint" >"$work/blueprint-invalid-restart.json"
+jq -e --arg id "$blueprint" --arg rev "$blueprint_rev" '.id == $id and .status == "error" and .revision == $rev' "$work/blueprint-invalid-restart.json" >/dev/null || { echo "invalid Blueprint state/revision did not persist across restart" >&2; exit 1; }
 
 play_start() { axi play start >"$work/$1-start.json"; jq -r .result.sessionId "$work/$1-start.json"; }
 play_wait() { local sid=$1 out=$2 state=; for _ in $(seq 1 120); do axi play status --session-id "$sid" >"$out"; state=$(jq -r .state "$out"); [[ "$state" == running ]] && return 0; sleep .2; done; return 1; }
@@ -339,5 +385,5 @@ cp "$screenshot" "$evidence/m6-live.png"
 for secret in "${tokens[@]}"; do
   if grep -R -I -Fq -- "$secret" "$evidence"; then echo "runtime token leaked into retained evidence" >&2; exit 1; fi
 done
-printf 'target=UE 5.8.1 changelist 56057345 host=%s\neditorRestart=passed\npieInputObserve=operation-specific-revisions-and-deterministic-100-unit-input-passed\nplayReceipts=matched-native-readback-and-operation-view-passed\nscreenshot=valid-rendered-png\nblueprintCompile=success-repeat-save-restart-and-structured-failure-passed\ncomponentRemove=dry-run-force-save-restart-absence-passed\npersistenceReset=passed\nprojectBuild=passed\nshutdown=process-and-discovery-clean\ninventory=1 umap,3 input uassets,2 Blueprint fixtures,sentinel unchanged\n' "$(uname -m)" | tee "$evidence/summary.txt"
+printf 'target=UE 5.8.1 changelist 56057345 host=%s\neditorRestart=passed\ncapabilityAvailability=live-available-offline-unknown-editor_offline\npieInputObserve=operation-specific-revisions-and-deterministic-100-unit-input-passed\nplayReceipts=matched-native-readback-and-operation-view-passed\nscreenshot=valid-rendered-png\nblueprintCompile=success-repeat-save-restart-failed-non-atomic-dirty-receipt-offline-recovery-passed\ncomponentRemove=dry-run-force-save-restart-absence-passed\npersistenceReset=passed\nprojectBuild=passed\nshutdown=process-and-discovery-clean\ntokenScan=passed\ninventory=1 umap,3 input uassets,2 Blueprint fixtures,sentinel unchanged\n' "$(uname -m)" | tee "$evidence/summary.txt"
 echo "M6 live certification: PASS (evidence retained at $evidence)"

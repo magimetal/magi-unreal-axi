@@ -12,7 +12,10 @@ This directory is text-owned. Certification copies fixtures to canonical cache w
 - `certify-m6.sh`: plugin and source fixture build, Blueprint compilation, three M6 native contracts, and three M5 mutation regressions.
 - `certify-m6-live.sh`: 34-record catalog parity; input assets; components; GameMode; Blueprint diagnostics; deferred next-tick input readback; PIE observe/screenshot/synchronous stop/reset; receipt identity/safety metadata; save/restart persistence; fixture project build; inventory/token/cleanup checks.
 - `certify-m7-live.sh`: exact pipeline dry-runs, build/repeat, automation list/run, blueprint-only cook/package, destination protection, structured failures, bounded logs, and durable operation readback.
-- `certify-m8-live.sh`: verifies checksum binding, allowlisted archive inventory/path safety, arm64 binary and ad-hoc codesign, clean extraction/install, isolated-HOME agent setup/idempotency/context, plugin lifecycle, project build, full 15-test MagiUnrealAXI automation, editor read/mutation/save/restart persistence, uninstall, and retained-evidence token scan.
+- `p1.0-manifest.json`: certified engine cell, catalog identity, runtime limits, exact generated safety fields, native test inventory, and live assertion inventory.
+- `certify-p1.0.sh`: P1.0 plugin/fixture build, `CompileAllBlueprints`, exact 16-test automation inventory, generated metadata/identity/save-policy/lifecycle contracts, artifact/source hashes, and token-file scan.
+- `certify-p1.0-live.sh`: P1.0 tri-state availability, dirty failed-compile receipt, exact live/offline recovery, restart preservation, catalog binding, and retained-evidence token scan.
+- `certify-m8-live.sh`: verifies checksum binding, allowlisted archive inventory/path safety, arm64 binary and ad-hoc codesign, clean extraction/install, isolated-HOME agent setup/idempotency/context, plugin lifecycle, project build, full 16-test MagiUnrealAXI automation, editor read/mutation/save/restart persistence, uninstall, and retained-evidence token scan.
 
 Run current gates from repository root:
 
@@ -20,13 +23,16 @@ Run current gates from repository root:
 ./tests/unreal/certify-m6.sh
 ./tests/unreal/certify-m6-live.sh
 ./tests/unreal/certify-m7-live.sh
+./tests/unreal/certify-p1.0.sh
+./tests/unreal/certify-p1.0-live.sh
 ./tests/unreal/certify-m8-live.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
 ```
 
 Latest M6 evidence: `~/Library/Caches/magi-unreal-axi/m6/native/evidence.T25zpG` and `~/Library/Caches/magi-unreal-axi/m6/live/evidence.m9J5dO`.
 
 Latest M7 evidence: `~/Library/Caches/magi-unreal-axi/m7/live/evidence.Ekd7HQ`.
+P1.0 evidence: native pass at `~/Library/Caches/magi-unreal-axi/p1.0/native/evidence.zLZ1or` and live pass at `~/Library/Caches/magi-unreal-axi/p1.0/live/evidence.FRJY3A`.
 
-M8 evidence: hardened exact-artifact clean-install pass at `~/Library/Caches/magi-unreal-axi/m8/live/latest`, agent evaluation at `~/Library/Caches/magi-unreal-axi/m8/agent-evaluation/run.Gy9dcQ/evidence`, and post-fix 15/15 automation at `~/Library/Caches/magi-unreal-axi/read-fixture-fix.KGV2FR/evidence`.
+M8 evidence: current exact-artifact clean-install pass at `~/Library/Caches/magi-unreal-axi/m8/live/evidence.w517tz`, agent evaluation at `~/Library/Caches/magi-unreal-axi/m8/agent-evaluation/run.Gy9dcQ/evidence`, and historical post-fix 15/15 automation at `~/Library/Caches/magi-unreal-axi/read-fixture-fix.KGV2FR/evidence`.
 
 UE 5.8.1/macOS arm64 is certified through M8.

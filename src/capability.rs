@@ -50,10 +50,18 @@ pub fn search(query: &str, limit: usize) -> Value {
                 };
                 Some(score + term_score)
             })?;
+            let (availability, reasons) = if record["execution"] == "local" {
+                ("available", json!([]))
+            } else {
+                (
+                    "unknown",
+                    json!([{"code":"editor_offline","subject":"","message":"No authenticated matching editor is available"}]),
+                )
+            };
             Some((
                 score,
                 id.to_owned(),
-                json!({"id":id,"domain":domain,"summary":summary,"available":true}),
+                json!({"id":id,"domain":domain,"summary":summary,"availability":availability,"reasons":reasons}),
             ))
         })
         .collect::<Vec<_>>();
@@ -100,9 +108,43 @@ pub fn describe(id: &str) -> Result<Value, AppError> {
             Value::String(serde_json::to_string(&value).expect("schema serializes")),
         );
     }
+    let (availability, reasons) = if capability["execution"] == "local" {
+        ("available", json!([]))
+    } else {
+        (
+            "unknown",
+            json!([{"code":"editor_offline","subject":"","message":"No authenticated matching editor is available"}]),
+        )
+    };
     Ok(
-        json!({"capability": capability, "runtime": {"available": true, "catalogHash": CATALOG_HASH}}),
+        json!({"capability": capability, "runtime": {"availability":availability,"reasons":reasons,"catalogHash": CATALOG_HASH}}),
     )
+}
+
+pub fn apply_runtime_availability(output: &mut Value, live: &Value) {
+    if let Some(items) = output.get_mut("items").and_then(Value::as_array_mut) {
+        for item in items {
+            let Some(id) = item.get("id").and_then(Value::as_str) else {
+                continue;
+            };
+            if capability_metadata(id).is_some_and(|metadata| metadata.execution == "native")
+                && let Some(runtime) = live.get(id)
+            {
+                item["availability"] = runtime["availability"].clone();
+                item["reasons"] = runtime["reasons"].clone();
+            }
+        }
+        return;
+    }
+    let Some(id) = output["capability"]["id"].as_str() else {
+        return;
+    };
+    if capability_metadata(id).is_some_and(|metadata| metadata.execution == "native")
+        && let Some(runtime) = live.get(id)
+    {
+        output["runtime"]["availability"] = runtime["availability"].clone();
+        output["runtime"]["reasons"] = runtime["reasons"].clone();
+    }
 }
 
 pub fn validate_input(id: &str, args: Value) -> Result<Value, AppError> {

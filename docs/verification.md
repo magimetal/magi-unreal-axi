@@ -22,9 +22,14 @@ cargo run --locked --bin xtask -- release check
 ./tests/unreal/certify-m6.sh
 ./tests/unreal/certify-m6-live.sh
 ./tests/unreal/certify-m7-live.sh
+./tests/unreal/certify-p1.0.sh
+./tests/unreal/certify-p1.0-live.sh
+./tests/unreal/certify-m8-live.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
 ```
 
-Rust final: 31 unit plus 42 real-binary integration tests = 73 tests (`cargo test --locked`, verified locally). Catalog check validates 34 records, generated static Rust/C++ schemas and registries, mutation safety metadata, receipt identity fields, and hash `b1888d3416a0873e31b1b600f6c84a7e01cdce982fedc8088ab42e8b76c3b506`.
+Rust gate: 35 library tests, 4 xtask tests, and 44 real-binary integration tests = 83 tests (`cargo test --locked`, verified locally). Catalog check validates 34 records, generated static Rust/C++ schemas and registries, mutation safety metadata, receipt identity fields, and hash `8f947b51381647334ccbb35b99ab3f15c4cb50d779e90737dc7a0a414f0390a6`.
+
+P1.0 native/live certification and current-tree M8 exact-artifact regression pass. P1 remains active; P1.1 and later phases remain not started.
 
 ## Evidence paths
 
@@ -38,9 +43,19 @@ Rust final: 31 unit plus 42 real-binary integration tests = 73 tests (`cargo tes
 - M6 native: `~/Library/Caches/magi-unreal-axi/m6/native/evidence.T25zpG`
 - M6 live: `~/Library/Caches/magi-unreal-axi/m6/live/evidence.m9J5dO`
 - M7 live: `~/Library/Caches/magi-unreal-axi/m7/live/evidence.Ekd7HQ`
-- M8 hardened exact-archive clean install: `~/Library/Caches/magi-unreal-axi/m8/live/latest`
+- M8 hardened exact-archive clean install: `~/Library/Caches/magi-unreal-axi/m8/live/evidence.w517tz`
 - M8 agent evaluation: `~/Library/Caches/magi-unreal-axi/m8/agent-evaluation/run.Gy9dcQ/evidence`
 - Post-fix full automation: `~/Library/Caches/magi-unreal-axi/read-fixture-fix.KGV2FR/evidence`
+- P1.0 native: `~/Library/Caches/magi-unreal-axi/p1.0/native/evidence.zLZ1or`
+- P1.0 live: `~/Library/Caches/magi-unreal-axi/p1.0/live/evidence.FRJY3A`
+
+## P1.0 certification
+
+Dedicated native certification packages the plugin, builds the source fixture, runs `CompileAllBlueprints`, and passes all 16 Unreal automation tests. Generated catalog/runtime metadata, identity validity, save-policy enforcement, lifecycle registration, and token-file absence are bound to catalog hash `8f947b51381647334ccbb35b99ab3f15c4cb50d779e90737dc7a0a414f0390a6`.
+
+Dedicated live certification proves native availability while editor is live, offline `unknown/editor_offline`, non-atomic dirty failed-compile receipt semantics, exact live/offline `operation view` recovery, restart-preserved invalid structure/revision, and retained-evidence token absence. Refreshed M8 certification binds archive SHA-256 `4be0341503bf63cc8ea7ed928f4cd3864764ad16a4608b08c59f626243c16424` and exact 16-test inventory to clean-install lifecycle evidence.
+
+P1.0 acceptance is complete. No Blueprint authoring operation was added; P1.1 remains not started.
 
 ## M3–M5 regression status
 
@@ -84,7 +99,7 @@ M7 acceptance is complete. UE 5.8.1/macOS arm64 support is certified through M8.
 
 ## M8 certification
 
-`~/Library/Caches/magi-unreal-axi/m8/live/latest` points to retained hardened exact-artifact evidence. Gate binds archive to adjacent `SHA256SUMS`, allowlists complete inventory and rejects links/path traversal, verifies macOS arm64 and ad-hoc codesign, proves isolated-HOME agent setup, installs matching managed plugin, runs project build plus full 15/15 `MagiUnrealAXI` automation, completes editor health/read/mutation/save/restart persistence, safely uninstalls plugin, records artifact/source/workflow identity, and proves retained evidence excludes captured bridge token.
+`~/Library/Caches/magi-unreal-axi/m8/live/evidence.w517tz` contains current retained hardened exact-artifact evidence. Gate binds archive SHA-256 `4be0341503bf63cc8ea7ed928f4cd3864764ad16a4608b08c59f626243c16424` to adjacent `SHA256SUMS`, allowlists complete inventory and rejects links/path traversal, verifies macOS arm64 and ad-hoc codesign, proves isolated-HOME agent setup, installs matching managed plugin, runs project build plus exact 16/16 `MagiUnrealAXI` automation inventory, completes editor health/read/mutation/save/restart persistence, safely uninstalls plugin, records artifact/source/workflow identity, retains authoritative automation report/manifest evidence, and proves retained evidence excludes captured bridge token.
 
 After concrete `UInputAction` fixture correction, source fixture built and full MagiUnrealAXI automation passed 15/15 with zero warnings/errors at `~/Library/Caches/magi-unreal-axi/read-fixture-fix.KGV2FR/evidence`. This is build/editor automation proof, not source game-target package proof.
 

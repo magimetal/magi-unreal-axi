@@ -1,6 +1,6 @@
 # P1 capability expansion plan
 
-Status: not-started
+Status: active
 Created: 2026-08-04
 Parent: [`../../PLAN.md`](../../PLAN.md#p1--post-v1-blueprint-authoring-and-reusable-gameplay-construction)
 Certified cell: Unreal Engine 5.8.1, changelist `56057345`, macOS arm64
@@ -55,7 +55,7 @@ Current gaps that must be addressed before graph authoring expands:
 
 | Phase | Status | Primary result | Fixture |
 |---|---|---|---|
-| P1.0 | not-started | Catalog-driven native safety and stable authoring identities | V1 regression fixture |
+| P1.0 | done | Catalog-driven native safety and stable authoring identities | V1 regression fixture |
 | P1.1 | not-started | Ordinary Blueprint creation and bounded K2 graph authoring | `interaction-loop` foundation |
 | P1.2 | not-started | Reusable interaction, SCS components, collision, and physics | `interaction-loop` complete |
 | P1.3 | not-started | Widget-driven runtime state | `ui-state-loop` |
@@ -110,8 +110,8 @@ Make catalog authoritative for native safety before adding mutation operations.
 - Every existing catalogued mutation consumes generated safety metadata without unintended external behavior changes.
 - Every generated safety field, including `destructive` and `idempotency`, has runtime parity coverage; catalog/runtime disagreement fails build or startup closed.
 - No catalogued capability lacks handler/output validation, and no mutation lacks declared receipt/readback routing. `blueprint.compile` metadata and failed receipts truthfully report preserved dirty state as non-atomic. Non-catalogued lifecycle operations remain explicitly registered and tested.
-- Existing 31 unit and 42 integration tests pass unchanged or with contract-preserving updates.
-- Existing full Unreal automation passes 15/15.
+- Current 35 library, 4 xtask, and 44 real-binary integration tests pass with contract-preserving updates.
+- Full Unreal automation passes 16/16.
 - M8 exact-artifact lifecycle remains green after version generalization.
 - Invalid dirty Blueprint compile test proves catalog metadata, error receipt/recovery, observed revision and dirty packages, and absence of false atomic rollback/persistence claims.
 

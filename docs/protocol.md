@@ -29,7 +29,7 @@ Plugin creates current-user `0700` directories and atomically writes `0600` regu
 
 Discovery identifies protocol/plugin version, PID plus kernel process-start identity, canonical project path/ID, engine version, loopback host/port, session nonce, and start time. CLI validates owner, type, symlink status, permissions, project/session identity, and process identity before authentication. First frame includes exact protocol, token, canonical project, PID/process start, nonce, and CLI version. Plugin compares token in constant time; 64 failures within 10 seconds temporarily close handshake admission.
 
-Successful handshake repeats runtime identity and generated `catalogHash`. Current 34-record hash is `b1888d3416a0873e31b1b600f6c84a7e01cdce982fedc8088ab42e8b76c3b506`. CLI rejects identity or hash mismatch before operation dispatch. Token never enters discovery, responses, errors, logs, receipts, or retained evidence.
+Successful handshake repeats runtime identity and generated `catalogHash`. Current 34-record hash is `8f947b51381647334ccbb35b99ab3f15c4cb50d779e90737dc7a0a414f0390a6`. CLI rejects identity or hash mismatch before operation dispatch. Token never enters discovery, responses, errors, logs, receipts, or retained evidence.
 
 ## Operations
 
@@ -60,6 +60,16 @@ Mutation success includes result plus receipt:
 ```
 
 Receipt construction validates operation-specific identity and catalogued safety metadata: exact project/editor/operation/target, transaction, reversibility, persistence, changed state, package effects, revision, and readback. Any transmitted mutation with unconfirmed response returns `outcome_unknown` plus operation ID; `operation.view` checks live ledger then private bounded journal.
+
+`bridge.describe` is additive in protocol v1. Its result includes `protocol`, `catalogHash`, all public operation names in `operations`, and complete `nativeOperations` entries shaped as `{"operation":"blueprint.compile","availability":"available|unavailable","reasons":[{"code":"...","subject":"...","message":"..."}]}`. Live entries are `available` with empty reasons or `unavailable` with bounded structured reasons such as `missing_module` and `editor_state`. CLI discovery merges this evidence with local catalog data: local capabilities remain `available` offline, while native capabilities become `unknown` with `editor_offline` when no authenticated matching editor exists. Clients execute only available entries.
+
+Failed compile error envelope (64-character revision values abbreviated here):
+
+```json
+{"protocol":1,"id":"op-1","status":"error","error":{"type":"blueprint_compile_failed","message":"Blueprint compile failed","retryable":false,"dirtyPackageCount":1,"dirtyPackages":["/Game/BP"],"errorCount":1,"warningCount":0,"diagnostics":[{"severity":"error","message":"invalid graph","graph":"/Game/BP.BP:EventGraph","nodeGuid":"00000000-0000-0000-0000-000000000001","nodeTitle":"Broken"}]},"receipt":{"operationId":"op-1","operation":"blueprint.compile","state":"failed","projectId":"sha256:...","editorPid":1234,"target":"/Game/BP.BP","changed":false,"transaction":"non-atomic","reversibility":"source-control","dirtyPackages":["/Game/BP"],"savedPackages":[],"revision":"<64-hex>","persistence":"dirty","verification":{"readback":"blueprint.view","target":"/Game/BP.BP","matched":true,"beforeRevision":"<64-hex>","observedRevision":"<64-hex>","observedStatus":"error","failureType":"blueprint_compile_failed","errorCount":1,"warningCount":0,"diagnostics":[{"severity":"error","message":"invalid graph","graph":"/Game/BP.BP:EventGraph","nodeGuid":"00000000-0000-0000-0000-000000000001","nodeTitle":"Broken"}],"changedObjects":[]}}}
+```
+
+No rollback or saved persistence is claimed. Exit status is 1; inspect `operation.view` before retry, and use bounded journal fallback when editor is offline. `operation.view` is allowed during editing and PIE recovery. P1.0 adds no P1.1 operations.
 
 ## M6 runtime semantics
 

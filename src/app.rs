@@ -262,19 +262,33 @@ fn execute(cli: &Cli, context: &Context) -> Result<Value, AppError> {
                     "capability.search",
                     json!({"query":query,"limit":limit}),
                 )?;
-                capability::validate_output(
-                    "capability.search",
-                    capability::execute_local("capability.search", &args)
-                        .expect("search is local")?,
-                )
+                let mut output = capability::execute_local("capability.search", &args)
+                    .expect("search is local")?;
+                if let Some(project) = selected_project
+                    && let Some(live) = bridge::runtime_availability(
+                        project,
+                        resolved.editor,
+                        Duration::from_secs(resolved.timeout_seconds.unwrap_or(30)),
+                    )?
+                {
+                    capability::apply_runtime_availability(&mut output, &live);
+                }
+                capability::validate_output("capability.search", output)
             }
             CapabilityCommand::Describe { id } => {
                 let args = capability::validate_input("capability.describe", json!({"id":id}))?;
-                capability::validate_output(
-                    "capability.describe",
-                    capability::execute_local("capability.describe", &args)
-                        .expect("describe is local")?,
-                )
+                let mut output = capability::execute_local("capability.describe", &args)
+                    .expect("describe is local")?;
+                if let Some(project) = selected_project
+                    && let Some(live) = bridge::runtime_availability(
+                        project,
+                        resolved.editor,
+                        Duration::from_secs(resolved.timeout_seconds.unwrap_or(30)),
+                    )?
+                {
+                    capability::apply_runtime_availability(&mut output, &live);
+                }
+                capability::validate_output("capability.describe", output)
             }
             CapabilityCommand::Execute {
                 id,
