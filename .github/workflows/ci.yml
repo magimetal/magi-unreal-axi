@@ -1,0 +1,27 @@
+name: hosted-rust
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  rust:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88.0
+        with:
+          components: rustfmt, clippy
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit,cargo-deny
+      - run: cargo fmt --check
+      - run: cargo test --locked
+      - run: cargo clippy --all-targets --all-features --locked -- -D warnings
+      - run: cargo build --release --locked
+      - run: cargo run --locked --bin xtask -- capabilities check
+      - run: cargo run --locked --bin xtask -- guidance check
+      - run: cargo run --locked --bin xtask -- release check
+      - run: cargo audit
+      - run: cargo deny check
+      - run: cargo package --locked

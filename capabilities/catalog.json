@@ -1,0 +1,1958 @@
+[
+  {
+    "id": "actor.delete",
+    "version": 1,
+    "domain": "actor",
+    "summary": "Delete exact actor by persistent ActorGuid",
+    "execution": "native",
+    "mutates": true,
+    "destructive": true,
+    "idempotency": "request-key",
+    "saveBehavior": "dirty-only",
+    "transactionBehavior": "atomic",
+    "reversibility": "destructive",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "UnrealEd"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "force": {
+          "type": "boolean"
+        },
+        "dryRun": {
+          "type": "boolean"
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "changed",
+        "dryRun",
+        "dirtyPackages",
+        "savedPackages",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "changed": {
+          "type": "boolean"
+        },
+        "dryRun": {
+          "type": "boolean"
+        },
+        "dirtyPackages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "savedPackages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      }
+    },
+    "verification": {
+      "readback": "actor.view",
+      "persistence": "level.save"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "actor.list",
+    "version": 1,
+    "domain": "actor",
+    "summary": "List actors in current editor level",
+    "execution": "native",
+    "mutates": false,
+    "destructive": false,
+    "idempotency": "read-only",
+    "saveBehavior": "none",
+    "transactionBehavior": "none",
+    "reversibility": "none",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "UnrealEd"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 100
+        },
+        "cursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "maxLength": 32,
+            "enum": [
+              "id",
+              "label",
+              "class",
+              "levelId"
+            ]
+          }
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "count",
+        "total",
+        "scope",
+        "revision",
+        "items",
+        "nextCursor"
+      ],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "class": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "levelId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              }
+            }
+          }
+        },
+        "nextCursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        }
+      }
+    },
+    "verification": {
+      "readback": "actor.view"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "actor.spawn",
+    "version": 1,
+    "domain": "actor",
+    "summary": "Spawn or return actor by level-scoped agent key",
+    "execution": "native",
+    "mutates": true,
+    "destructive": false,
+    "idempotency": "natural-key",
+    "saveBehavior": "dirty-only",
+    "transactionBehavior": "atomic",
+    "reversibility": "source-control",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "UnrealEd"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "levelId",
+        "class",
+        "agentKey"
+      ],
+      "properties": {
+        "levelId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "class": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "agentKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "location": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "minimum": -1000000000,
+            "maximum": 1000000000
+          }
+        },
+        "rotation": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "minimum": -360,
+            "maximum": 360
+          }
+        },
+        "scale": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          }
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "actorGuid",
+        "changed",
+        "dirtyPackages",
+        "savedPackages",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "actorGuid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "changed": {
+          "type": "boolean"
+        },
+        "dirtyPackages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "savedPackages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      }
+    },
+    "verification": {
+      "readback": "actor.view",
+      "persistence": "level.save"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "actor.update_transform",
+    "version": 1,
+    "domain": "actor",
+    "summary": "Update exact actor transform",
+    "execution": "native",
+    "mutates": true,
+    "destructive": false,
+    "idempotency": "request-key",
+    "saveBehavior": "dirty-only",
+    "transactionBehavior": "atomic",
+    "reversibility": "source-control",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "UnrealEd"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "location": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "minimum": -1000000000,
+            "maximum": 1000000000
+          }
+        },
+        "rotation": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "minimum": -360,
+            "maximum": 360
+          }
+        },
+        "scale": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          }
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "changed",
+        "dirtyPackages",
+        "savedPackages",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "changed": {
+          "type": "boolean"
+        },
+        "dirtyPackages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "savedPackages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      }
+    },
+    "verification": {
+      "readback": "actor.view",
+      "persistence": "level.save"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "actor.view",
+    "version": 1,
+    "domain": "actor",
+    "summary": "Read actor by level package and persistent ActorGuid",
+    "execution": "native",
+    "mutates": false,
+    "destructive": false,
+    "idempotency": "read-only",
+    "saveBehavior": "none",
+    "transactionBehavior": "none",
+    "reversibility": "none",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "UnrealEd"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "actorGuid",
+        "levelId",
+        "label",
+        "class",
+        "objectPath",
+        "location",
+        "rotation",
+        "scale",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "actorGuid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "levelId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "class": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "objectPath": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "location": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "minimum": -1000000000,
+            "maximum": 1000000000
+          }
+        },
+        "rotation": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "minimum": -360,
+            "maximum": 360
+          }
+        },
+        "scale": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          }
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      }
+    },
+    "verification": {
+      "identity": "level-package#ActorGuid"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "asset.create_input_action",
+    "version": 1,
+    "domain": "asset",
+    "summary": "Create input action asset",
+    "execution": "native",
+    "mutates": true,
+    "destructive": false,
+    "idempotency": "natural-key",
+    "saveBehavior": "explicit",
+    "transactionBehavior": "atomic",
+    "reversibility": "source-control",
+    "allowedEditorStates": ["editing"],
+    "requiresModules": ["UnrealEd"],
+    "inputSchema": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "valueType"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "maxLength": 512},
+        "valueType": {"type": "string", "maxLength": 8, "enum": ["Boolean", "Axis1D"]}
+      }
+    },
+    "outputSchema": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "class", "valueType", "changed", "dirtyPackages", "savedPackages", "revision"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "maxLength": 512},
+        "class": {"type": "string", "minLength": 1, "maxLength": 512},
+        "valueType": {"type": "string", "minLength": 1, "maxLength": 8, "enum": ["Boolean", "Axis1D"]},
+        "changed": {"type": "boolean"},
+        "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}},
+        "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}},
+        "revision": {"type": "string", "minLength": 64, "maxLength": 64}
+      }
+    },
+    "verification": {"readback": "asset.view"},
+    "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+  },
+  {
+    "id": "asset.create_input_mapping_context",
+    "version": 1,
+    "domain": "asset",
+    "summary": "Create input mapping context asset",
+    "execution": "native",
+    "mutates": true,
+    "destructive": false,
+    "idempotency": "natural-key",
+    "saveBehavior": "explicit",
+    "transactionBehavior": "atomic",
+    "reversibility": "source-control",
+    "allowedEditorStates": ["editing"],
+    "requiresModules": ["UnrealEd"],
+    "inputSchema": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "mappings"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "maxLength": 512},
+        "mappings": {
+          "type": "array", "maxItems": 100,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["actionId", "key"],
+            "properties": {
+              "actionId": {"type": "string", "minLength": 1, "maxLength": 512},
+              "key": {"type": "string", "minLength": 1, "maxLength": 128}
+            }
+          }
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "class", "mappingCount", "changed", "dirtyPackages", "savedPackages", "revision"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "maxLength": 512},
+        "class": {"type": "string", "minLength": 1, "maxLength": 512},
+        "mappingCount": {"type": "integer", "minimum": 0, "maximum": 100},
+        "changed": {"type": "boolean"},
+        "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}},
+        "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}},
+        "revision": {"type": "string", "minLength": 64, "maxLength": 64}
+      }
+    },
+    "verification": {"readback": "asset.view"},
+    "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+  },
+  {
+    "id": "asset.save", "version": 1, "domain": "asset", "summary": "Save exact asset", "execution": "native", "mutates": true, "destructive": false,
+    "idempotency": "natural-key", "saveBehavior": "explicit", "transactionBehavior": "atomic", "reversibility": "source-control", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type": "object", "additionalProperties": false, "required": ["id"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}}},
+    "outputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "changed", "dirtyPackages", "savedPackages", "revision"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "class": {"type": "string", "minLength": 1, "maxLength": 512}, "changed": {"type": "boolean"}, "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}}},
+    "verification": {"readback": "asset.view"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+  },
+  {
+    "id": "blueprint.compile", "version": 1, "domain": "blueprint", "summary": "Compile exact Blueprint", "execution": "native", "mutates": true, "destructive": false,
+    "idempotency": "request-key", "saveBehavior": "dirty-only", "transactionBehavior": "atomic", "reversibility": "source-control", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd", "KismetCompiler"],
+    "inputSchema": {"type": "object", "additionalProperties": false, "required": ["id"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}}},
+    "outputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "parentClass", "generatedClass", "status", "graphCount", "errorCount", "warningCount", "diagnostics", "revision", "changed", "dirtyPackages", "savedPackages"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "parentClass": {"type": "string", "minLength": 1, "maxLength": 512}, "generatedClass": {"type": "string", "minLength": 1, "maxLength": 512}, "status": {"type": "string", "maxLength": 16, "enum": ["unknown", "dirty", "up_to_date", "warning", "error"]}, "graphCount": {"type": "integer", "minimum": 0, "maximum": 10000}, "errorCount": {"type": "integer", "minimum": 0, "maximum": 100}, "warningCount": {"type": "integer", "minimum": 0, "maximum": 100}, "diagnostics": {"type": "array", "maxItems": 100, "items": {"type": "object", "additionalProperties": false, "required": ["severity", "message", "graph", "nodeGuid", "nodeTitle"], "properties": {"severity": {"type": "string", "maxLength": 8, "enum": ["error", "warning"]}, "message": {"type": "string", "minLength": 1, "maxLength": 1024}, "graph": {"type": "string", "maxLength": 512}, "nodeGuid": {"type": "string", "maxLength": 128}, "nodeTitle": {"type": "string", "maxLength": 512}}}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}, "changed": {"type": "boolean"}, "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}}},
+    "verification": {"readback": "blueprint.view"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+  },
+  {
+    "id": "blueprint.view", "version": 1, "domain": "blueprint", "summary": "Inspect exact Blueprint", "execution": "native", "mutates": false, "destructive": false,
+    "idempotency": "read-only", "saveBehavior": "none", "transactionBehavior": "none", "reversibility": "none", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd", "KismetCompiler"],
+    "inputSchema": {"type": "object", "additionalProperties": false, "required": ["id"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}}},
+    "outputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "parentClass", "generatedClass", "status", "graphCount", "errorCount", "warningCount", "diagnostics", "revision"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "parentClass": {"type": "string", "minLength": 1, "maxLength": 512}, "generatedClass": {"type": "string", "minLength": 1, "maxLength": 512}, "status": {"type": "string", "maxLength": 16, "enum": ["unknown", "dirty", "up_to_date", "warning", "error"]}, "graphCount": {"type": "integer", "minimum": 0, "maximum": 10000}, "errorCount": {"type": "integer", "minimum": 0, "maximum": 100}, "warningCount": {"type": "integer", "minimum": 0, "maximum": 100}, "diagnostics": {"type": "array", "maxItems": 100, "items": {"type": "object", "additionalProperties": false, "required": ["severity", "message", "graph", "nodeGuid", "nodeTitle"], "properties": {"severity": {"type": "string", "maxLength": 8, "enum": ["error", "warning"]}, "message": {"type": "string", "minLength": 1, "maxLength": 1024}, "graph": {"type": "string", "maxLength": 512}, "nodeGuid": {"type": "string", "maxLength": 128}, "nodeTitle": {"type": "string", "maxLength": 512}}}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}}},
+    "verification": {"identity": "canonical-object-path"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+  },
+  {
+    "id": "component.add", "version": 1, "domain": "component", "summary": "Add component", "execution": "native", "mutates": true, "destructive": false,
+    "idempotency": "natural-key", "saveBehavior": "dirty-only", "transactionBehavior": "atomic", "reversibility": "source-control", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type": "object", "additionalProperties": false, "required": ["actorId", "class", "name"], "properties": {"actorId": {"type": "string", "minLength": 1, "maxLength": 512}, "class": {"type": "string", "minLength": 1, "maxLength": 512}, "name": {"type": "string", "minLength": 1, "maxLength": 512}, "location": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -1000000000, "maximum": 1000000000}}}},
+    "outputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "changed", "dirtyPackages", "savedPackages", "revision"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "changed": {"type": "boolean"}, "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}}},
+    "verification": {"readback": "component.view"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+  },
+  {
+    "id": "component.list", "version": 1, "domain": "component", "summary": "List components", "execution": "native", "mutates": false, "destructive": false,
+    "idempotency": "read-only", "saveBehavior": "none", "transactionBehavior": "none", "reversibility": "none", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type": "object", "additionalProperties": false, "required": ["actorId"], "properties": {"actorId": {"type": "string", "minLength": 1, "maxLength": 512}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}, "cursor": {"type": "string", "minLength": 1, "maxLength": 256}, "fields": {"type": "array", "minItems": 1, "maxItems": 4, "items": {"type": "string", "maxLength": 32, "enum": ["id", "name", "class", "scene"]}}}},
+    "outputSchema": {"type": "object", "additionalProperties": false, "required": ["count", "total", "scope", "revision", "items", "nextCursor"], "properties": {"count": {"type": "integer", "minimum": 0, "maximum": 100}, "total": {"type": "integer", "minimum": 0, "maximum": 9007199254740991}, "scope": {"type": "string", "minLength": 1, "maxLength": 512}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}, "items": {"type": "array", "maxItems": 100, "items": {"type": "object", "additionalProperties": false, "required": ["id"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "name": {"type": "string", "minLength": 1, "maxLength": 512}, "class": {"type": "string", "minLength": 1, "maxLength": 512}, "scene": {"type": "boolean"}}}}, "nextCursor": {"type": ["string", "null"], "maxLength": 256}}},
+    "verification": {"identity": "actor-component"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+  },
+  {
+    "id": "component.remove", "version": 1, "domain": "component", "summary": "Remove exact component", "execution": "native", "mutates": true, "destructive": true,
+    "idempotency": "request-key", "saveBehavior": "dirty-only", "transactionBehavior": "atomic", "reversibility": "destructive", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type": "object", "additionalProperties": false, "required": ["id"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "force": {"type": "boolean"}, "dryRun": {"type": "boolean"}}},
+    "outputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "changed", "dryRun", "dirtyPackages", "savedPackages", "revision"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "changed": {"type": "boolean"}, "dryRun": {"type": "boolean"}, "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}}},
+    "verification": {"readback": "component.view"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+  },
+  {
+    "id": "component.update", "version": 1, "domain": "component", "summary": "Update exact component", "execution": "native", "mutates": true, "destructive": false,
+    "idempotency": "natural-key", "saveBehavior": "dirty-only", "transactionBehavior": "atomic", "reversibility": "source-control", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "location"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "location": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -1000000000, "maximum": 1000000000}}}},
+    "outputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "changed", "dirtyPackages", "savedPackages", "revision"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "changed": {"type": "boolean"}, "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}}},
+    "verification": {"readback": "component.view"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+  },
+  {
+    "id": "component.view", "version": 1, "domain": "component", "summary": "View exact component", "execution": "native", "mutates": false, "destructive": false,
+    "idempotency": "read-only", "saveBehavior": "none", "transactionBehavior": "none", "reversibility": "none", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type": "object", "additionalProperties": false, "required": ["id"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}}},
+    "outputSchema": {"type": "object", "additionalProperties": false, "required": ["id", "actorId", "name", "class", "scene", "location", "rotation", "scale", "revision"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 512}, "actorId": {"type": "string", "minLength": 1, "maxLength": 512}, "name": {"type": "string", "minLength": 1, "maxLength": 512}, "class": {"type": "string", "minLength": 1, "maxLength": 512}, "scene": {"type": "boolean"}, "location": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -1000000000, "maximum": 1000000000}}, "rotation": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": -360, "maximum": 360}}, "scale": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": 0, "maximum": 1000000000}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}}},
+    "verification": {"identity": "actor-component"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+  },
+  {
+    "id": "level.set_game_mode", "version": 1, "domain": "level", "summary": "Set level game mode", "execution": "native", "mutates": true, "destructive": false,
+    "idempotency": "natural-key", "saveBehavior": "dirty-only", "transactionBehavior": "atomic", "reversibility": "source-control", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type": "object", "additionalProperties": false, "required": ["levelId", "gameModeClass"], "properties": {"levelId": {"type": "string", "minLength": 1, "maxLength": 512}, "gameModeClass": {"type": "string", "minLength": 1, "maxLength": 512}}},
+    "outputSchema": {"type": "object", "additionalProperties": false, "required": ["levelId", "gameModeClass", "defaultPawnClass", "changed", "dirtyPackages", "savedPackages", "revision"], "properties": {"levelId": {"type": "string", "minLength": 1, "maxLength": 512}, "gameModeClass": {"type": "string", "minLength": 1, "maxLength": 512}, "defaultPawnClass": {"type": "string", "minLength": 1, "maxLength": 512}, "changed": {"type": "boolean"}, "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}}},
+    "verification": {"readback": "level.settings"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+  },
+  {
+    "id": "level.settings", "version": 1, "domain": "level", "summary": "Read level settings", "execution": "native", "mutates": false, "destructive": false,
+    "idempotency": "read-only", "saveBehavior": "none", "transactionBehavior": "none", "reversibility": "none", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type": "object", "additionalProperties": false, "properties": {"levelId": {"type": "string", "minLength": 1, "maxLength": 512}}},
+    "outputSchema": {"type": "object", "additionalProperties": false, "required": ["levelId", "gameModeClass", "defaultPawnClass", "revision"], "properties": {"levelId": {"type": "string", "minLength": 1, "maxLength": 512}, "gameModeClass": {"type": "string", "minLength": 0, "maxLength": 512}, "defaultPawnClass": {"type": "string", "minLength": 0, "maxLength": 512}, "revision": {"type": "string", "minLength": 64, "maxLength": 64}}},
+    "verification": {"identity": "current-level"}, "engineSupport": {"certified": ["5.8.1-macos-arm64-56057345"], "unsupported": []}
+  },
+  {
+    "id": "play.input", "version": 1, "domain": "play", "summary": "Send input to running play session", "execution": "native", "mutates": true, "destructive": false,
+    "idempotency": "request-key", "saveBehavior": "none", "transactionBehavior": "none", "reversibility": "none", "allowedEditorStates": ["playing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type":"object","additionalProperties":false,"required":["sessionId","key","event"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128},"key":{"type":"string","minLength":1,"maxLength":128},"event":{"type":"string","maxLength":8,"enum":["pressed","released"]}}},
+    "outputSchema": {"type":"object","additionalProperties":false,"required":["sessionId","key","event","accepted","changed","beforeRevision","afterRevision","revision"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128},"key":{"type":"string","minLength":1,"maxLength":128},"event":{"type":"string","maxLength":8,"enum":["pressed","released"]},"accepted":{"type":"boolean"},"changed":{"type":"boolean"},"beforeRevision":{"type":"string","minLength":64,"maxLength":64},"afterRevision":{"type":"string","minLength":64,"maxLength":64},"revision":{"type":"string","minLength":64,"maxLength":64}}},
+    "verification": {"readback":"play.observe"}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
+  },
+  {
+    "id": "play.observe", "version": 1, "domain": "play", "summary": "Observe running play session", "execution": "native", "mutates": false, "destructive": false,
+    "idempotency": "read-only", "saveBehavior": "none", "transactionBehavior": "none", "reversibility": "none", "allowedEditorStates": ["playing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type":"object","additionalProperties":false,"required":["sessionId"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128}}},
+    "outputSchema": {"type":"object","additionalProperties":false,"required":["sessionId","worldId","levelId","actors","revision"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128},"worldId":{"type":["string","null"],"maxLength":512},"levelId":{"type":["string","null"],"maxLength":512},"actors":{"type":"array","maxItems":100,"items":{"type":"object","additionalProperties":false,"required":["id","name","class","location","tags"],"properties":{"id":{"type":"string","minLength":1,"maxLength":256},"name":{"type":"string","minLength":1,"maxLength":256},"class":{"type":"string","minLength":1,"maxLength":512},"location":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"number","minimum":-1000000000,"maximum":1000000000}},"tags":{"type":"array","maxItems":32,"items":{"type":"string","maxLength":128}}}}},"revision":{"type":"string","minLength":64,"maxLength":64}}},
+    "verification": {"identity":"play-session"}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
+  },
+  {
+    "id": "play.screenshot", "version": 1, "domain": "play", "summary": "Capture play session screenshot", "execution": "native", "mutates": true, "destructive": false,
+    "idempotency": "request-key", "saveBehavior": "none", "transactionBehavior": "none", "reversibility": "none", "allowedEditorStates": ["playing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type":"object","additionalProperties":false,"required":["sessionId"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128},"path":{"type":"string","minLength":1,"maxLength":512}}},
+    "outputSchema": {"type":"object","additionalProperties":false,"required":["sessionId","path","width","height","format","changed","revision"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128},"path":{"type":"string","minLength":1,"maxLength":1024},"width":{"type":"integer","minimum":1,"maximum":16384},"height":{"type":"integer","minimum":1,"maximum":16384},"format":{"type":"string","maxLength":3,"enum":["png"]},"changed":{"type":"boolean"},"revision":{"type":"string","minLength":64,"maxLength":64}}},
+    "verification": {"identity":"screenshot-path"}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
+  },
+  {
+    "id": "play.start", "version": 1, "domain": "play", "summary": "Start play session", "execution": "native", "mutates": true, "destructive": false,
+    "idempotency": "natural-key", "saveBehavior": "none", "transactionBehavior": "atomic", "reversibility": "none", "allowedEditorStates": ["editing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type":"object","additionalProperties":false,"properties":{}},
+    "outputSchema": {"type":"object","additionalProperties":false,"required":["sessionId","state","worldId","levelId","changed","revision"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128},"state":{"type":"string","maxLength":8,"enum":["starting","running"]},"worldId":{"type":["string","null"],"maxLength":512},"levelId":{"type":["string","null"],"maxLength":512},"changed":{"type":"boolean"},"revision":{"type":"string","minLength":64,"maxLength":64}}},
+    "verification": {"readback":"play.status"}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
+  },
+  {
+    "id": "play.status", "version": 1, "domain": "play", "summary": "Read play session status", "execution": "native", "mutates": false, "destructive": false,
+    "idempotency": "read-only", "saveBehavior": "none", "transactionBehavior": "none", "reversibility": "none", "allowedEditorStates": ["editing","playing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type":"object","additionalProperties":false,"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128}}},
+    "outputSchema": {"type":"object","additionalProperties":false,"required":["state","sessionId","worldId","levelId","playerCount","revision"],"properties":{"state":{"type":"string","maxLength":8,"enum":["stopped","starting","running","stopping"]},"sessionId":{"type":["string","null"],"maxLength":128},"worldId":{"type":["string","null"],"maxLength":512},"levelId":{"type":["string","null"],"maxLength":512},"playerCount":{"type":"integer","minimum":0,"maximum":100},"revision":{"type":"string","minLength":64,"maxLength":64}}},
+    "verification": {"identity":"play-session"}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
+  },
+  {
+    "id": "play.stop", "version": 1, "domain": "play", "summary": "Stop play session", "execution": "native", "mutates": true, "destructive": false,
+    "idempotency": "natural-key", "saveBehavior": "none", "transactionBehavior": "atomic", "reversibility": "none", "allowedEditorStates": ["playing"], "requiresModules": ["UnrealEd"],
+    "inputSchema": {"type":"object","additionalProperties":false,"required":["sessionId"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128}}},
+    "outputSchema": {"type":"object","additionalProperties":false,"required":["sessionId","state","changed","revision"],"properties":{"sessionId":{"type":"string","minLength":1,"maxLength":128},"state":{"type":"string","maxLength":8,"enum":["stopping","stopped"]},"changed":{"type":"boolean"},"revision":{"type":"string","minLength":64,"maxLength":64}}},
+    "verification": {"readback":"play.status"}, "engineSupport":{"certified":["5.8.1-macos-arm64-56057345"],"unsupported":[]}
+  },
+  {
+    "id": "asset.list",
+    "version": 1,
+    "domain": "asset",
+    "summary": "List project assets without loading them",
+    "execution": "native",
+    "mutates": false,
+    "destructive": false,
+    "idempotency": "read-only",
+    "saveBehavior": "none",
+    "transactionBehavior": "none",
+    "reversibility": "none",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "AssetRegistry"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 100
+        },
+        "cursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "maxLength": 32,
+            "enum": [
+              "id",
+              "name",
+              "class",
+              "packagePath"
+            ]
+          }
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "count",
+        "total",
+        "scope",
+        "revision",
+        "items",
+        "nextCursor"
+      ],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "class": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "packagePath": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              }
+            }
+          }
+        },
+        "nextCursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        }
+      }
+    },
+    "verification": {
+      "readback": "asset.view"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "asset.view",
+    "version": 1,
+    "domain": "asset",
+    "summary": "Read asset registry metadata by canonical object path",
+    "execution": "native",
+    "mutates": false,
+    "destructive": false,
+    "idempotency": "read-only",
+    "saveBehavior": "none",
+    "transactionBehavior": "none",
+    "reversibility": "none",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "AssetRegistry"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "packagePath",
+        "objectPath",
+        "name",
+        "class",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "packagePath": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "objectPath": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "class": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      }
+    },
+    "verification": {
+      "identity": "canonical-object-path"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "capability.describe",
+    "version": 1,
+    "domain": "capability",
+    "summary": "Describe one catalogued capability",
+    "execution": "local",
+    "mutates": false,
+    "destructive": false,
+    "idempotency": "read-only",
+    "saveBehavior": "none",
+    "transactionBehavior": "none",
+    "reversibility": "none",
+    "allowedEditorStates": [
+      "offline",
+      "editing"
+    ],
+    "requiresModules": [],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability",
+        "runtime"
+      ],
+      "properties": {
+        "capability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "version",
+            "domain",
+            "summary",
+            "execution",
+            "mutates",
+            "destructive",
+            "idempotency",
+            "saveBehavior",
+            "transactionBehavior",
+            "reversibility",
+            "allowedEditorStates",
+            "requiresModules",
+            "inputSchema",
+            "outputSchema",
+            "verification",
+            "engineSupport"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1
+            },
+            "domain": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "execution": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8,
+              "enum": [
+                "local",
+                "native"
+              ]
+            },
+            "mutates": {
+              "type": "boolean"
+            },
+            "destructive": {
+              "type": "boolean"
+            },
+            "idempotency": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32
+            },
+            "saveBehavior": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32
+            },
+            "transactionBehavior": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32
+            },
+            "reversibility": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32
+            },
+            "allowedEditorStates": {
+              "type": "array",
+              "maxItems": 8,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 32
+              }
+            },
+            "requiresModules": {
+              "type": "array",
+              "maxItems": 16,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              }
+            },
+            "inputSchema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "outputSchema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "verification": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 1024
+            },
+            "engineSupport": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 2048
+            }
+          }
+        },
+        "runtime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "available",
+            "catalogHash"
+          ],
+          "properties": {
+            "available": {
+              "type": "boolean"
+            },
+            "catalogHash": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64
+            }
+          }
+        }
+      }
+    },
+    "verification": {
+      "source": "canonical-catalog"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "capability.search",
+    "version": 1,
+    "domain": "capability",
+    "summary": "Search catalogued capabilities",
+    "execution": "local",
+    "mutates": false,
+    "destructive": false,
+    "idempotency": "read-only",
+    "saveBehavior": "none",
+    "transactionBehavior": "none",
+    "reversibility": "none",
+    "allowedEditorStates": [
+      "offline",
+      "editing"
+    ],
+    "requiresModules": [],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "query"
+      ],
+      "properties": {
+        "query": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 50
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "count",
+        "total",
+        "scope",
+        "items",
+        "nextCursor"
+      ],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "domain",
+              "summary",
+              "available"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "domain": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "available": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "nextCursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        }
+      }
+    },
+    "verification": {
+      "source": "canonical-catalog"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "editor.status",
+    "version": 1,
+    "domain": "editor",
+    "summary": "Read current editor lifecycle, level, PIE, and dirty state",
+    "execution": "native",
+    "mutates": false,
+    "destructive": false,
+    "idempotency": "read-only",
+    "saveBehavior": "none",
+    "transactionBehavior": "none",
+    "reversibility": "none",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "UnrealEd"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "projectId",
+        "editorPid",
+        "levelId",
+        "pie",
+        "dirtyPackageCount"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "maxLength": 16,
+          "enum": [
+            "starting",
+            "ready",
+            "stopping"
+          ]
+        },
+        "projectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "editorPid": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "levelId": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "pie": {
+          "type": "string",
+          "maxLength": 16,
+          "enum": [
+            "running",
+            "stopped"
+          ]
+        },
+        "dirtyPackageCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "verification": {
+      "thread": "game"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "level.create",
+    "version": 1,
+    "domain": "level",
+    "summary": "Create and open exact project level",
+    "execution": "native",
+    "mutates": true,
+    "destructive": false,
+    "idempotency": "natural-key",
+    "saveBehavior": "explicit",
+    "transactionBehavior": "atomic",
+    "reversibility": "source-control",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "UnrealEd"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "changed",
+        "dirtyPackages",
+        "savedPackages",
+        "revision"
+      ],
+      "properties": {
+        "level": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "changed": {
+          "type": "boolean"
+        },
+        "dirtyPackages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "savedPackages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      }
+    },
+    "verification": {
+      "readback": "level.current",
+      "persistence": "level.save"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "level.current",
+    "version": 1,
+    "domain": "level",
+    "summary": "Read current editor level identity",
+    "execution": "native",
+    "mutates": false,
+    "destructive": false,
+    "idempotency": "read-only",
+    "saveBehavior": "none",
+    "transactionBehavior": "none",
+    "reversibility": "none",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "UnrealEd"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "scope"
+      ],
+      "properties": {
+        "level": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "worldType",
+            "persistent",
+            "revision"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "worldType": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "persistent": {
+              "type": "boolean"
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64
+            }
+          }
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    },
+    "verification": {
+      "identity": "long-package-path"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "level.list",
+    "version": 1,
+    "domain": "level",
+    "summary": "List project levels from Asset Registry",
+    "execution": "native",
+    "mutates": false,
+    "destructive": false,
+    "idempotency": "read-only",
+    "saveBehavior": "none",
+    "transactionBehavior": "none",
+    "reversibility": "none",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "AssetRegistry"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 100
+        },
+        "cursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "maxLength": 32,
+            "enum": [
+              "id",
+              "name",
+              "worldType",
+              "persistent"
+            ]
+          }
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "count",
+        "total",
+        "scope",
+        "revision",
+        "items",
+        "nextCursor"
+      ],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "worldType": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "persistent": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "nextCursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        }
+      }
+    },
+    "verification": {
+      "identity": "long-package-path"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "level.open",
+    "version": 1,
+    "domain": "level",
+    "summary": "Open exact project level",
+    "execution": "native",
+    "mutates": true,
+    "destructive": false,
+    "idempotency": "natural-key",
+    "saveBehavior": "none",
+    "transactionBehavior": "atomic",
+    "reversibility": "source-control",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "UnrealEd"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "changed",
+        "dirtyPackages",
+        "savedPackages",
+        "revision"
+      ],
+      "properties": {
+        "level": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "changed": {
+          "type": "boolean"
+        },
+        "dirtyPackages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "savedPackages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      }
+    },
+    "verification": {
+      "readback": "level.current"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "level.save",
+    "version": 1,
+    "domain": "level",
+    "summary": "Explicitly save exact level",
+    "execution": "native",
+    "mutates": true,
+    "destructive": false,
+    "idempotency": "natural-key",
+    "saveBehavior": "explicit",
+    "transactionBehavior": "atomic",
+    "reversibility": "source-control",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "UnrealEd"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "changed",
+        "dirtyPackages",
+        "savedPackages",
+        "revision"
+      ],
+      "properties": {
+        "level": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "changed": {
+          "type": "boolean"
+        },
+        "dirtyPackages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "savedPackages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      }
+    },
+    "verification": {
+      "readback": "level.current",
+      "persistence": "restart"
+    },
+    "engineSupport": {
+      "certified": [
+        "5.8.1-macos-arm64-56057345"
+      ],
+      "unsupported": []
+    }
+  },
+  {
+    "id": "operation.view",
+    "version": 1,
+    "domain": "operation",
+    "summary": "View bounded operation receipt",
+    "execution": "native",
+    "mutates": false,
+    "destructive": false,
+    "idempotency": "read-only",
+    "saveBehavior": "none",
+    "transactionBehavior": "none",
+    "reversibility": "none",
+    "allowedEditorStates": [
+      "editing"
+    ],
+    "requiresModules": [
+      "UnrealEd"
+    ],
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operationId", "operation", "state", "projectId", "editorPid", "target", "changed", "transaction", "reversibility", "dirtyPackages", "savedPackages", "revision", "persistence", "verification"],
+      "properties": {
+        "operationId": {"type": "string", "minLength": 1, "maxLength": 128},
+        "operation": {"type": "string", "minLength": 1, "maxLength": 128},
+        "state": {"type": "string", "maxLength": 32, "enum": ["queued", "running", "completed", "failed", "outcome_unknown"]},
+        "projectId": {"type": "string", "minLength": 1, "maxLength": 512},
+        "editorPid": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "target": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "changed": {"type": "boolean"},
+        "transaction": {"type": "string", "minLength": 1, "maxLength": 32},
+        "reversibility": {"type": "string", "minLength": 1, "maxLength": 32},
+        "dirtyPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}},
+        "savedPackages": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 256}},
+        "revision": {"type": "string", "minLength": 64, "maxLength": 64},
+        "persistence": {"type": "string", "minLength": 1, "maxLength": 32},
+        "verification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["readback", "target", "matched"],
+          "properties": {
+            "readback": {"type": "string", "minLength": 1, "maxLength": 128},
+            "target": {"type": "string", "minLength": 1, "maxLength": 1024},
+            "matched": {"type": "boolean"},
+            "exists": {"type": "boolean"},
+            "observedRevision": {"type": "string", "minLength": 64, "maxLength": 64},
+            "accepted": {"type": "boolean"},
+            "beforeRevision": {"type": "string", "minLength": 64, "maxLength": 64},
+            "afterRevision": {"type": "string", "minLength": 64, "maxLength": 64}
+          }
+        }
+      }
+    },
+    "verification": {
+      "source": "receipt-ledger"
+    },
+    "engineSupport": {
+      "certified": ["5.8.1-macos-arm64-56057345"],
+      "unsupported": []
+    }
+  }
+]

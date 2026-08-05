@@ -1,0 +1,1 @@
+{"protocol":1,"id":"magi-bridge-2","status":"ok","result":{"protocol":1,"catalogHash":"b2a12e87bbbf2530de833155ad8fcac8ee4a9117d01c2ec87827c68d3ad8a3a2","operations":["bridge.health","bridge.describe","actor.list","actor.view","asset.list","asset.view","editor.status","level.current","level.list","editor.stop"]}}

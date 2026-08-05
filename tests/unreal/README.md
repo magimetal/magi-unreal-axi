@@ -1,0 +1,32 @@
+# Unreal certification fixtures
+
+This directory is text-owned. Certification copies fixtures to canonical cache workspaces before Unreal touches them.
+
+- `certify-m0.sh`: package/build/load and Blueprint compilation baseline.
+- `certify-m3.sh`: native adversarial frames, authentication/failure cap, queue/deadline, and response identity.
+- `certify-m3-live.sh`: release CLI lifecycle, token non-disclosure, dirty-stop refusal, clean stop, process exit, and teardown.
+- `certify-m4.sh`: native catalog/schema/game-thread/stable-revision/stale-cursor contracts.
+- `certify-m4-live.sh`: M4 reads, canonical identities, pagination, catalog parity, unchanged inventory, and cleanup.
+- `certify-m5.sh`: native mutation, receipt-readback, and unsafe-state contracts.
+- `certify-m5-live.sh`: mutation revisions, explicit save/restart persistence, deletion, journal fallback, concurrency, inventory, and token checks.
+- `certify-m6.sh`: plugin and source fixture build, Blueprint compilation, three M6 native contracts, and three M5 mutation regressions.
+- `certify-m6-live.sh`: 34-record catalog parity; input assets; components; GameMode; Blueprint diagnostics; deferred next-tick input readback; PIE observe/screenshot/synchronous stop/reset; receipt identity/safety metadata; save/restart persistence; fixture project build; inventory/token/cleanup checks.
+- `certify-m7-live.sh`: exact pipeline dry-runs, build/repeat, automation list/run, blueprint-only cook/package, destination protection, structured failures, bounded logs, and durable operation readback.
+- `certify-m8-live.sh`: verifies checksum binding, allowlisted archive inventory/path safety, arm64 binary and ad-hoc codesign, clean extraction/install, isolated-HOME agent setup/idempotency/context, plugin lifecycle, project build, full 15-test MagiUnrealAXI automation, editor read/mutation/save/restart persistence, uninstall, and retained-evidence token scan.
+
+Run current gates from repository root:
+
+```sh
+./tests/unreal/certify-m6.sh
+./tests/unreal/certify-m6-live.sh
+./tests/unreal/certify-m7-live.sh
+./tests/unreal/certify-m8-live.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
+```
+
+Latest M6 evidence: `~/Library/Caches/magi-unreal-axi/m6/native/evidence.T25zpG` and `~/Library/Caches/magi-unreal-axi/m6/live/evidence.m9J5dO`.
+
+Latest M7 evidence: `~/Library/Caches/magi-unreal-axi/m7/live/evidence.Ekd7HQ`.
+
+M8 evidence: hardened exact-artifact clean-install pass at `~/Library/Caches/magi-unreal-axi/m8/live/latest`, agent evaluation at `~/Library/Caches/magi-unreal-axi/m8/agent-evaluation/run.Gy9dcQ/evidence`, and post-fix 15/15 automation at `~/Library/Caches/magi-unreal-axi/read-fixture-fix.KGV2FR/evidence`.
+
+UE 5.8.1/macOS arm64 is certified through M8.

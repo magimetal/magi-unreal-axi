@@ -1,0 +1,22 @@
+name: trusted-unreal-live
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    if: github.event_name == 'workflow_dispatch'
+    environment: unreal-live
+    runs-on: [self-hosted, macOS, arm64, unreal-5.8.1]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88.0
+      - run: cargo build --release --locked
+      - run: cargo run --locked --bin xtask -- capabilities check
+      - run: cargo run --locked --bin xtask -- guidance check
+      - run: codesign --force --sign - target/release/magi-unreal-axi
+      - run: codesign --verify --strict --verbose=2 target/release/magi-unreal-axi
+      - run: cargo run --locked --bin xtask -- release package
+      - run: ./tests/unreal/certify-m8-live.sh "$(find "$GITHUB_WORKSPACE/target/release" -maxdepth 1 -name 'magi-unreal-axi-*-macos-arm64.tar.gz' -print -quit)"

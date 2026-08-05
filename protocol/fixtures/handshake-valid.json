@@ -1,0 +1,1 @@
+{"protocol":1,"kind":"handshake","token":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","projectId":"sha256:fixture","pid":1234,"processStart":"1785769949:371053","sessionNonce":"0123456789abcdef0123456789abcdef","cliVersion":"0.1.0","deadlineMs":2000}

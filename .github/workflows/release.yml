@@ -1,0 +1,78 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88.0
+        with:
+          components: rustfmt, clippy
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit,cargo-deny
+      - name: Validate tag and package version
+        run: test "${GITHUB_REF_NAME}" = "v$(sed -n 's/^version = \"\(.*\)\"/\1/p' Cargo.toml | head -1)"
+      - run: cargo fmt --check
+      - run: cargo test --locked
+      - run: cargo clippy --all-targets --all-features --locked -- -D warnings
+      - run: cargo run --locked --bin xtask -- capabilities check
+      - run: cargo run --locked --bin xtask -- guidance check
+      - run: cargo run --locked --bin xtask -- release check
+      - run: cargo audit
+      - run: cargo deny check
+      - run: cargo build --release --locked
+      - run: codesign --force --sign - target/release/magi-unreal-axi
+      - run: codesign --verify --strict --verbose=2 target/release/magi-unreal-axi
+      - run: cargo run --locked --bin xtask -- release package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m8-release-artifact
+          path: |
+            target/release/magi-unreal-axi-*.tar.gz
+            target/release/SHA256SUMS
+          if-no-files-found: error
+    permissions:
+      contents: read
+
+  live:
+    needs: package
+    environment: unreal-live
+    runs-on: [self-hosted, macOS, arm64, unreal-5.8.1]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: m8-release-artifact
+          path: artifact
+      - name: Certify exact packaged artifact
+        run: ./tests/unreal/certify-m8-live.sh "$(find "$GITHUB_WORKSPACE/artifact" -maxdepth 1 -name 'magi-unreal-axi-*.tar.gz' -print -quit)"
+
+  publish:
+    needs: live
+    runs-on: macos-14
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: m8-release-artifact
+          path: artifact
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: artifact/magi-unreal-axi-*.tar.gz
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifact/magi-unreal-axi-*.tar.gz
+            artifact/SHA256SUMS

@@ -1,0 +1,18 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "Magi Unreal AXI",
+  "Description": "Editor-only foundation for Magi Unreal AXI.",
+  "Category": "Magi",
+  "CanContainContent": false,
+  "IsBetaVersion": true,
+  "Plugins": [{"Name":"EnhancedInput","Enabled":true}],
+  "Modules": [
+    {
+      "Name": "MagiUnrealAXI",
+      "Type": "Editor",
+      "LoadingPhase": "Default"
+    }
+  ]
+}
