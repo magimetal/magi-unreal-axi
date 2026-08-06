@@ -56,7 +56,7 @@ Current gaps that must be addressed before graph authoring expands:
 | Phase | Status | Primary result | Fixture |
 |---|---|---|---|
 | P1.0 | done | Catalog-driven native safety and stable authoring identities | V1 regression fixture |
-| P1.1 | not-started | Ordinary Blueprint creation and bounded K2 graph authoring | `interaction-loop` foundation |
+| P1.1 | done | Ordinary Blueprint creation and bounded K2 graph authoring | `interaction-loop` foundation |
 | P1.2 | not-started | Reusable interaction, SCS components, collision, and physics | `interaction-loop` complete |
 | P1.3 | not-started | Widget-driven runtime state | `ui-state-loop` |
 | P1.4 | not-started | NavMesh, AI Controller, Blackboard, and Behavior Tree | `ai-navigation-loop` |
@@ -110,7 +110,7 @@ Make catalog authoritative for native safety before adding mutation operations.
 - Every existing catalogued mutation consumes generated safety metadata without unintended external behavior changes.
 - Every generated safety field, including `destructive` and `idempotency`, has runtime parity coverage; catalog/runtime disagreement fails build or startup closed.
 - No catalogued capability lacks handler/output validation, and no mutation lacks declared receipt/readback routing. `blueprint.compile` metadata and failed receipts truthfully report preserved dirty state as non-atomic. Non-catalogued lifecycle operations remain explicitly registered and tested.
-- Current 35 library, 4 xtask, and 44 real-binary integration tests pass with contract-preserving updates.
+- Current 43 library, 5 xtask, and 44 real-binary integration tests pass with contract-preserving updates.
 - Full Unreal automation passes 16/16.
 - M8 exact-artifact lifecycle remains green after version generalization.
 - Invalid dirty Blueprint compile test proves catalog metadata, error receipt/recovery, observed revision and dirty packages, and absence of false atomic rollback/persistence claims.
@@ -133,8 +133,6 @@ Names freeze during phase contract review; remove any operation fixture does not
 
 - `blueprint.create`
 - `blueprint.graph_view`
-- `blueprint.variable_ensure`
-- `blueprint.function_ensure`
 - `blueprint.event_ensure`
 - `blueprint.node_ensure`
 - `blueprint.pin_default_set`

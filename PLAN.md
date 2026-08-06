@@ -974,7 +974,7 @@ Completed fixture loop:
 - Deferred `play.input` success until next-tick `play.observe` readback; receipts validate exact project/editor/operation/target identity plus declared transaction, reversibility, persistence, and safety metadata.
 - Compiled valid Blueprint as stable no-op on repeat and returned structured graph/node diagnostics for invalid Blueprint. Blueprint authoring remains excluded.
 - Built source-backed fixture project successfully. This proves `project build` for M6 fixture; full build/test/cook/package pipeline normalization remains M7.
-- Canonical catalog contains 34 records with SHA-256 `8f947b51381647334ccbb35b99ab3f15c4cb50d779e90737dc7a0a414f0390a6`.
+- Canonical catalog contains 40 records with SHA-256 `6213c83a5ad2a61336ec08bd4bfebb9564e434f7f12a9bf2b9bc951f0fc14922`. P1.1 six-capability implementation and integrated certification are complete.
 
 Acceptance:
 
@@ -1205,7 +1205,7 @@ For each record success, CLI calls, Unreal calls, output tokens, avoidable follo
 - Source plugin remains fallback only when required build toolchain is verified.
 - Capability describe output reports certified, runtime-available, and unavailable states separately.
 
-Installed Unreal Engine 5.8.1 (`56057345`) on macOS arm64 is certified through M8 for native plugin build/load, authenticated interactive lifecycle, catalogued editor reads and safe mutations, explicit persistence, PIE input/observation/screenshot/stop, Blueprint diagnostics, restart/reset, C++ fixture build/editor proof, full automation, Blueprint-only cook/package output, agent integration, exact-artifact clean installation, protected destinations, bounded logs, and durable process summaries.
+Installed Unreal Engine 5.8.1 (`56057345`) on macOS arm64 is certified through P1.1 for native plugin build/load, authenticated interactive lifecycle, catalogued editor reads and safe mutations, bounded Blueprint construction, explicit persistence, PIE input/observation/screenshot/stop, Blueprint diagnostics, restart/reset, C++ fixture build/editor proof, full automation, Blueprint-only cook/package output, agent integration, exact-artifact clean installation, protected destinations, bounded logs, and durable process summaries.
 
 ## 15. Release and dependency policy
 

@@ -6,7 +6,7 @@ public class MagiUnrealAXI : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         PublicDependencyModuleNames.AddRange(new[] { "Core" });
-        PrivateDependencyModuleNames.AddRange(new[] { "CoreUObject", "Engine", "Json", "Networking", "Sockets", "UnrealEd", "MainFrame", "AssetRegistry", "Slate", "EnhancedInput", "InputCore", "KismetCompiler", "BlueprintGraph" });
+        PrivateDependencyModuleNames.AddRange(new[] { "Core", "CoreUObject", "Engine", "Json", "Networking", "Sockets", "UnrealEd", "MainFrame", "AssetRegistry", "Slate", "EnhancedInput", "InputCore", "ApplicationCore", "KismetCompiler", "BlueprintGraph" });
         if (Target.Platform != UnrealTargetPlatform.Mac)
         {
             throw new BuildException("MagiUnrealAXI supports only Mac UE 5.8.1");

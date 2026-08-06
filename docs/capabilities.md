@@ -1,6 +1,6 @@
 # Capability catalog
 
-Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -- capabilities check` validates strict records, sorted unique IDs, closed bounded schemas, mutation safety metadata, receipt-compatible operation metadata, and generated Rust/C++ parity. Current catalog contains 34 records with SHA-256 `8f947b51381647334ccbb35b99ab3f15c4cb50d779e90737dc7a0a414f0390a6`. Runtime handshake rejects mismatch before operation transmission.
+Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -- capabilities check` validates strict records, sorted unique IDs, closed bounded schemas, mutation safety metadata, receipt-compatible operation metadata, and generated Rust/C++ parity. Current catalog contains 40 records with SHA-256 `6213c83a5ad2a61336ec08bd4bfebb9564e434f7f12a9bf2b9bc951f0fc14922`. Runtime handshake rejects mismatch before operation transmission.
 
 ## M6 surface
 
@@ -10,7 +10,7 @@ Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -
 - level settings: `level.settings`, `level.set_game_mode`
 - play: `play.start`, `play.status`, `play.observe`, `play.input`, `play.screenshot`, `play.stop`
 
-M6 adds no Blueprint authoring. Creation of Blueprints, graphs, variables, functions, nodes, pins, and connections remains post-V1 P1.
+M6 added no Blueprint authoring; bounded authoring enters through P1.1 below.
 
 ## Contracts
 
@@ -30,9 +30,11 @@ Discovery availability is tri-state: local capabilities are `available` offline 
 
 Failed `blueprint.compile` exits 1 as `blueprint_compile_failed` and returns a validated failed, non-atomic receipt. `savedPackages` is empty; before/observed revisions and status, `changedObjects`, and diagnostics describe preserved state. Invalid dirty authoring remains dirty with exact `dirtyPackages`; an already-invalid clean asset may truthfully report unchanged persistence. Receipt makes no rollback or saved-persistence claim. Inspect `operation view` before retry; journal fallback supports offline recovery. No automatic retry.
 
-Public identity contracts: graph identity is Blueprint object path + persisted graph GUID + graph kind; node identity is persisted node GUID, with optional agent-owned natural key reserved for future bounded authoring; pin identity is node identity + direction + percent-encoded semantic/internal pin name; SCS component identity is Blueprint object path + persisted `VariableGuid`, separate from actor-instance component identity. Invalid persisted GUIDs fail closed. Blueprint content revisions hash canonical graph identity order, node identity/class/title/comment/enabled state/position, pin identities/types/defaults/links, variables/interfaces, and SCS identity/class/attachment/relative transform. Future graph reads order by these identities; snapshot revisions bind canonical rows, and opaque cursors bind operation, scope, projection, and snapshot so changed content returns `stale_cursor`.
+Public identity contracts: graph identity is Blueprint object path + persisted graph GUID + graph kind; node identity is persisted node GUID plus durable agent-owned natural key metadata; pin identity is node identity + direction + percent-encoded semantic/internal pin name; SCS component identity is Blueprint path + `VariableGuid`, separate from actor-instance component identity. Invalid persisted GUIDs fail closed. Blueprint content revisions hash canonical graph identity order, node identity/class/title/comment/owner/enabled state/position, pin identities/types/defaults/links, variables/interfaces, generated StaticMesh mobility, and SCS identity/class/attachment/relative transform. Graph reads order by identity; snapshot revisions bind canonical rows, and opaque cursors bind operation, scope, and snapshot so changed content returns `stale_cursor`.
 
-These are P1.0 contracts only. P1.1 operations are not public or implemented.
+## P1.1 bounded Blueprint authoring
+
+P1.1 exposes exactly `blueprint.create`, `blueprint.graph_view`, `blueprint.event_ensure`, `blueprint.node_ensure`, `blueprint.pin_default_set`, and `blueprint.pin_connect`. Parent, event, function, typed default, and connection allowlists are closed. Mutations after create require `expectedRevision`; natural-key ownership survives restart; no-ops preserve revision; invalid or conflicting intent preserves pre-operation content and dirty/status state. Receipts bind exact request semantics and operation-specific graph/node/pin readback. Integrated native/live certification passes 19/19 Unreal automation plus compile, build, cook/package, restart, invalid/no-op, PIE, source-provenance, and token gates.
 
 ## Examples
 

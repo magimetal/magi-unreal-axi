@@ -1,0 +1,83 @@
+{
+  "phase": "P1.1",
+  "engine": {
+    "version": "5.8.1",
+    "changelist": 56057345,
+    "hostArchitecture": "arm64"
+  },
+  "catalog": {
+    "count": 40,
+    "sha256": "6213c83a5ad2a61336ec08bd4bfebb9564e434f7f12a9bf2b9bc951f0fc14922"
+  },
+  "limits": {
+    "requestBytes": 8388608,
+    "responseBytes": 16777216,
+    "gameThreadQueue": 64,
+    "ledgerRecords": 1024,
+    "ledgerTtlSeconds": 86400
+  },
+  "automationTests": [
+    "MagiUnrealAXI.Bridge.AdversarialFrames",
+    "MagiUnrealAXI.Bridge.Authentication",
+    "MagiUnrealAXI.Bridge.AuthenticationLimit",
+    "MagiUnrealAXI.Bridge.QueueBounds",
+    "MagiUnrealAXI.Bridge.ResponseIdentity",
+    "MagiUnrealAXI.LiveFixture.DirtyPackage",
+    "MagiUnrealAXI.LiveFixture.ReadData",
+    "MagiUnrealAXI.M6.BlueprintDiagnosticsContract",
+    "MagiUnrealAXI.M6.ComponentWorldSettingsContracts",
+    "MagiUnrealAXI.M6.PlayReceiptContracts",
+    "MagiUnrealAXI.Mutation.ActorUpdateDelete",
+    "MagiUnrealAXI.Mutation.LevelOperations",
+    "MagiUnrealAXI.Mutation.UnsafeStates",
+    "MagiUnrealAXI.Read.CatalogContract",
+    "MagiUnrealAXI.Read.PaginationContract",
+    "MagiUnrealAXI.Runtime.GeneratedMetadataAndIdentity",
+    "MagiUnrealAXI.P11.BlueprintConstructionKernel",
+    "MagiUnrealAXI.P11.RevisionBudgetHelpers",
+    "MagiUnrealAXI.Protocol.CanonicalCursorParser"
+  ],
+  "plugin": {
+    "binary": "libUnrealEditor-MagiUnrealAXI.dylib",
+    "requiredArchitectures": ["arm64", "x86_64"],
+    "sourceRoot": "plugin/MagiUnrealAXI/Source"
+  },
+  "cli": {
+    "binary": "target/release/magi-unreal-axi"
+  },
+  "pipeline": {
+    "sourceFixture": "tests/unreal/MagiUnrealAXIFixture/MagiUnrealAXIFixture.uproject",
+    "blueprintOnlyFixture": "tests/unreal/MagiUnrealAXIPackageFixture/MagiUnrealAXIPackageFixture.uproject",
+    "blueprintOnly": true,
+    "compileAllBlueprints": true,
+    "cook": true,
+    "package": true
+  },
+  "packageAssertions": {
+    "blueprint": "MagiP11/BP_P11Interaction.uasset",
+    "map": "MagiP11/P11Interaction.umap",
+    "blueprintObject": "/Game/MagiP11/BP_P11Interaction.BP_P11Interaction",
+    "mapPackage": "/Game/MagiP11/P11Interaction",
+    "generatedRuntime": "BP_P11Interaction_C"
+  },
+  "runtimeAssertions": [
+    "request-response-byte-limits",
+    "game-thread-queue-bound",
+    "ledger-record-and-ttl-bound",
+    "token-file-absence",
+    "retained-evidence-token-scan",
+    "malformed-output-fixtures",
+    "atomic-rollback-fault-injection"
+  ],
+  "liveAssertions": [
+    "create-author-compile-save-restart",
+    "stable-identities-and-revision",
+    "missing-and-stale-revision-rejection",
+    "graph-pagination-and-stale-cursor-rejection",
+    "invalid-graph-event-function-pin-type-default-link-rejection",
+    "cross-key-ownership-before-and-after-links",
+    "create-node-event-default-link-safe-no-op",
+    "pie-input-transform-0-to-100",
+    "retained-evidence-token-absence"
+  ]
+}

@@ -27,9 +27,9 @@ cargo run --locked --bin xtask -- release check
 ./tests/unreal/certify-m8-live.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
 ```
 
-Rust gate: 35 library tests, 4 xtask tests, and 44 real-binary integration tests = 83 tests (`cargo test --locked`, verified locally). Catalog check validates 34 records, generated static Rust/C++ schemas and registries, mutation safety metadata, receipt identity fields, and hash `8f947b51381647334ccbb35b99ab3f15c4cb50d779e90737dc7a0a414f0390a6`.
+Rust gate: 43 library tests, 5 xtask tests, and 44 real-binary integration tests = 92 tests (`cargo test --all-targets --all-features --locked`, verified locally). Catalog check validates 40 records, generated static Rust/C++ schemas and registries, mutation safety metadata, semantic receipt bindings, and hash `6213c83a5ad2a61336ec08bd4bfebb9564e434f7f12a9bf2b9bc951f0fc14922`.
 
-P1.0 native/live certification and current-tree M8 exact-artifact regression pass. P1 remains active; P1.1 and later phases remain not started.
+P1.0 native/live certification and M8 exact-artifact regression remain historical passes. P1 remains active; P1.1 integrated native/live certification passes; later phases remain not started.
 
 ## Evidence paths
 
@@ -48,6 +48,7 @@ P1.0 native/live certification and current-tree M8 exact-artifact regression pas
 - Post-fix full automation: `~/Library/Caches/magi-unreal-axi/read-fixture-fix.KGV2FR/evidence`
 - P1.0 native: `~/Library/Caches/magi-unreal-axi/p1.0/native/evidence.zLZ1or`
 - P1.0 live: `~/Library/Caches/magi-unreal-axi/p1.0/live/evidence.FRJY3A`
+- P1.1 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.1/native/evidence.CUX9X7`
 
 ## P1.0 certification
 
@@ -55,7 +56,7 @@ Dedicated native certification packages the plugin, builds the source fixture, r
 
 Dedicated live certification proves native availability while editor is live, offline `unknown/editor_offline`, non-atomic dirty failed-compile receipt semantics, exact live/offline `operation view` recovery, restart-preserved invalid structure/revision, and retained-evidence token absence. Refreshed M8 certification binds archive SHA-256 `4be0341503bf63cc8ea7ed928f4cd3864764ad16a4608b08c59f626243c16424` and exact 16-test inventory to clean-install lifecycle evidence.
 
-P1.0 acceptance is complete. No Blueprint authoring operation was added; P1.1 remains not started.
+P1.0 and P1.1 acceptance are complete. P1.1 certifies six bounded Blueprint authoring operations through 19/19 Unreal automation, compile/build, Blueprint-only cook/package, restart/idempotency/invalid matrices, PIE behavior, source provenance, and token scans.
 
 ## M3–M5 regression status
 

@@ -1,5 +1,6 @@
 use crate::error::AppError;
 use serde_json::{Map, Value, json};
+use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 
 #[allow(clippy::collapsible_if)]
@@ -262,7 +263,79 @@ pub fn validate_input(id: &str, args: Value) -> Result<Value, AppError> {
         }
         "blueprint.view" => {
             require_keys(id, object, &["id"], &["id"])?;
-            bounded_string(id, object, "id", 512)?;
+            bounded_string(id, object, "id", 1024)?;
+        }
+        "blueprint.graph_view" => {
+            require_keys(
+                id,
+                object,
+                &["blueprintId"],
+                &["blueprintId", "graphId", "limit", "cursor"],
+            )?;
+            bounded_string(id, object, "blueprintId", 512)?;
+            if object.contains_key("graphId") {
+                bounded_string(id, object, "graphId", 1024)?;
+            }
+            if object.contains_key("cursor") {
+                bounded_string(id, object, "cursor", 256)?;
+                let cursor = object["cursor"].as_str().unwrap();
+                validate_graph_cursor_input(id, cursor)?;
+            }
+        }
+        "blueprint.create" => {
+            require_keys(
+                id,
+                object,
+                &["path", "parentClass"],
+                &["path", "parentClass"],
+            )?;
+            bounded_string(id, object, "path", 512)?;
+            bounded_string(id, object, "parentClass", 64)?;
+        }
+        "blueprint.event_ensure" => {
+            require_keys(
+                id,
+                object,
+                &["blueprintId", "graphId", "agentKey", "event"],
+                &["blueprintId", "graphId", "agentKey", "event"],
+            )?;
+            bounded_string(id, object, "blueprintId", 512)?;
+            bounded_string(id, object, "graphId", 1024)?;
+            bounded_string(id, object, "agentKey", 128)?;
+            bounded_string(id, object, "event", 32)?;
+        }
+        "blueprint.node_ensure" => {
+            require_keys(
+                id,
+                object,
+                &["blueprintId", "graphId", "agentKey", "node"],
+                &["blueprintId", "graphId", "agentKey", "node"],
+            )?;
+            bounded_string(id, object, "blueprintId", 512)?;
+            bounded_string(id, object, "graphId", 1024)?;
+            bounded_string(id, object, "agentKey", 128)?;
+            bounded_string(id, object, "node", 64)?;
+        }
+        "blueprint.pin_default_set" => {
+            require_keys(
+                id,
+                object,
+                &["blueprintId", "pinId", "value"],
+                &["blueprintId", "pinId", "value"],
+            )?;
+            bounded_string(id, object, "blueprintId", 512)?;
+            bounded_string(id, object, "pinId", 2048)?;
+        }
+        "blueprint.pin_connect" => {
+            require_keys(
+                id,
+                object,
+                &["blueprintId", "sourcePinId", "targetPinId"],
+                &["blueprintId", "sourcePinId", "targetPinId"],
+            )?;
+            for field in ["blueprintId", "sourcePinId", "targetPinId"] {
+                bounded_string(id, object, field, 2048)?;
+            }
         }
         "component.add" => {
             require_keys(
@@ -354,7 +427,17 @@ pub fn execute_local(id: &str, args: &Value) -> Option<Result<Value, AppError>> 
 }
 
 pub fn validate_output(id: &str, result: Value) -> Result<Value, AppError> {
+    validate_output_for_request(id, &Value::Null, result)
+}
+
+pub fn validate_output_for_request(
+    id: &str,
+    request: &Value,
+    result: Value,
+) -> Result<Value, AppError> {
     validate_generated_output(id, &result).map_err(|message| output_error(id, message))?;
+
+    validate_canonical_revisions(id, &result)?;
     let object = result
         .as_object()
         .ok_or_else(|| output_error(id, "result must be an object"))?;
@@ -482,8 +565,25 @@ pub fn validate_output(id: &str, result: Value) -> Result<Value, AppError> {
                 require_output_string(id, object, field)?;
             }
         }
-        "blueprint.view" | "blueprint.compile" | "play.start" | "play.status" | "play.input"
-        | "play.observe" | "play.screenshot" | "play.stop" => {
+        "blueprint.graph_view" => {
+            validate_graph_view_output(id, object)?;
+            if !request.is_null() {
+                validate_graph_view_page(id, request, object)?;
+            }
+        }
+        "blueprint.view"
+        | "blueprint.compile"
+        | "blueprint.create"
+        | "blueprint.event_ensure"
+        | "blueprint.node_ensure"
+        | "blueprint.pin_default_set"
+        | "blueprint.pin_connect"
+        | "play.start"
+        | "play.status"
+        | "play.input"
+        | "play.observe"
+        | "play.screenshot"
+        | "play.stop" => {
             require_output_string(id, object, "revision")?;
         }
         _ => return Err(output_error(id, "unknown result contract")),
@@ -585,7 +685,446 @@ fn validate_list_output(id: &str, object: &Map<String, Value>) -> Result<(), App
     }
     Ok(())
 }
+fn validate_graph_view_output(id: &str, object: &Map<String, Value>) -> Result<(), AppError> {
+    let count = require_output_u64(id, object, "count")?;
+    let total = require_output_u64(id, object, "total")?;
+    let items = object
+        .get("items")
+        .and_then(Value::as_array)
+        .ok_or_else(|| output_error(id, "result.items must be an array"))?;
+    require_output_string(id, object, "blueprintId")?;
+    require_output_string(id, object, "scope")?;
+    if count as usize != items.len() || count > total || count > 100 {
+        return Err(output_error(
+            id,
+            "graph page count and total are inconsistent",
+        ));
+    }
+    if !object.get("nextCursor").is_some_and(|value| {
+        value.is_null()
+            || value
+                .as_str()
+                .is_some_and(|text| !text.is_empty() && text.len() <= 256)
+    }) {
+        return Err(output_error(
+            id,
+            "nextCursor must be null or a bounded string",
+        ));
+    }
+    let revision = require_output_string(id, object, "revision")?;
+    if revision.len() != 64 || !revision.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(output_error(
+            id,
+            "graph revision must be a SHA-256 hex value",
+        ));
+    }
+    let mut row_kind = None;
+    let mut previous = None;
+    for item in items {
+        let item = item
+            .as_object()
+            .ok_or_else(|| output_error(id, "graph items must be objects"))?;
+        let (kind, identity) = if let Some(identity) = item.get("graphId").and_then(Value::as_str) {
+            ("graph", identity)
+        } else if let Some(identity) = item.get("nodeId").and_then(Value::as_str) {
+            ("node", identity)
+        } else {
+            return Err(output_error(id, "graph items require graphId or nodeId"));
+        };
+        if row_kind.is_some_and(|expected| expected != kind) {
+            return Err(output_error(
+                id,
+                "graph page cannot mix graph and node rows",
+            ));
+        }
+        if previous.is_some_and(|prior| prior >= identity) {
+            return Err(output_error(
+                id,
+                "graph item identities must be unique and ordered",
+            ));
+        }
+        row_kind = Some(kind);
+        previous = Some(identity);
+    }
+    Ok(())
+}
+fn validate_graph_cursor_input(id: &str, cursor: &str) -> Result<(), AppError> {
+    let mut parts = cursor.split('.');
+    let version = parts.next();
+    let snapshot = parts.next();
+    let offset = parts.next();
+    if version != Some("v1") || parts.next().is_some() {
+        return Err(input_error(
+            id,
+            "cursor must use v1.<64 hex snapshot>.<offset>",
+        ));
+    }
+    let snapshot = snapshot.ok_or_else(|| input_error(id, "cursor snapshot is missing"))?;
+    if snapshot.len() != 64
+        || !snapshot
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(input_error(
+            id,
+            "cursor snapshot must be 64 lowercase ASCII hex characters",
+        ));
+    }
+    let offset = offset.ok_or_else(|| input_error(id, "cursor offset is missing"))?;
+    if (offset.len() > 1 && offset.starts_with('0'))
+        || offset.is_empty()
+        || !offset.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return Err(input_error(
+            id,
+            "cursor offset must be canonical nonnegative decimal",
+        ));
+    }
+    offset
+        .parse::<u64>()
+        .map_err(|_| input_error(id, "cursor offset is out of range"))?;
+    Ok(())
+}
+fn parse_graph_cursor<'a>(id: &str, cursor: &'a str) -> Result<(&'a str, u64), AppError> {
+    let mut parts = cursor.split('.');
+    let version = parts.next();
+    let snapshot = parts.next();
+    let offset = parts.next();
+    if version != Some("v1") || parts.next().is_some() {
+        return Err(output_error(
+            id,
+            "cursor must use v1.<64 hex snapshot>.<offset>",
+        ));
+    }
+    let snapshot = snapshot.ok_or_else(|| output_error(id, "cursor snapshot is missing"))?;
+    if snapshot.len() != 64
+        || !snapshot
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(output_error(
+            id,
+            "cursor snapshot must be 64 lowercase ASCII hex characters",
+        ));
+    }
+    let offset = offset.ok_or_else(|| output_error(id, "cursor offset is missing"))?;
+    if (offset.len() > 1 && offset.starts_with('0'))
+        || offset.is_empty()
+        || !offset.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return Err(output_error(
+            id,
+            "cursor offset must be canonical nonnegative decimal",
+        ));
+    }
+    let offset = offset
+        .parse::<u64>()
+        .map_err(|_| output_error(id, "cursor offset is out of range"))?;
+    Ok((snapshot, offset))
+}
 
+fn canonical_row(fields: &[&str]) -> String {
+    fields
+        .iter()
+        .map(|field| format!("{}:{}", field.encode_utf16().count(), field))
+        .collect()
+}
+
+fn graph_cursor_snapshot(revision: &str, scope: &str, kind: &str) -> String {
+    format!(
+        "{:x}",
+        Sha256::digest(canonical_row(&[revision, scope, kind]).as_bytes())
+    )
+}
+
+fn canonical_guid(value: &str) -> bool {
+    value.len() == 36
+        && value.as_bytes().iter().enumerate().all(|(index, byte)| {
+            if matches!(index, 8 | 13 | 18 | 23) {
+                *byte == b'-'
+            } else {
+                byte.is_ascii_digit() || (b'a'..=b'f').contains(byte)
+            }
+        })
+}
+
+fn graph_identity(blueprint_id: &str, kind: &str, identity: &str) -> bool {
+    matches!(
+        kind,
+        "interface" | "ubergraph" | "function" | "macro" | "delegate_signature" | "other"
+    ) && identity
+        .strip_prefix(&format!("{blueprint_id}#graph:{kind}:"))
+        .is_some_and(canonical_guid)
+}
+
+fn node_identity(graph_id: &str, identity: &str) -> bool {
+    identity
+        .strip_prefix(&format!("{graph_id}#node:"))
+        .is_some_and(canonical_guid)
+}
+
+fn encoded_pin_name(value: &str) -> bool {
+    canonical_pin_encoding(value)
+}
+
+fn canonical_pin_encoding(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    let mut index = 0;
+    if bytes.is_empty() {
+        return false;
+    }
+    while index < bytes.len() {
+        if bytes[index].is_ascii_alphanumeric() || matches!(bytes[index], b'-' | b'_' | b'.' | b'~')
+        {
+            index += 1;
+        } else if bytes[index] == b'%'
+            && index + 2 < bytes.len()
+            && bytes[index + 1].is_ascii_hexdigit()
+            && bytes[index + 2].is_ascii_hexdigit()
+            && (bytes[index + 1].is_ascii_digit() || bytes[index + 1].is_ascii_uppercase())
+            && (bytes[index + 2].is_ascii_digit() || bytes[index + 2].is_ascii_uppercase())
+        {
+            index += 3;
+        } else {
+            return false;
+        }
+    }
+    true
+}
+
+fn encode_pin_name(value: &str) -> String {
+    value.bytes().fold(String::new(), |mut encoded, byte| {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
+            encoded.push(byte as char);
+        } else {
+            encoded.push('%');
+            encoded.push_str(&format!("{byte:02X}"));
+        }
+        encoded
+    })
+}
+
+fn pin_identity_exact(node_id: &str, identity: &str, direction: &str, name: &str) -> bool {
+    identity == format!("{node_id}#pin:{direction}:{}", encode_pin_name(name))
+}
+
+fn pin_identity(node_id: &str, identity: &str) -> bool {
+    let Some(suffix) = identity.strip_prefix(&format!("{node_id}#pin:")) else {
+        return false;
+    };
+    suffix
+        .strip_prefix("input:")
+        .or_else(|| suffix.strip_prefix("output:"))
+        .is_some_and(encoded_pin_name)
+}
+
+fn link_identity(graph_id: &str, identity: &str) -> bool {
+    let Some((node_id, _)) = identity.split_once("#pin:") else {
+        return false;
+    };
+    node_identity(graph_id, node_id) && pin_identity(node_id, identity)
+}
+
+fn validate_graph_view_page(
+    id: &str,
+    request: &Value,
+    object: &Map<String, Value>,
+) -> Result<(), AppError> {
+    let blueprint_id = request
+        .get("blueprintId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| output_error(id, "request blueprintId is missing"))?;
+    if object.get("blueprintId").and_then(Value::as_str) != Some(blueprint_id) {
+        return Err(output_error(
+            id,
+            "response blueprintId does not match request",
+        ));
+    }
+    let graph_id = request.get("graphId").and_then(Value::as_str);
+    let expected_scope = graph_id.unwrap_or(blueprint_id);
+    if object.get("scope").and_then(Value::as_str) != Some(expected_scope) {
+        return Err(output_error(id, "response scope does not match request"));
+    }
+    let input_cursor = request
+        .get("cursor")
+        .and_then(Value::as_str)
+        .map(|cursor| parse_graph_cursor(id, cursor))
+        .transpose()?;
+    let expected_kind = if graph_id.is_some() {
+        "nodes"
+    } else {
+        "graphs"
+    };
+    let revision = require_output_string(id, object, "revision")?;
+    let expected_snapshot = graph_cursor_snapshot(revision, expected_scope, expected_kind);
+    if input_cursor
+        .as_ref()
+        .is_some_and(|(snapshot, _)| *snapshot != expected_snapshot)
+    {
+        return Err(output_error(
+            id,
+            "input cursor snapshot does not match requested graph snapshot",
+        ));
+    }
+    let input_cursor = request
+        .get("cursor")
+        .and_then(Value::as_str)
+        .map(|cursor| parse_graph_cursor(id, cursor))
+        .transpose()?;
+    let current_offset = input_cursor.map_or(0, |(_, offset)| offset);
+    let requested_limit = request.get("limit").and_then(Value::as_u64).unwrap_or(100);
+    let count = require_output_u64(id, object, "count")?;
+    let total = require_output_u64(id, object, "total")?;
+    if input_cursor.is_some() && (total == 0 || current_offset >= total) {
+        return Err(output_error(
+            id,
+            "input cursor must point within nonempty graph result",
+        ));
+    }
+    let items = object
+        .get("items")
+        .and_then(Value::as_array)
+        .ok_or_else(|| output_error(id, "result.items must be an array"))?;
+    if count > requested_limit
+        || count as usize != items.len()
+        || current_offset > total
+        || count > total - current_offset
+    {
+        return Err(output_error(
+            id,
+            "graph page count or offset is inconsistent",
+        ));
+    }
+    if total > current_offset && count == 0 {
+        return Err(output_error(id, "nonterminal graph page cannot be empty"));
+    }
+    let mut previous = None;
+    for item in items {
+        let item = item
+            .as_object()
+            .ok_or_else(|| output_error(id, "graph items must be objects"))?;
+        let identity = if let Some(identity) = item.get("graphId").and_then(Value::as_str) {
+            let kind = item.get("kind").and_then(Value::as_str).unwrap_or("");
+            if graph_id.is_some() || !graph_identity(blueprint_id, kind, identity) {
+                return Err(output_error(
+                    id,
+                    "graph identity is not bound to requested Blueprint",
+                ));
+            }
+            identity
+        } else if let Some(identity) = item.get("nodeId").and_then(Value::as_str) {
+            let graph = graph_id
+                .ok_or_else(|| output_error(id, "node row requires requested graph scope"))?;
+            if !node_identity(graph, identity) {
+                return Err(output_error(
+                    id,
+                    "node identity is not bound to requested graph",
+                ));
+            }
+            let mut previous_pin = None;
+            for pin in item
+                .get("pins")
+                .and_then(Value::as_array)
+                .ok_or_else(|| output_error(id, "node pins must be an array"))?
+            {
+                let pin = pin
+                    .as_object()
+                    .ok_or_else(|| output_error(id, "pins must be objects"))?;
+                let pin_id = pin
+                    .get("pinId")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| output_error(id, "pinId is missing"))?;
+                if !pin_identity(identity, pin_id) {
+                    return Err(output_error(
+                        id,
+                        "pin identity is not bound to requested node",
+                    ));
+                }
+                if let Some(prior) = previous_pin
+                    && prior >= pin_id
+                {
+                    return Err(output_error(
+                        id,
+                        format!(
+                            "pin identities must be unique and ordered: `{prior}` before `{pin_id}`"
+                        ),
+                    ));
+                }
+                previous_pin = Some(pin_id);
+                let direction = pin
+                    .get("direction")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| output_error(id, "pin direction is missing"))?;
+                let name = pin
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| output_error(id, "pin name is missing"))?;
+                if !matches!(direction, "input" | "output")
+                    || !pin_identity_exact(identity, pin_id, direction, name)
+                {
+                    return Err(output_error(
+                        id,
+                        "pin identity does not match direction and name",
+                    ));
+                }
+                let mut previous_link = None;
+                for link in pin
+                    .get("links")
+                    .and_then(Value::as_array)
+                    .ok_or_else(|| output_error(id, "pin links must be an array"))?
+                {
+                    let link = link
+                        .as_str()
+                        .ok_or_else(|| output_error(id, "pin links must be strings"))?;
+                    if !link_identity(graph, link) {
+                        return Err(output_error(id, "pin link is not bound to requested graph"));
+                    }
+                    if previous_link.is_some_and(|prior| prior >= link) {
+                        return Err(output_error(id, "pin links must be unique and ordered"));
+                    }
+                    previous_link = Some(link);
+                }
+            }
+            identity
+        } else {
+            return Err(output_error(id, "graph items require graphId or nodeId"));
+        };
+        if previous.is_some_and(|prior| prior >= identity) {
+            return Err(output_error(
+                id,
+                "graph item identities must be unique and ordered",
+            ));
+        }
+        previous = Some(identity);
+    }
+    let next = object
+        .get("nextCursor")
+        .ok_or_else(|| output_error(id, "result.nextCursor is missing"))?;
+    let terminal = current_offset.checked_add(count) == Some(total);
+    if terminal {
+        if !next.is_null() {
+            return Err(output_error(
+                id,
+                "terminal graph page must have null nextCursor",
+            ));
+        }
+    } else {
+        let next = next
+            .as_str()
+            .ok_or_else(|| output_error(id, "nonterminal graph page requires nextCursor"))?;
+        let (snapshot, next_offset) = parse_graph_cursor(id, next)?;
+        if snapshot != expected_snapshot {
+            return Err(output_error(
+                id,
+                "output cursor snapshot does not match requested graph snapshot",
+            ));
+        }
+        if next_offset != current_offset + count {
+            return Err(output_error(id, "nextCursor offset does not advance page"));
+        }
+    }
+    Ok(())
+}
 fn require_keys(
     id: &str,
     object: &Map<String, Value>,
@@ -656,7 +1195,6 @@ fn require_output_u64(id: &str, object: &Map<String, Value>, field: &str) -> Res
         .and_then(Value::as_u64)
         .ok_or_else(|| output_error(id, format!("result.{field} must be a non-negative integer")))
 }
-
 fn input_error(id: &str, message: impl Into<String>) -> AppError {
     AppError::usage(
         "invalid_capability_input",
@@ -674,6 +1212,35 @@ fn output_error(id: &str, message: impl Into<String>) -> AppError {
     )
 }
 
+pub(crate) fn canonical_revision(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn validate_canonical_revisions(id: &str, value: &Value) -> Result<(), AppError> {
+    let invalid = match value {
+        Value::Object(object) => object.iter().any(|(key, value)| {
+            (matches!(
+                key.as_str(),
+                "revision" | "beforeRevision" | "afterRevision" | "observedRevision"
+            ) && !value.as_str().is_some_and(canonical_revision))
+                || validate_canonical_revisions(id, value).is_err()
+        }),
+        Value::Array(values) => values
+            .iter()
+            .any(|value| validate_canonical_revisions(id, value).is_err()),
+        _ => false,
+    };
+    if invalid {
+        return Err(output_error(
+            id,
+            "canonical revision must be exactly 64 lowercase hexadecimal characters",
+        ));
+    }
+    Ok(())
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -687,14 +1254,23 @@ mod tests {
         let mut sorted = ids.clone();
         sorted.sort();
         sorted.dedup();
+
         assert_eq!(ids, sorted);
         assert_eq!(ids.len(), CATALOG_COUNT);
     }
 
     #[test]
+    fn canonical_revision_rejects_uppercase_and_non_hex() {
+        for revision in ["A".repeat(64), "g".repeat(64)] {
+            let result = json!({"state":"stopped","sessionId":null,"worldId":null,"levelId":null,"playerCount":0,"revision":revision});
+            assert!(validate_output("play.status", result).is_err());
+        }
+    }
+
+    #[test]
     fn search_is_compact_and_deterministic() {
         let result = search("actor", 50);
-        assert_eq!(result["count"], 5);
+        assert_eq!(result["count"], 6);
         assert_eq!(result["items"][0]["id"], "actor.delete");
         assert!(result["items"][0].get("inputSchema").is_none());
     }
@@ -713,6 +1289,17 @@ mod tests {
                 "{id} accepted generated invalid output"
             );
         }
+        let fixtures: Vec<Value> =
+            serde_json::from_str(include_str!("../capabilities/input-invalid.generated.json"))
+                .unwrap();
+        assert!(!fixtures.is_empty());
+        for fixture in fixtures {
+            let id = fixture["operation"].as_str().unwrap();
+            assert!(
+                validate_generated_input(id, &fixture["args"]).is_err(),
+                "{id} accepted generated invalid input"
+            );
+        }
     }
 
     #[test]
@@ -727,6 +1314,249 @@ mod tests {
             "items":[{"id":"/Game/L#guid","unknown":true}],"nextCursor":null
         });
         assert!(validate_output("actor.list", extra).is_err());
+    }
+
+    #[test]
+    fn graph_view_rejects_inconsistent_pagination_and_ordering() {
+        let empty = json!({
+            "blueprintId":"/Game/BP.BP","count":0,"total":0,"scope":"/Game/BP.BP",
+            "revision":"0".repeat(64),"items":[],"nextCursor":null
+        });
+        let mut count_mismatch = empty.clone();
+        count_mismatch["count"] = json!(1);
+        assert!(validate_output("blueprint.graph_view", count_mismatch).is_err());
+        let mut non_hex_revision = empty.clone();
+        non_hex_revision["revision"] = json!("z".repeat(64));
+        assert!(validate_output("blueprint.graph_view", non_hex_revision).is_err());
+        let mut unordered = empty;
+        unordered["count"] = json!(2);
+        unordered["total"] = json!(2);
+        unordered["items"] = json!([
+            {"graphId":"z","kind":"ubergraph","name":"Z","nodeCount":0},
+            {"graphId":"a","kind":"ubergraph","name":"A","nodeCount":0}
+        ]);
+        assert!(validate_output("blueprint.graph_view", unordered).is_err());
+
+        let revision = "0".repeat(64);
+        let graph_a = "/Game/BP.BP#graph:ubergraph:00000000-0000-0000-0000-000000000001";
+        let graph_b = "/Game/BP.BP#graph:ubergraph:00000000-0000-0000-0000-000000000002";
+        let snapshot = graph_cursor_snapshot(&revision, "/Game/BP.BP", "graphs");
+        let other_snapshot = "b".repeat(64);
+        let request = json!({"blueprintId":"/Game/BP.BP","limit":1});
+        let page = json!({
+            "blueprintId":"/Game/BP.BP","count":1,"total":2,"scope":"/Game/BP.BP",
+            "revision":revision,"items":[{"graphId":graph_a,"kind":"ubergraph","name":"A","nodeCount":0}],
+            "nextCursor":format!("v1.{snapshot}.1")
+        });
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &request, page.clone()).is_ok()
+        );
+        let mut wrong_blueprint = page.clone();
+        wrong_blueprint["blueprintId"] = json!("/Game/Other.BP");
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &request, wrong_blueprint).is_err()
+        );
+        let mut foreign_graph = page.clone();
+        foreign_graph["items"][0]["graphId"] =
+            json!("/Game/Other.BP#graph:ubergraph:00000000-0000-0000-0000-000000000001");
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &request, foreign_graph).is_err()
+        );
+
+        let node_id = format!("{graph_a}#node:00000000-0000-0000-0000-000000000010");
+        let linked_node = format!("{graph_a}#node:00000000-0000-0000-0000-000000000011");
+        let node_request = json!({"blueprintId":"/Game/BP.BP","graphId":graph_a,"limit":1});
+        let node_page = json!({
+            "blueprintId":"/Game/BP.BP","count":1,"total":1,"scope":graph_a,
+            "revision":revision,"items":[{
+                "nodeId":node_id,"class":"/Script/BlueprintGraph.K2Node_Event","title":"BeginPlay","x":0,"y":0,
+                "pins":[{"pinId":format!("{node_id}#pin:output:then"),"name":"then","direction":"output","type":"exec","defaultValue":"","links":[format!("{linked_node}#pin:input:execute")]}]
+            }],"nextCursor":null
+        });
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &node_request, node_page.clone())
+                .is_ok()
+        );
+        let mut unordered_pins = node_page.clone();
+        unordered_pins["items"][0]["pins"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "pinId":format!("{node_id}#pin:input:A"),"name":"A","direction":"input",
+                "type":"exec","defaultValue":"","links":[]
+            }));
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &node_request, unordered_pins)
+                .is_err()
+        );
+        let mut duplicate_links = node_page.clone();
+        let link = duplicate_links["items"][0]["pins"][0]["links"][0].clone();
+        duplicate_links["items"][0]["pins"][0]["links"]
+            .as_array_mut()
+            .unwrap()
+            .push(link);
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &node_request, duplicate_links)
+                .is_err()
+        );
+        let mut foreign_pin = node_page;
+        foreign_pin["items"][0]["pins"][0]["pinId"] =
+            json!(format!("{linked_node}#pin:output:then"));
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &node_request, foreign_pin)
+                .is_err()
+        );
+
+        let mut wrong_scope = page.clone();
+        wrong_scope["scope"] = json!("/Game/Other.BP");
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &request, wrong_scope).is_err()
+        );
+        let node_request = json!({"blueprintId":"/Game/BP.BP","graphId":"a","limit":1});
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &node_request, page.clone())
+                .is_err()
+        );
+
+        let mut malformed_output_cursor = page.clone();
+        malformed_output_cursor["nextCursor"] = json!("v1.bad.1");
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &request, malformed_output_cursor)
+                .is_err()
+        );
+        let malformed_input = json!({"blueprintId":"/Game/BP.BP","limit":1,"cursor":"v1.bad.1"});
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &malformed_input, page.clone())
+                .is_err()
+        );
+        let second_page = json!({
+            "blueprintId":"/Game/BP.BP","count":1,"total":2,"scope":"/Game/BP.BP",
+            "revision":"0".repeat(64),
+            "items":[{"graphId":graph_b,"kind":"ubergraph","name":"B","nodeCount":0}],
+            "nextCursor":null
+        });
+        let empty_page = json!({
+            "blueprintId":"/Game/BP.BP","count":0,"total":0,"scope":"/Game/BP.BP",
+            "revision":"0".repeat(64),"items":[],"nextCursor":null
+        });
+        let empty_cursor =
+            json!({"blueprintId":"/Game/BP.BP","limit":1,"cursor":format!("v1.{snapshot}.0")});
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &empty_cursor, empty_page).is_err()
+        );
+
+        let second_request =
+            json!({"blueprintId":"/Game/BP.BP","limit":1,"cursor":format!("v1.{snapshot}.1")});
+        assert!(
+            validate_output_for_request(
+                "blueprint.graph_view",
+                &second_request,
+                second_page.clone()
+            )
+            .is_ok()
+        );
+
+        let mut empty_nonterminal = second_page.clone();
+        empty_nonterminal["count"] = json!(0);
+        empty_nonterminal["items"] = json!([]);
+        empty_nonterminal["nextCursor"] = json!(format!("v1.{snapshot}.1"));
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &second_request, empty_nonterminal)
+                .is_err()
+        );
+        let mut next_offset_mismatch = page.clone();
+        next_offset_mismatch["nextCursor"] = json!(format!("v1.{snapshot}.2"));
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &request, next_offset_mismatch)
+                .is_err()
+        );
+        let mut premature_null = page.clone();
+        premature_null["nextCursor"] = Value::Null;
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &request, premature_null).is_err()
+        );
+        let mut nonterminal_cursor = second_page.clone();
+        nonterminal_cursor["nextCursor"] = json!(format!("v1.{snapshot}.2"));
+        assert!(
+            validate_output_for_request(
+                "blueprint.graph_view",
+                &second_request,
+                nonterminal_cursor
+            )
+            .is_err()
+        );
+        let mut changed_snapshot = second_page;
+        changed_snapshot["total"] = json!(3);
+        changed_snapshot["nextCursor"] = json!(format!("v1.{other_snapshot}.2"));
+        assert!(
+            validate_output_for_request("blueprint.graph_view", &second_request, changed_snapshot)
+                .is_err()
+        );
+        let malformed_cursor = validate_input(
+            "blueprint.graph_view",
+            json!({"blueprintId":"/Game/BP.BP","cursor":"v1.bad.01"}),
+        )
+        .unwrap_err();
+        assert_eq!(malformed_cursor.reason, "invalid_capability_input");
+        let uppercase_cursor = validate_input(
+            "blueprint.graph_view",
+            json!({"blueprintId":"/Game/BP.BP","cursor":format!("v1.{}.0", "A".repeat(64))}),
+        )
+        .unwrap_err();
+        assert_eq!(uppercase_cursor.reason, "invalid_capability_input");
+
+        let pin_graph = graph_a;
+        let pin_node = format!("{pin_graph}#node:00000000-0000-0000-0000-000000000010");
+        let pin_request = json!({"blueprintId":"/Game/BP.BP","graphId":pin_graph,"limit":1});
+        let pin_page = |pin_id: String, name: &str, direction: &str| json!({"blueprintId":"/Game/BP.BP","count":1,"total":1,"scope":pin_graph,"revision":"0".repeat(64),"items":[{"nodeId":pin_node,"class":"C","title":"N","x":0,"y":0,"pins":[{"pinId":pin_id,"name":name,"direction":direction,"type":"exec","defaultValue":"","links":[]}]}],"nextCursor":null});
+        assert!(
+            validate_output_for_request(
+                "blueprint.graph_view",
+                &pin_request,
+                pin_page(format!("{pin_node}#pin:output:%2541"), "%41", "output")
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_output_for_request(
+                "blueprint.graph_view",
+                &pin_request,
+                pin_page(format!("{pin_node}#pin:output:%41"), "%41", "output")
+            )
+            .is_err()
+        );
+        assert!(
+            validate_output_for_request(
+                "blueprint.graph_view",
+                &pin_request,
+                pin_page(format!("{pin_node}#pin:output:%FF"), "ÿ", "output")
+            )
+            .is_err()
+        );
+        assert!(
+            validate_output_for_request(
+                "blueprint.graph_view",
+                &pin_request,
+                pin_page(format!("{pin_node}#pin:input:%2541"), "%41", "output")
+            )
+            .is_err()
+        );
+        assert!(
+            validate_output_for_request(
+                "blueprint.graph_view",
+                &pin_request,
+                pin_page(format!("{pin_node}#pin:output:%C3%BC"), "ü", "output")
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_output_for_request(
+                "blueprint.graph_view",
+                &pin_request,
+                pin_page(format!("{pin_node}#pin:output:%c3%bc"), "ü", "output")
+            )
+            .is_err()
+        );
     }
 
     #[test]

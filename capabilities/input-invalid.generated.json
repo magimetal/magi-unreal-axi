@@ -1,0 +1,664 @@
+[
+  {
+    "operation": "actor.delete",
+    "case": "input-root-not-closed",
+    "args": {
+      "id": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "actor.list",
+    "case": "input-root-not-closed",
+    "args": {
+      "unknown": true
+    }
+  },
+  {
+    "operation": "actor.list",
+    "case": "numeric-below-minimum@limit",
+    "args": {
+      "limit": 0
+    }
+  },
+  {
+    "operation": "actor.list",
+    "case": "numeric-above-maximum@limit",
+    "args": {
+      "limit": 101
+    }
+  },
+  {
+    "operation": "actor.spawn",
+    "case": "input-root-not-closed",
+    "args": {
+      "levelId": "x",
+      "class": "x",
+      "agentKey": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "actor.spawn",
+    "case": "numeric-below-minimum@location.0",
+    "args": {
+      "levelId": "x",
+      "class": "x",
+      "agentKey": "x",
+      "location": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ]
+    }
+  },
+  {
+    "operation": "actor.spawn",
+    "case": "numeric-above-maximum@location.0",
+    "args": {
+      "levelId": "x",
+      "class": "x",
+      "agentKey": "x",
+      "location": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ]
+    }
+  },
+  {
+    "operation": "actor.spawn",
+    "case": "numeric-below-minimum@rotation.0",
+    "args": {
+      "levelId": "x",
+      "class": "x",
+      "agentKey": "x",
+      "rotation": [
+        -361.0,
+        -360.0,
+        -360.0
+      ]
+    }
+  },
+  {
+    "operation": "actor.spawn",
+    "case": "numeric-above-maximum@rotation.0",
+    "args": {
+      "levelId": "x",
+      "class": "x",
+      "agentKey": "x",
+      "rotation": [
+        361.0,
+        -360.0,
+        -360.0
+      ]
+    }
+  },
+  {
+    "operation": "actor.spawn",
+    "case": "numeric-below-minimum@scale.0",
+    "args": {
+      "levelId": "x",
+      "class": "x",
+      "agentKey": "x",
+      "scale": [
+        -1.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  {
+    "operation": "actor.spawn",
+    "case": "numeric-above-maximum@scale.0",
+    "args": {
+      "levelId": "x",
+      "class": "x",
+      "agentKey": "x",
+      "scale": [
+        1000001.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  {
+    "operation": "actor.update_transform",
+    "case": "input-root-not-closed",
+    "args": {
+      "id": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "actor.update_transform",
+    "case": "numeric-below-minimum@location.0",
+    "args": {
+      "id": "x",
+      "location": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ]
+    }
+  },
+  {
+    "operation": "actor.update_transform",
+    "case": "numeric-above-maximum@location.0",
+    "args": {
+      "id": "x",
+      "location": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ]
+    }
+  },
+  {
+    "operation": "actor.update_transform",
+    "case": "numeric-below-minimum@rotation.0",
+    "args": {
+      "id": "x",
+      "rotation": [
+        -361.0,
+        -360.0,
+        -360.0
+      ]
+    }
+  },
+  {
+    "operation": "actor.update_transform",
+    "case": "numeric-above-maximum@rotation.0",
+    "args": {
+      "id": "x",
+      "rotation": [
+        361.0,
+        -360.0,
+        -360.0
+      ]
+    }
+  },
+  {
+    "operation": "actor.update_transform",
+    "case": "numeric-below-minimum@scale.0",
+    "args": {
+      "id": "x",
+      "scale": [
+        -1.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  {
+    "operation": "actor.update_transform",
+    "case": "numeric-above-maximum@scale.0",
+    "args": {
+      "id": "x",
+      "scale": [
+        1000001.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  {
+    "operation": "actor.view",
+    "case": "input-root-not-closed",
+    "args": {
+      "id": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "asset.create_input_action",
+    "case": "input-root-not-closed",
+    "args": {
+      "path": "x",
+      "valueType": "Boolean",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "asset.create_input_mapping_context",
+    "case": "input-root-not-closed",
+    "args": {
+      "path": "x",
+      "mappings": [],
+      "unknown": true
+    }
+  },
+  {
+    "operation": "asset.save",
+    "case": "input-root-not-closed",
+    "args": {
+      "id": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.compile",
+    "case": "input-root-not-closed",
+    "args": {
+      "id": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.view",
+    "case": "input-root-not-closed",
+    "args": {
+      "id": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.create",
+    "case": "input-root-not-closed",
+    "args": {
+      "path": "x",
+      "parentClass": "/Script/Engine.StaticMeshActor",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "numeric-below-minimum@limit",
+    "args": {
+      "blueprintId": "x",
+      "limit": 0
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "numeric-above-maximum@limit",
+    "args": {
+      "blueprintId": "x",
+      "limit": 101
+    }
+  },
+  {
+    "operation": "blueprint.event_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "graphId": "x",
+      "agentKey": "x",
+      "event": "actor.begin_play",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.node_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "graphId": "x",
+      "agentKey": "x",
+      "node": "game.get_player_controller",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.pin_default_set",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "pinId": "x",
+      "value": {
+        "type": "integer",
+        "value": -1000000.0
+      },
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.pin_default_set",
+    "case": "numeric-below-minimum@value.value",
+    "args": {
+      "blueprintId": "x",
+      "pinId": "x",
+      "value": {
+        "type": "integer",
+        "value": -1000001.0
+      }
+    }
+  },
+  {
+    "operation": "blueprint.pin_default_set",
+    "case": "numeric-above-maximum@value.value",
+    "args": {
+      "blueprintId": "x",
+      "pinId": "x",
+      "value": {
+        "type": "integer",
+        "value": 1000001.0
+      }
+    }
+  },
+  {
+    "operation": "blueprint.pin_connect",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "sourcePinId": "x",
+      "targetPinId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "component.add",
+    "case": "input-root-not-closed",
+    "args": {
+      "actorId": "x",
+      "class": "x",
+      "name": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "component.add",
+    "case": "numeric-below-minimum@location.0",
+    "args": {
+      "actorId": "x",
+      "class": "x",
+      "name": "x",
+      "location": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ]
+    }
+  },
+  {
+    "operation": "component.add",
+    "case": "numeric-above-maximum@location.0",
+    "args": {
+      "actorId": "x",
+      "class": "x",
+      "name": "x",
+      "location": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ]
+    }
+  },
+  {
+    "operation": "component.list",
+    "case": "input-root-not-closed",
+    "args": {
+      "actorId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "component.list",
+    "case": "numeric-below-minimum@limit",
+    "args": {
+      "actorId": "x",
+      "limit": 0
+    }
+  },
+  {
+    "operation": "component.list",
+    "case": "numeric-above-maximum@limit",
+    "args": {
+      "actorId": "x",
+      "limit": 101
+    }
+  },
+  {
+    "operation": "component.remove",
+    "case": "input-root-not-closed",
+    "args": {
+      "id": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "component.update",
+    "case": "input-root-not-closed",
+    "args": {
+      "id": "x",
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "unknown": true
+    }
+  },
+  {
+    "operation": "component.update",
+    "case": "numeric-below-minimum@location.0",
+    "args": {
+      "id": "x",
+      "location": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ]
+    }
+  },
+  {
+    "operation": "component.update",
+    "case": "numeric-above-maximum@location.0",
+    "args": {
+      "id": "x",
+      "location": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ]
+    }
+  },
+  {
+    "operation": "component.view",
+    "case": "input-root-not-closed",
+    "args": {
+      "id": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "level.set_game_mode",
+    "case": "input-root-not-closed",
+    "args": {
+      "levelId": "x",
+      "gameModeClass": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "level.settings",
+    "case": "input-root-not-closed",
+    "args": {
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.input",
+    "case": "input-root-not-closed",
+    "args": {
+      "sessionId": "x",
+      "key": "x",
+      "event": "pressed",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.observe",
+    "case": "input-root-not-closed",
+    "args": {
+      "sessionId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.screenshot",
+    "case": "input-root-not-closed",
+    "args": {
+      "sessionId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.start",
+    "case": "input-root-not-closed",
+    "args": {
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.status",
+    "case": "input-root-not-closed",
+    "args": {
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.stop",
+    "case": "input-root-not-closed",
+    "args": {
+      "sessionId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "asset.list",
+    "case": "input-root-not-closed",
+    "args": {
+      "unknown": true
+    }
+  },
+  {
+    "operation": "asset.list",
+    "case": "numeric-below-minimum@limit",
+    "args": {
+      "limit": 0
+    }
+  },
+  {
+    "operation": "asset.list",
+    "case": "numeric-above-maximum@limit",
+    "args": {
+      "limit": 101
+    }
+  },
+  {
+    "operation": "asset.view",
+    "case": "input-root-not-closed",
+    "args": {
+      "id": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "capability.describe",
+    "case": "input-root-not-closed",
+    "args": {
+      "id": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "capability.search",
+    "case": "input-root-not-closed",
+    "args": {
+      "query": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "capability.search",
+    "case": "numeric-below-minimum@limit",
+    "args": {
+      "query": "x",
+      "limit": 0
+    }
+  },
+  {
+    "operation": "capability.search",
+    "case": "numeric-above-maximum@limit",
+    "args": {
+      "query": "x",
+      "limit": 51
+    }
+  },
+  {
+    "operation": "editor.status",
+    "case": "input-root-not-closed",
+    "args": {
+      "unknown": true
+    }
+  },
+  {
+    "operation": "level.create",
+    "case": "input-root-not-closed",
+    "args": {
+      "path": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "level.current",
+    "case": "input-root-not-closed",
+    "args": {
+      "unknown": true
+    }
+  },
+  {
+    "operation": "level.list",
+    "case": "input-root-not-closed",
+    "args": {
+      "unknown": true
+    }
+  },
+  {
+    "operation": "level.list",
+    "case": "numeric-below-minimum@limit",
+    "args": {
+      "limit": 0
+    }
+  },
+  {
+    "operation": "level.list",
+    "case": "numeric-above-maximum@limit",
+    "args": {
+      "limit": 101
+    }
+  },
+  {
+    "operation": "level.open",
+    "case": "input-root-not-closed",
+    "args": {
+      "path": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "level.save",
+    "case": "input-root-not-closed",
+    "args": {
+      "path": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "input-root-not-closed",
+    "args": {
+      "id": "x",
+      "unknown": true
+    }
+  }
+]

@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 #[cfg(unix)]
 use std::os::unix::{
     fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
+    io::AsRawFd,
     process::CommandExt,
 };
 use std::{
@@ -93,6 +94,8 @@ struct OperationResponse {
     receipt: Option<Receipt>,
     #[serde(default)]
     error: Option<BridgeOperationError>,
+    #[serde(default, rename = "operationId")]
+    operation_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -579,6 +582,14 @@ fn exchange_selected_args(
             )
         });
     }
+    let operation_id = response.operation_id.as_deref().unwrap_or(&id).to_owned();
+    if response.operation_id.is_some()
+        && (options.idempotency_key.is_none()
+            || operation_id.is_empty()
+            || operation_id.len() > 128)
+    {
+        return Err(outcome_unknown(&id));
+    }
     if response.status == "ok" {
         let mut result = response.result;
         if requires_receipt(operation) {
@@ -586,7 +597,15 @@ fn exchange_selected_args(
                 .receipt
                 .as_ref()
                 .ok_or_else(|| outcome_unknown(&id))?;
-            validate_receipt(operation, &id, receipt, &result, discovery)?;
+            validate_receipt_with_replay(
+                operation,
+                &operation_id,
+                receipt,
+                &result,
+                &args,
+                discovery,
+                options.idempotency_key.is_some(),
+            )?;
             result = json!({"result": result, "receipt": receipt});
         }
         if operation == "editor.stop" {
@@ -647,9 +666,50 @@ fn exchange_selected_args(
         "timeout" => "timeout",
         "unsupported" => "unsupported",
         "not_found" => "not_found",
-        "blueprint_compile_failed" => "blueprint_compile_failed",
+        "outcome_unknown" => "outcome_unknown",
         _ => "operation_failed",
     };
+    if matches!(
+        operation,
+        "blueprint.create"
+            | "blueprint.event_ensure"
+            | "blueprint.node_ensure"
+            | "blueprint.pin_default_set"
+            | "blueprint.pin_connect"
+    ) && matches!(error.kind.as_str(), "operation_failed" | "outcome_unknown")
+    {
+        let receipt = response
+            .receipt
+            .as_ref()
+            .ok_or_else(|| outcome_unknown(&id))?;
+        validate_failed_atomic_receipt(
+            operation,
+            &operation_id,
+            &args,
+            options,
+            receipt,
+            &error,
+            discovery,
+        )?;
+        let app_error = AppError::operational(
+            "bridge",
+            if error.kind == "outcome_unknown" {
+                "outcome_unknown"
+            } else {
+                "operation_failed"
+            },
+            error.message.clone(),
+            format!("inspect `magi-unreal-axi operation view {operation_id}` before retrying"),
+        )
+        .with_bridge_details(
+            error.retryable,
+            error.dirty_package_count,
+            error.dirty_packages.clone(),
+        )
+        .with_operation_id(operation_id.clone())
+        .with_receipt(serde_json::to_value(receipt).map_err(|_| outcome_unknown(&id))?);
+        return Err(app_error);
+    }
     if operation == "blueprint.compile"
         && error.kind == "blueprint_compile_failed"
         && metadata(operation).and_then(|value| value.failure_receipt) == Some("preserved-dirty")
@@ -658,12 +718,20 @@ fn exchange_selected_args(
             .receipt
             .as_ref()
             .ok_or_else(|| outcome_unknown(&id))?;
-        validate_failed_receipt(operation, &id, &args, options, receipt, &error, discovery)?;
+        validate_failed_receipt(
+            operation,
+            &operation_id,
+            &args,
+            options,
+            receipt,
+            &error,
+            discovery,
+        )?;
         let app_error = AppError::operational(
             "bridge",
             "blueprint_compile_failed",
             error.message.clone(),
-            "inspect `magi-unreal-axi operation view <id>` before retrying",
+            format!("inspect `magi-unreal-axi operation view {operation_id}` before retrying"),
         )
         .with_bridge_details(
             error.retryable,
@@ -675,7 +743,7 @@ fn exchange_selected_args(
             error.warning_count,
             error.diagnostics.clone(),
         )
-        .with_operation_id(id.clone())
+        .with_operation_id(receipt.operation_id.clone())
         .with_receipt(serde_json::to_value(receipt).map_err(|_| outcome_unknown(&id))?);
         return Err(app_error);
     }
@@ -699,10 +767,161 @@ fn exchange_selected_args(
     )
     .with_bridge_diagnostics(error.error_count, error.warning_count, error.diagnostics);
     Err(if is_mutation(operation) {
-        app_error.with_operation_id(id)
+        app_error.with_operation_id(operation_id)
     } else {
         app_error
     })
+}
+
+fn validate_failed_atomic_receipt(
+    operation: &str,
+    id: &str,
+    args: &Value,
+    options: &ExecutionOptions,
+    receipt: &Receipt,
+    error: &BridgeOperationError,
+    discovery: &Discovery,
+) -> Result<(), AppError> {
+    let record = metadata(operation).ok_or_else(|| outcome_unknown(id))?;
+    let verification = receipt
+        .verification
+        .as_object()
+        .ok_or_else(|| outcome_unknown(id))?;
+    let target = match operation {
+        "blueprint.create" => {
+            let path = args["path"].as_str().ok_or_else(|| outcome_unknown(id))?;
+            format!(
+                "{path}.{name}",
+                name = path.rsplit('/').next().unwrap_or_default()
+            )
+        }
+        "blueprint.event_ensure" | "blueprint.node_ensure" => format!(
+            "{}#{}#{}",
+            args["blueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["graphId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["agentKey"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?
+        ),
+        "blueprint.pin_default_set" => format!(
+            "{}#{}",
+            args["blueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["pinId"].as_str().ok_or_else(|| outcome_unknown(id))?
+        ),
+        "blueprint.pin_connect" => format!(
+            "{}#{}#{}",
+            args["blueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["sourcePinId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["targetPinId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?
+        ),
+        _ => return Err(outcome_unknown(id)),
+    };
+    let before = verification["beforeRevision"]
+        .as_str()
+        .ok_or_else(|| outcome_unknown(id))?;
+    let observed = verification["observedRevision"]
+        .as_str()
+        .ok_or_else(|| outcome_unknown(id))?;
+    let dirty = error
+        .dirty_packages
+        .as_ref()
+        .ok_or_else(|| outcome_unknown(id))?;
+    let unknown = error.kind == "outcome_unknown";
+    let valid = capability::canonical_revision;
+    let expected_before = if operation == "blueprint.create" {
+        format!("{:x}", Sha256::digest(format!("{target}\nabsent")))
+    } else {
+        options
+            .expected_revision
+            .clone()
+            .ok_or_else(|| outcome_unknown(id))?
+    };
+    if receipt.operation_id != id
+        || receipt.operation != operation
+        || receipt.state != if unknown { "outcome_unknown" } else { "failed" }
+        || receipt.project_id != discovery.project_id
+        || receipt.editor_pid != discovery.pid
+        || receipt.target != target
+        || verification["target"].as_str() != Some(target.as_str())
+        || verification["readback"].as_str() != record.readback
+        || verification["matched"].as_bool() != Some(!unknown)
+        || receipt.changed != (before != observed)
+        || (!unknown && before != observed)
+        || receipt.revision != observed
+        || !valid(before)
+        || before != expected_before
+        || !valid(observed)
+        || receipt.dirty_packages != *dirty
+        || error.dirty_package_count != Some(dirty.len() as u64)
+        || !receipt.saved_packages.is_empty()
+        || receipt.persistence
+            != if dirty.is_empty() {
+                "unchanged"
+            } else {
+                "dirty"
+            }
+        || receipt.transaction != record.transaction_behavior
+        || receipt.reversibility != record.reversibility
+        || verification["observedStatus"].as_str() != Some("error")
+        || error.retryable == unknown
+    {
+        return Err(outcome_unknown(id));
+    }
+    if operation == "blueprint.create"
+        && (verification["requestPath"] != args["path"]
+            || verification["requestParentClass"] != args["parentClass"])
+    {
+        return Err(outcome_unknown(id));
+    }
+    if matches!(
+        operation,
+        "blueprint.event_ensure" | "blueprint.node_ensure"
+    ) {
+        let intent = if operation == "blueprint.event_ensure" {
+            "event"
+        } else {
+            "node"
+        };
+        if verification["requestBlueprintId"] != args["blueprintId"]
+            || verification["requestGraphId"] != args["graphId"]
+            || verification["requestAgentKey"] != args["agentKey"]
+            || verification["requestIntent"] != args[intent]
+        {
+            return Err(outcome_unknown(id));
+        }
+    }
+    if operation == "blueprint.pin_default_set" {
+        let value = args["value"]
+            .as_object()
+            .ok_or_else(|| outcome_unknown(id))?;
+        if verification["requestBlueprintId"] != args["blueprintId"]
+            || verification["requestPinId"] != args["pinId"]
+            || verification["requestValueType"] != value["type"]
+            || verification["requestValue"] != value["value"]
+        {
+            return Err(outcome_unknown(id));
+        }
+    }
+    if operation == "blueprint.pin_connect"
+        && (verification["requestBlueprintId"] != args["blueprintId"]
+            || verification["requestSourcePinId"] != args["sourcePinId"]
+            || verification["requestTargetPinId"] != args["targetPinId"])
+    {
+        return Err(outcome_unknown(id));
+    }
+    Ok(())
 }
 
 fn validate_failed_receipt(
@@ -746,8 +965,7 @@ fn validate_failed_receipt(
         .map(Value::as_str)
         .collect::<Option<Vec<_>>>()
         .ok_or_else(|| outcome_unknown(id))?;
-    let valid_revision =
-        |value: &str| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit());
+    let valid_revision = capability::canonical_revision;
     let changed = before_revision != observed_revision;
     if receipt.operation_id != id
         || receipt.operation != operation
@@ -791,12 +1009,26 @@ fn validate_failed_receipt(
     Ok(())
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn validate_receipt(
     operation: &str,
     id: &str,
     receipt: &Receipt,
     result: &Value,
+    args: &Value,
     discovery: &Discovery,
+) -> Result<(), AppError> {
+    validate_receipt_with_replay(operation, id, receipt, result, args, discovery, false)
+}
+
+fn validate_receipt_with_replay(
+    operation: &str,
+    id: &str,
+    receipt: &Receipt,
+    result: &Value,
+    args: &Value,
+    discovery: &Discovery,
+    _replayable: bool,
 ) -> Result<(), AppError> {
     let capability_record = metadata(operation).ok_or_else(|| outcome_unknown(id))?;
     let verification = receipt
@@ -818,15 +1050,82 @@ fn validate_receipt(
         .get("matched")
         .and_then(Value::as_bool)
         .ok_or_else(|| outcome_unknown(id))?;
-    let result_target = if !capability_record.target_fields.is_empty() {
-        capability_record
+    let result_target = match operation {
+        "blueprint.event_ensure" | "blueprint.node_ensure" => format!(
+            "{}#{}#{}",
+            args["blueprintId"].as_str().unwrap_or_default(),
+            args["graphId"].as_str().unwrap_or_default(),
+            args["agentKey"].as_str().unwrap_or_default()
+        ),
+        "blueprint.pin_default_set" => format!(
+            "{}#{}",
+            args["blueprintId"].as_str().unwrap_or_default(),
+            args["pinId"].as_str().unwrap_or_default()
+        ),
+        "blueprint.pin_connect" => format!(
+            "{}#{}#{}",
+            args["blueprintId"].as_str().unwrap_or_default(),
+            args["sourcePinId"].as_str().unwrap_or_default(),
+            args["targetPinId"].as_str().unwrap_or_default()
+        ),
+        _ if !capability_record.target_fields.is_empty() => capability_record
             .target_fields
             .iter()
             .map(|field| result[*field].as_str().unwrap_or_default())
             .collect::<Vec<_>>()
-            .join("#")
-    } else {
-        String::new()
+            .join("#"),
+        _ => String::new(),
+    };
+    let request_target_matches = capability_record.target_fields.iter().all(|field| {
+        args.get(*field)
+            .is_none_or(|request_value| result.get(*field) == Some(request_value))
+    });
+    let p11_request_matches = match operation {
+        "blueprint.create" => {
+            let path = args.get("path").and_then(Value::as_str);
+            let expected_id = path.and_then(|path| {
+                path.rsplit_once('/')
+                    .map(|(_, name)| format!("{path}.{name}"))
+            });
+            expected_id.as_deref() == result.get("blueprintId").and_then(Value::as_str)
+                && verification.get("requestPath") == args.get("path")
+                && verification.get("requestParentClass") == args.get("parentClass")
+                && result.get("parentClass") == args.get("parentClass")
+        }
+        "blueprint.event_ensure" | "blueprint.node_ensure" => {
+            let intent_field = if operation == "blueprint.event_ensure" {
+                "event"
+            } else {
+                "node"
+            };
+            result.get("blueprintId") == args.get("blueprintId")
+                && result.get("graphId") == args.get("graphId")
+                && verification.get("requestBlueprintId") == args.get("blueprintId")
+                && verification.get("requestGraphId") == args.get("graphId")
+                && verification.get("requestAgentKey") == args.get("agentKey")
+                && verification.get("requestIntent") == args.get(intent_field)
+        }
+        "blueprint.pin_default_set" => {
+            let value = args.get("value").and_then(Value::as_object);
+            result.get("blueprintId") == args.get("blueprintId")
+                && result.get("pinId") == args.get("pinId")
+                && verification.get("requestBlueprintId") == args.get("blueprintId")
+                && verification.get("requestPinId") == args.get("pinId")
+                && verification.get("requestValueType") == value.and_then(|value| value.get("type"))
+                && verification.get("requestValue").and_then(Value::as_f64)
+                    == value
+                        .and_then(|value| value.get("value"))
+                        .and_then(Value::as_f64)
+        }
+        "blueprint.pin_connect" => {
+            result.get("blueprintId") == args.get("blueprintId")
+                && result.get("sourcePinId") == args.get("sourcePinId")
+                && result.get("targetPinId") == args.get("targetPinId")
+                && verification.get("requestBlueprintId") == args.get("blueprintId")
+                && verification.get("requestSourcePinId") == args.get("sourcePinId")
+                && verification.get("requestTargetPinId") == args.get("targetPinId")
+        }
+        _ => true,
     };
     let result_changed = result["changed"]
         .as_bool()
@@ -834,6 +1133,10 @@ fn validate_receipt(
     let result_revision = result["revision"]
         .as_str()
         .ok_or_else(|| outcome_unknown(id))?;
+    if !capability::canonical_revision(result_revision) {
+        return Err(outcome_unknown(id));
+    }
+
     let result_dirty = result["dirtyPackages"]
         .as_array()
         .map(|v| {
@@ -874,7 +1177,9 @@ fn validate_receipt(
         || target != result_target
         || receipt.target != target
         || target.is_empty()
-        || target.chars().count() > 1024
+        || !request_target_matches
+        || !p11_request_matches
+        || target.chars().count() > 8192
         || readback.is_empty()
         || readback.chars().count() > 128
         || readback != expected_readback
@@ -886,7 +1191,7 @@ fn validate_receipt(
         || receipt.transaction != expected_transaction
         || receipt.reversibility != expected_reversibility
         || receipt.persistence != expected_persistence
-        || receipt.revision.chars().count() != 64
+        || !capability::canonical_revision(&receipt.revision)
         || receipt.dirty_packages.len() > MAX_DIRTY_PACKAGES
         || receipt.saved_packages.len() > MAX_DIRTY_PACKAGES
         || receipt
@@ -918,9 +1223,10 @@ fn validate_receipt(
             .get("observedRevision")
             .and_then(Value::as_str)
             .ok_or_else(|| outcome_unknown(id))?;
-        if !result["accepted"].as_bool().unwrap_or(false)
-            || before.len() != 64
-            || after.len() != 64
+        if !capability::canonical_revision(before)
+            || !capability::canonical_revision(after)
+            || !capability::canonical_revision(observed)
+            || !result["accepted"].as_bool().unwrap_or(false)
             || result_revision != after
             || observed != after
             || result_changed != (before != after)
@@ -940,6 +1246,47 @@ fn validate_receipt(
     }
     Ok(())
 }
+fn surface_journal_failure(mut error: AppError, receipt: &Value, journal: AppError) -> AppError {
+    let operation_id = receipt["operationId"]
+        .as_str()
+        .unwrap_or("unknown")
+        .to_owned();
+    let detail = format!("journal persistence failed: {}", journal.message);
+    if error.reason == "journal_write_failed" {
+        return error
+            .with_operation_id(operation_id)
+            .with_receipt(receipt.clone());
+    }
+    error.message = format!("{}; {detail}", error.message);
+    error.help = format!(
+        "{}; do not retry; inspect operation view {} and recover journal persistence",
+        error.help, operation_id
+    );
+    error
+        .with_operation_id(operation_id)
+        .with_receipt(receipt.clone())
+}
+
+fn journal_completed_failure(receipt: &Value, journal: AppError) -> AppError {
+    let operation_id = receipt["operationId"]
+        .as_str()
+        .unwrap_or("unknown")
+        .to_owned();
+    AppError::operational(
+        "bridge",
+        "journal_write_failed",
+        format!(
+            "mutation completed but journal persistence failed: {}",
+            journal.message
+        ),
+        format!(
+            "do not retry; inspect operation view {operation_id} and recover journal persistence"
+        ),
+    )
+    .with_operation_id(operation_id)
+    .with_receipt(receipt.clone())
+}
+
 fn live(project: &Path, pid: Option<u32>) -> Result<(PathBuf, Discovery), AppError> {
     match select(project, pid)? {
         Selection::Live(session, discovery) => Ok((session, *discovery)),
@@ -978,13 +1325,15 @@ pub fn capability(
     options: ExecutionOptions,
     timeout: Duration,
 ) -> Result<Value, AppError> {
+    let journal_id =
+        (operation == "operation.view").then(|| args["id"].as_str().unwrap_or("").to_owned());
     let (session, discovery) = match live(project, pid) {
         Ok(value) => value,
         Err(error)
             if operation == "operation.view"
                 && matches!(error.reason, "editor_not_found" | "stale_editor") =>
         {
-            return journal_find(project, args["id"].as_str().unwrap_or(""))?.ok_or(error);
+            return journal_find(project, journal_id.as_deref().unwrap_or(""))?.ok_or(error);
         }
         Err(error) => return Err(error),
     };
@@ -1000,14 +1349,20 @@ pub fn capability(
         Ok(value) => {
             if is_mutation(operation)
                 && let Some(receipt) = value.get("receipt")
+                && let Err(journal) = journal_receipt(project, receipt)
             {
-                journal_receipt(project, receipt)?;
+                return Err(journal_completed_failure(receipt, journal));
             }
             Ok(value)
         }
         Err(error) => {
-            if let Some(receipt) = error.receipt() {
-                journal_receipt(project, receipt)?;
+            if operation == "operation.view" && error.reason == "not_found" {
+                return journal_find(project, journal_id.as_deref().unwrap_or(""))?.ok_or(error);
+            }
+            if let Some(receipt) = error.receipt().cloned()
+                && let Err(journal) = journal_receipt(project, &receipt)
+            {
+                return Err(surface_journal_failure(error, &receipt, journal));
             }
             Err(error)
         }
@@ -1387,14 +1742,37 @@ fn atomic_private_write(path: &Path, bytes: &[u8]) -> Result<(), AppError> {
     fs::rename(&temporary, path).map_err(io_error)?;
     validate_private(path, false)
 }
+#[cfg(unix)]
+fn lock_journal(directory: &Path) -> Result<File, AppError> {
+    let path = directory.join("operation-journal-v1.lock");
+    let file = OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(&path)
+        .map_err(io_error)?;
+    validate_private(&path, false)?;
+    if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
+        return Err(io_error(std::io::Error::last_os_error()));
+    }
+    Ok(file)
+}
+
 fn journal_receipt(project: &Path, receipt: &Value) -> Result<(), AppError> {
     let directory = project_directory(project)?;
     secure_directory(&runtime_root()?)?;
     secure_directory(&directory)?;
+    journal_receipt_in_directory(&directory, receipt)
+}
+
+fn journal_receipt_in_directory(directory: &Path, receipt: &Value) -> Result<(), AppError> {
+    let _lock = lock_journal(directory)?;
     let path = directory.join("operation-journal-v1.json");
     let mut records = if path.exists() {
         serde_json::from_slice::<Vec<Value>>(&read_bounded(&path, MAX_RESPONSE as u64)?)
-            .unwrap_or_default()
+            .map_err(|_| bridge_error("malformed_journal", "operation journal is malformed"))?
     } else {
         Vec::new()
     };
@@ -1648,33 +2026,18 @@ mod tests {
     }
 
     fn receipt_fixture(operation: &str, result: Value, matched: bool) -> Receipt {
-        let target = if operation == "play.input" {
-            format!(
-                "{}#{}#{}",
-                result["sessionId"].as_str().unwrap_or(""),
-                result["key"].as_str().unwrap_or(""),
-                result["event"].as_str().unwrap_or("")
-            )
-        } else {
-            result["id"]
-                .as_str()
-                .or_else(|| result["levelId"].as_str())
-                .unwrap_or("target")
-                .to_owned()
-        };
+        let capability = metadata(operation).unwrap();
+        let target = capability
+            .target_fields
+            .iter()
+            .map(|field| result[*field].as_str().unwrap_or_default())
+            .collect::<Vec<_>>()
+            .join("#");
         let revision = result["revision"]
             .as_str()
             .unwrap_or(&"a".repeat(64))
             .to_owned();
-        let readback = if operation.starts_with("actor.") {
-            "actor.view"
-        } else if operation.starts_with("component.") {
-            "component.view"
-        } else if operation == "play.input" {
-            "play.observe"
-        } else {
-            "level.current"
-        };
+        let readback = capability.readback.unwrap();
         let mut verification = json!({"target":target,"readback":readback,"matched":matched,"observedRevision":revision});
         if operation == "play.input" {
             verification["accepted"] = json!(true);
@@ -1747,9 +2110,44 @@ mod tests {
                 "id",
                 &receipt,
                 &result,
+                &json!({"id":"actor"}),
                 &fake_discovery(0)
             )
             .is_ok()
+        );
+    }
+
+    #[test]
+    fn validate_receipt_rejects_wrong_operation_and_state() {
+        let result = json!({"id":"actor","changed":false,"dirtyPackages":[],"savedPackages":[],"revision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"});
+        let discovery = fake_discovery(0);
+        let args = json!({"id":"actor"});
+        let receipt = receipt_fixture("actor.update_transform", result.clone(), true);
+        let mut wrong_operation = receipt.clone();
+        wrong_operation.operation = "actor.delete".into();
+        assert!(
+            validate_receipt(
+                "actor.update_transform",
+                "id",
+                &wrong_operation,
+                &result,
+                &args,
+                &discovery
+            )
+            .is_err()
+        );
+        let mut wrong_state = receipt;
+        wrong_state.state = "failed".into();
+        assert!(
+            validate_receipt(
+                "actor.update_transform",
+                "id",
+                &wrong_state,
+                &result,
+                &args,
+                &discovery
+            )
+            .is_err()
         );
     }
     #[test]
@@ -1771,6 +2169,7 @@ mod tests {
                     "id",
                     &malformed,
                     &result,
+                    &json!({"id":"actor"}),
                     &discovery
                 )
                 .is_err(),
@@ -1788,6 +2187,7 @@ mod tests {
                 "id",
                 &receipt,
                 &result,
+                &json!({"id":"actor"}),
                 &fake_discovery(0)
             )
             .is_err()
@@ -1805,6 +2205,7 @@ mod tests {
                 "id",
                 &receipt,
                 &result,
+                &json!({"id":"actor"}),
                 &discovery
             )
             .is_err()
@@ -1817,6 +2218,7 @@ mod tests {
                 "id",
                 &receipt,
                 &result,
+                &json!({"id":"actor"}),
                 &discovery
             )
             .is_err()
@@ -1833,6 +2235,44 @@ mod tests {
                 "id",
                 &receipt,
                 &result,
+                &json!({"id":"actor"}),
+                &fake_discovery(0)
+            )
+            .is_err()
+        );
+    }
+    #[test]
+    fn validate_receipt_binds_blueprint_ensure_semantic_request() {
+        let result = json!({"blueprintId":"/Game/BP.BP","graphId":"graph","nodeId":"node","changed":true,"dirtyPackages":["/Game/BP"],"savedPackages":[],"revision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"});
+        let mut receipt = receipt_fixture("blueprint.node_ensure", result.clone(), true);
+        let verification = receipt.verification.as_object_mut().unwrap();
+        verification.insert("requestBlueprintId".into(), json!("/Game/BP.BP"));
+        verification.insert("requestGraphId".into(), json!("graph"));
+        verification.insert("requestAgentKey".into(), json!("owned"));
+        verification.insert("requestIntent".into(), json!("math.make_vector"));
+        verification.insert("target".into(), json!("/Game/BP.BP#graph#owned"));
+        receipt.target = "/Game/BP.BP#graph#owned".into();
+        let args = json!({"blueprintId":"/Game/BP.BP","graphId":"graph","agentKey":"owned","node":"math.make_vector"});
+        assert!(
+            validate_receipt(
+                "blueprint.node_ensure",
+                "id",
+                &receipt,
+                &result,
+                &args,
+                &fake_discovery(0)
+            )
+            .is_ok()
+        );
+        let mut tampered = args;
+        tampered["node"] = json!("actor.add_world_offset");
+        assert!(
+            validate_receipt(
+                "blueprint.node_ensure",
+                "id",
+                &receipt,
+                &result,
+                &tampered,
                 &fake_discovery(0)
             )
             .is_err()
@@ -1843,7 +2283,136 @@ mod tests {
         let result = json!({"sessionId":"s","key":"W","event":"pressed","accepted":true,"changed":true,"beforeRevision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","afterRevision":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","revision":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","dirtyPackages":[],"savedPackages":[]});
         let receipt = receipt_fixture("play.input", result.clone(), true);
         assert!(
-            validate_receipt("play.input", "id", &receipt, &result, &fake_discovery(0)).is_ok()
+            validate_receipt(
+                "play.input",
+                "id",
+                &receipt,
+                &result,
+                &json!({"sessionId":"s","key":"W","event":"pressed"}),
+                &fake_discovery(0)
+            )
+            .is_ok()
+        );
+    }
+    #[test]
+    fn validate_receipt_rejects_request_target_mismatch() {
+        let result = json!({"blueprintId":"/Game/BP.BP","sourcePinId":"source","targetPinId":"target","changed":true,"dirtyPackages":["/Game/BP"],"savedPackages":[],"revision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"});
+        let receipt = receipt_fixture("blueprint.pin_connect", result.clone(), true);
+        let args =
+            json!({"blueprintId":"/Game/BP.BP","sourcePinId":"other","targetPinId":"target"});
+        assert!(
+            validate_receipt(
+                "blueprint.pin_connect",
+                "id",
+                &receipt,
+                &result,
+                &args,
+                &fake_discovery(0)
+            )
+            .is_err()
+        );
+        let before = "a".repeat(64);
+        let target = "/Game/BP.BP#graph#owned";
+        let discovery = fake_discovery(0);
+        let atomic_args = json!({"blueprintId":"/Game/BP.BP","graphId":"graph","agentKey":"owned","node":"math.make_vector"});
+        let atomic_receipt = Receipt {
+            operation_id: "atomic-id".into(),
+            operation: "blueprint.node_ensure".into(),
+            state: "failed".into(),
+            project_id: discovery.project_id.clone(),
+            editor_pid: discovery.pid,
+            target: target.into(),
+            changed: false,
+            transaction: "atomic".into(),
+            reversibility: "source-control".into(),
+            dirty_packages: vec![],
+            saved_packages: vec![],
+            revision: before.clone(),
+            persistence: "unchanged".into(),
+            verification: json!({
+                "readback":"blueprint.graph_view","target":target,"matched":true,
+                "beforeRevision":before,"observedRevision":before,"observedStatus":"error",
+                "requestBlueprintId":"/Game/BP.BP","requestGraphId":"graph",
+                "requestAgentKey":"owned","requestIntent":"math.make_vector"
+            }),
+        };
+        let atomic_error = BridgeOperationError {
+            kind: "operation_failed".into(),
+            message: "rolled back".into(),
+            retryable: true,
+            dirty_package_count: Some(0),
+            dirty_packages: Some(vec![]),
+            error_count: None,
+            warning_count: None,
+            diagnostics: None,
+            current_revision: None,
+        };
+        assert!(
+            validate_failed_atomic_receipt(
+                "blueprint.node_ensure",
+                "atomic-id",
+                &atomic_args,
+                &ExecutionOptions {
+                    expected_revision: Some(atomic_receipt.revision.clone()),
+                    idempotency_key: None,
+                },
+                &atomic_receipt,
+                &atomic_error,
+                &discovery,
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_failed_atomic_receipt(
+                "blueprint.node_ensure",
+                "atomic-id",
+                &atomic_args,
+                &ExecutionOptions {
+                    expected_revision: Some("b".repeat(64)),
+                    idempotency_key: None,
+                },
+                &atomic_receipt,
+                &atomic_error,
+                &discovery,
+            )
+            .is_err()
+        );
+        let mut unknown_receipt = atomic_receipt.clone();
+        unknown_receipt.state = "outcome_unknown".into();
+        unknown_receipt.verification["matched"] = json!(false);
+        let mut unknown_error = atomic_error;
+        unknown_error.kind = "outcome_unknown".into();
+        unknown_error.retryable = false;
+        assert!(
+            validate_failed_atomic_receipt(
+                "blueprint.node_ensure",
+                "atomic-id",
+                &atomic_args,
+                &ExecutionOptions {
+                    expected_revision: Some(unknown_receipt.revision.clone()),
+                    idempotency_key: None,
+                },
+                &unknown_receipt,
+                &unknown_error,
+                &discovery,
+            )
+            .is_ok()
+        );
+        unknown_receipt.transaction = "none".into();
+        assert!(
+            validate_failed_atomic_receipt(
+                "blueprint.node_ensure",
+                "atomic-id",
+                &atomic_args,
+                &ExecutionOptions {
+                    expected_revision: Some(unknown_receipt.revision.clone()),
+                    idempotency_key: None,
+                },
+                &unknown_receipt,
+                &unknown_error,
+                &discovery,
+            )
+            .is_err()
         );
     }
     fn failed_compile_fixture() -> (Receipt, BridgeOperationError, Value, ExecutionOptions) {
@@ -1904,6 +2473,38 @@ mod tests {
                 &args,
                 &options,
                 &receipt,
+                &error,
+                &fake_discovery(0)
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn validate_failed_compile_receipt_requires_canonical_operation_identity() {
+        let (receipt, error, args, mut options) = failed_compile_fixture();
+        options.idempotency_key = Some("compile-key".into());
+        assert!(
+            validate_failed_receipt(
+                "blueprint.compile",
+                "retry-id",
+                &args,
+                &options,
+                &receipt,
+                &error,
+                &fake_discovery(0)
+            )
+            .is_err()
+        );
+        let mut canonical = receipt;
+        canonical.operation_id = "retry-id".into();
+        assert!(
+            validate_failed_receipt(
+                "blueprint.compile",
+                "retry-id",
+                &args,
+                &options,
+                &canonical,
                 &error,
                 &fake_discovery(0)
             )
@@ -1996,5 +2597,39 @@ mod tests {
             let request: Value = serde_json::from_str(fixture).unwrap();
             assert_eq!(request["protocol"], PROTOCOL);
         }
+    }
+}
+
+#[cfg(test)]
+mod journal_safety_tests {
+    use super::*;
+
+    #[test]
+    fn malformed_journal_fails_closed_without_resetting_history() {
+        let directory = tempfile::tempdir().unwrap();
+        fs::write(
+            directory.path().join("operation-journal-v1.json"),
+            b"not-json",
+        )
+        .unwrap();
+        let error = journal_receipt_in_directory(directory.path(), &json!({"operationId":"new"}))
+            .unwrap_err();
+        assert_eq!(error.reason, "malformed_journal");
+        assert_eq!(
+            fs::read(directory.path().join("operation-journal-v1.json")).unwrap(),
+            b"not-json"
+        );
+    }
+
+    #[test]
+    fn journal_write_failure_is_reported_without_replacing_receipt() {
+        let directory = tempfile::tempdir().unwrap();
+        fs::create_dir(directory.path().join("operation-journal-v1.json")).unwrap();
+        assert_eq!(
+            journal_receipt_in_directory(directory.path(), &json!({"operationId":"known"}))
+                .unwrap_err()
+                .reason,
+            "bridge_io_failed"
+        );
     }
 }

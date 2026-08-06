@@ -29,7 +29,7 @@ Plugin creates current-user `0700` directories and atomically writes `0600` regu
 
 Discovery identifies protocol/plugin version, PID plus kernel process-start identity, canonical project path/ID, engine version, loopback host/port, session nonce, and start time. CLI validates owner, type, symlink status, permissions, project/session identity, and process identity before authentication. First frame includes exact protocol, token, canonical project, PID/process start, nonce, and CLI version. Plugin compares token in constant time; 64 failures within 10 seconds temporarily close handshake admission.
 
-Successful handshake repeats runtime identity and generated `catalogHash`. Current 34-record hash is `8f947b51381647334ccbb35b99ab3f15c4cb50d779e90737dc7a0a414f0390a6`. CLI rejects identity or hash mismatch before operation dispatch. Token never enters discovery, responses, errors, logs, receipts, or retained evidence.
+Successful handshake repeats runtime identity and generated `catalogHash`. Current 40-record hash is `6213c83a5ad2a61336ec08bd4bfebb9564e434f7f12a9bf2b9bc951f0fc14922`. CLI rejects identity or hash mismatch before operation dispatch. Token never enters discovery, responses, errors, logs, receipts, or retained evidence.
 
 ## Operations
 

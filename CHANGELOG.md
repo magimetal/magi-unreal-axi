@@ -3,7 +3,8 @@
 ## Unreleased
 
 - Added Rust 2024 AXI kernel, offline home, project and UE engine discovery, and explicit plugin setup foundation.
-- Expanded generated catalog from 16 to 34 records; current Rust/C++ parity hash is `8f947b51381647334ccbb35b99ab3f15c4cb50d779e90737dc7a0a414f0390a6`.
+- Expanded generated catalog from 16 to 40 records; current Rust/C++ parity hash is `6213c83a5ad2a61336ec08bd4bfebb9564e434f7f12a9bf2b9bc951f0fc14922`.
+- Added and certified six bounded P1.1 Blueprint creation/graph authoring capabilities with deterministic identities, semantic receipt readback, exact rollback verification, restart-safe ownership, invalid/no-op coverage, and PIE transform proof.
 - Added and certified P1.0 catalog-driven native safety metadata, tri-state live capability availability, stable identity/revision contracts for future Blueprint authoring, and recoverable non-atomic failed compile receipts. Blueprint authoring operations remain deferred to P1.1.
 - Added game-thread editor, level, actor, asset, component, world-settings, Blueprint, and PIE operations with canonical revisions, bounded schemas, deterministic pagination, and receipt identity/safety validation.
 - Added M5 safe mutations: level create/open/save, natural-key actor spawn, revision-checked transform update/delete, explicit force/dry-run guards, postcondition receipts, and operation lookup.

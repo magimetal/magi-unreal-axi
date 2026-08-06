@@ -36,6 +36,54 @@
     }
   },
   {
+    "operation": "actor.list",
+    "case": "numeric-below-minimum@count",
+    "result": {
+      "count": -1,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "actor.list",
+    "case": "numeric-above-maximum@count",
+    "result": {
+      "count": 101,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "actor.list",
+    "case": "numeric-below-minimum@total",
+    "result": {
+      "count": 0,
+      "total": -1,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "actor.list",
+    "case": "numeric-above-maximum@total",
+    "result": {
+      "count": 0,
+      "total": 9007199254740992,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
     "operation": "actor.spawn",
     "case": "missing-required",
     "result": {}
@@ -105,6 +153,174 @@
     }
   },
   {
+    "operation": "actor.view",
+    "case": "numeric-below-minimum@location.0",
+    "result": {
+      "id": "x",
+      "actorGuid": "x",
+      "levelId": "x",
+      "label": "x",
+      "class": "x",
+      "objectPath": "x",
+      "location": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "rotation": [
+        -360.0,
+        -360.0,
+        -360.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "actor.view",
+    "case": "numeric-above-maximum@location.0",
+    "result": {
+      "id": "x",
+      "actorGuid": "x",
+      "levelId": "x",
+      "label": "x",
+      "class": "x",
+      "objectPath": "x",
+      "location": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "rotation": [
+        -360.0,
+        -360.0,
+        -360.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "actor.view",
+    "case": "numeric-below-minimum@rotation.0",
+    "result": {
+      "id": "x",
+      "actorGuid": "x",
+      "levelId": "x",
+      "label": "x",
+      "class": "x",
+      "objectPath": "x",
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "rotation": [
+        -361.0,
+        -360.0,
+        -360.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "actor.view",
+    "case": "numeric-above-maximum@rotation.0",
+    "result": {
+      "id": "x",
+      "actorGuid": "x",
+      "levelId": "x",
+      "label": "x",
+      "class": "x",
+      "objectPath": "x",
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "rotation": [
+        361.0,
+        -360.0,
+        -360.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "actor.view",
+    "case": "numeric-below-minimum@scale.0",
+    "result": {
+      "id": "x",
+      "actorGuid": "x",
+      "levelId": "x",
+      "label": "x",
+      "class": "x",
+      "objectPath": "x",
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "rotation": [
+        -360.0,
+        -360.0,
+        -360.0
+      ],
+      "scale": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "actor.view",
+    "case": "numeric-above-maximum@scale.0",
+    "result": {
+      "id": "x",
+      "actorGuid": "x",
+      "levelId": "x",
+      "label": "x",
+      "class": "x",
+      "objectPath": "x",
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "rotation": [
+        -360.0,
+        -360.0,
+        -360.0
+      ],
+      "scale": [
+        1000001.0,
+        0.0,
+        0.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
     "operation": "asset.create_input_action",
     "case": "missing-required",
     "result": {}
@@ -143,6 +359,32 @@
     }
   },
   {
+    "operation": "asset.create_input_mapping_context",
+    "case": "numeric-below-minimum@mappingCount",
+    "result": {
+      "id": "x",
+      "class": "x",
+      "mappingCount": -1,
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "asset.create_input_mapping_context",
+    "case": "numeric-above-maximum@mappingCount",
+    "result": {
+      "id": "x",
+      "class": "x",
+      "mappingCount": 101,
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
     "operation": "asset.save",
     "case": "missing-required",
     "result": {}
@@ -184,6 +426,114 @@
     }
   },
   {
+    "operation": "blueprint.compile",
+    "case": "numeric-below-minimum@graphCount",
+    "result": {
+      "id": "x",
+      "parentClass": "x",
+      "generatedClass": "x",
+      "status": "unknown",
+      "graphCount": -1,
+      "errorCount": 0,
+      "warningCount": 0,
+      "diagnostics": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": []
+    }
+  },
+  {
+    "operation": "blueprint.compile",
+    "case": "numeric-above-maximum@graphCount",
+    "result": {
+      "id": "x",
+      "parentClass": "x",
+      "generatedClass": "x",
+      "status": "unknown",
+      "graphCount": 10001,
+      "errorCount": 0,
+      "warningCount": 0,
+      "diagnostics": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": []
+    }
+  },
+  {
+    "operation": "blueprint.compile",
+    "case": "numeric-below-minimum@errorCount",
+    "result": {
+      "id": "x",
+      "parentClass": "x",
+      "generatedClass": "x",
+      "status": "unknown",
+      "graphCount": 0,
+      "errorCount": -1,
+      "warningCount": 0,
+      "diagnostics": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": []
+    }
+  },
+  {
+    "operation": "blueprint.compile",
+    "case": "numeric-above-maximum@errorCount",
+    "result": {
+      "id": "x",
+      "parentClass": "x",
+      "generatedClass": "x",
+      "status": "unknown",
+      "graphCount": 0,
+      "errorCount": 101,
+      "warningCount": 0,
+      "diagnostics": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": []
+    }
+  },
+  {
+    "operation": "blueprint.compile",
+    "case": "numeric-below-minimum@warningCount",
+    "result": {
+      "id": "x",
+      "parentClass": "x",
+      "generatedClass": "x",
+      "status": "unknown",
+      "graphCount": 0,
+      "errorCount": 0,
+      "warningCount": -1,
+      "diagnostics": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": []
+    }
+  },
+  {
+    "operation": "blueprint.compile",
+    "case": "numeric-above-maximum@warningCount",
+    "result": {
+      "id": "x",
+      "parentClass": "x",
+      "generatedClass": "x",
+      "status": "unknown",
+      "graphCount": 0,
+      "errorCount": 0,
+      "warningCount": 101,
+      "diagnostics": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": []
+    }
+  },
+  {
     "operation": "blueprint.view",
     "case": "missing-required",
     "result": {}
@@ -200,6 +550,389 @@
       "errorCount": 0,
       "warningCount": 0,
       "diagnostics": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.view",
+    "case": "numeric-below-minimum@graphCount",
+    "result": {
+      "id": "x",
+      "parentClass": "x",
+      "generatedClass": "x",
+      "status": "unknown",
+      "graphCount": -1,
+      "errorCount": 0,
+      "warningCount": 0,
+      "diagnostics": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.view",
+    "case": "numeric-above-maximum@graphCount",
+    "result": {
+      "id": "x",
+      "parentClass": "x",
+      "generatedClass": "x",
+      "status": "unknown",
+      "graphCount": 10001,
+      "errorCount": 0,
+      "warningCount": 0,
+      "diagnostics": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.view",
+    "case": "numeric-below-minimum@errorCount",
+    "result": {
+      "id": "x",
+      "parentClass": "x",
+      "generatedClass": "x",
+      "status": "unknown",
+      "graphCount": 0,
+      "errorCount": -1,
+      "warningCount": 0,
+      "diagnostics": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.view",
+    "case": "numeric-above-maximum@errorCount",
+    "result": {
+      "id": "x",
+      "parentClass": "x",
+      "generatedClass": "x",
+      "status": "unknown",
+      "graphCount": 0,
+      "errorCount": 101,
+      "warningCount": 0,
+      "diagnostics": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.view",
+    "case": "numeric-below-minimum@warningCount",
+    "result": {
+      "id": "x",
+      "parentClass": "x",
+      "generatedClass": "x",
+      "status": "unknown",
+      "graphCount": 0,
+      "errorCount": 0,
+      "warningCount": -1,
+      "diagnostics": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.view",
+    "case": "numeric-above-maximum@warningCount",
+    "result": {
+      "id": "x",
+      "parentClass": "x",
+      "generatedClass": "x",
+      "status": "unknown",
+      "graphCount": 0,
+      "errorCount": 0,
+      "warningCount": 101,
+      "diagnostics": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.create",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blueprint.create",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "parentClass": "x",
+      "generatedClass": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "count": 0,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null,
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "numeric-below-minimum@count",
+    "result": {
+      "blueprintId": "x",
+      "count": -1,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "numeric-above-maximum@count",
+    "result": {
+      "blueprintId": "x",
+      "count": 101,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "numeric-below-minimum@total",
+    "result": {
+      "blueprintId": "x",
+      "count": 0,
+      "total": -1,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "numeric-above-maximum@total",
+    "result": {
+      "blueprintId": "x",
+      "count": 0,
+      "total": 10001,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "numeric-below-minimum@items.0.@variant0.nodeCount",
+    "result": {
+      "blueprintId": "x",
+      "count": 0,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [
+        {
+          "graphId": "x",
+          "kind": "x",
+          "name": "x",
+          "nodeCount": -1
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "numeric-above-maximum@items.0.@variant0.nodeCount",
+    "result": {
+      "blueprintId": "x",
+      "count": 0,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [
+        {
+          "graphId": "x",
+          "kind": "x",
+          "name": "x",
+          "nodeCount": 10001
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "numeric-below-minimum@items.0.@variant1.x",
+    "result": {
+      "blueprintId": "x",
+      "count": 0,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [
+        {
+          "nodeId": "x",
+          "class": "x",
+          "title": "x",
+          "x": -1000001,
+          "y": -1000000,
+          "pins": []
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "numeric-above-maximum@items.0.@variant1.x",
+    "result": {
+      "blueprintId": "x",
+      "count": 0,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [
+        {
+          "nodeId": "x",
+          "class": "x",
+          "title": "x",
+          "x": 1000001,
+          "y": -1000000,
+          "pins": []
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "numeric-below-minimum@items.0.@variant1.y",
+    "result": {
+      "blueprintId": "x",
+      "count": 0,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [
+        {
+          "nodeId": "x",
+          "class": "x",
+          "title": "x",
+          "x": -1000000,
+          "y": -1000001,
+          "pins": []
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "numeric-above-maximum@items.0.@variant1.y",
+    "result": {
+      "blueprintId": "x",
+      "count": 0,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [
+        {
+          "nodeId": "x",
+          "class": "x",
+          "title": "x",
+          "x": -1000000,
+          "y": 1000001,
+          "pins": []
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.event_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blueprint.event_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "graphId": "x",
+      "nodeId": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.node_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blueprint.node_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "graphId": "x",
+      "nodeId": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.pin_default_set",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blueprint.pin_default_set",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "pinId": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.pin_connect",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blueprint.pin_connect",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "sourcePinId": "x",
+      "targetPinId": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
       "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
       "unknown": true
     }
@@ -237,6 +970,54 @@
       "items": [],
       "nextCursor": null,
       "unknown": true
+    }
+  },
+  {
+    "operation": "component.list",
+    "case": "numeric-below-minimum@count",
+    "result": {
+      "count": -1,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "component.list",
+    "case": "numeric-above-maximum@count",
+    "result": {
+      "count": 101,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "component.list",
+    "case": "numeric-below-minimum@total",
+    "result": {
+      "count": 0,
+      "total": -1,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "component.list",
+    "case": "numeric-above-maximum@total",
+    "result": {
+      "count": 0,
+      "total": 9007199254740992,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
     }
   },
   {
@@ -305,6 +1086,168 @@
       ],
       "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
       "unknown": true
+    }
+  },
+  {
+    "operation": "component.view",
+    "case": "numeric-below-minimum@location.0",
+    "result": {
+      "id": "x",
+      "actorId": "x",
+      "name": "x",
+      "class": "x",
+      "scene": false,
+      "location": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "rotation": [
+        -360.0,
+        -360.0,
+        -360.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "component.view",
+    "case": "numeric-above-maximum@location.0",
+    "result": {
+      "id": "x",
+      "actorId": "x",
+      "name": "x",
+      "class": "x",
+      "scene": false,
+      "location": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "rotation": [
+        -360.0,
+        -360.0,
+        -360.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "component.view",
+    "case": "numeric-below-minimum@rotation.0",
+    "result": {
+      "id": "x",
+      "actorId": "x",
+      "name": "x",
+      "class": "x",
+      "scene": false,
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "rotation": [
+        -361.0,
+        -360.0,
+        -360.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "component.view",
+    "case": "numeric-above-maximum@rotation.0",
+    "result": {
+      "id": "x",
+      "actorId": "x",
+      "name": "x",
+      "class": "x",
+      "scene": false,
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "rotation": [
+        361.0,
+        -360.0,
+        -360.0
+      ],
+      "scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "component.view",
+    "case": "numeric-below-minimum@scale.0",
+    "result": {
+      "id": "x",
+      "actorId": "x",
+      "name": "x",
+      "class": "x",
+      "scene": false,
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "rotation": [
+        -360.0,
+        -360.0,
+        -360.0
+      ],
+      "scale": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "component.view",
+    "case": "numeric-above-maximum@scale.0",
+    "result": {
+      "id": "x",
+      "actorId": "x",
+      "name": "x",
+      "class": "x",
+      "scene": false,
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "rotation": [
+        -360.0,
+        -360.0,
+        -360.0
+      ],
+      "scale": [
+        1000000001.0,
+        0.0,
+        0.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     }
   },
   {
@@ -380,6 +1323,52 @@
     }
   },
   {
+    "operation": "play.observe",
+    "case": "numeric-below-minimum@actors.0.location.0",
+    "result": {
+      "sessionId": "x",
+      "worldId": null,
+      "levelId": null,
+      "actors": [
+        {
+          "id": "x",
+          "name": "x",
+          "class": "x",
+          "location": [
+            -1000000001.0,
+            -1000000000.0,
+            -1000000000.0
+          ],
+          "tags": []
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.observe",
+    "case": "numeric-above-maximum@actors.0.location.0",
+    "result": {
+      "sessionId": "x",
+      "worldId": null,
+      "levelId": null,
+      "actors": [
+        {
+          "id": "x",
+          "name": "x",
+          "class": "x",
+          "location": [
+            1000000001.0,
+            -1000000000.0,
+            -1000000000.0
+          ],
+          "tags": []
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
     "operation": "play.screenshot",
     "case": "missing-required",
     "result": {}
@@ -396,6 +1385,58 @@
       "changed": false,
       "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
       "unknown": true
+    }
+  },
+  {
+    "operation": "play.screenshot",
+    "case": "numeric-below-minimum@width",
+    "result": {
+      "sessionId": "x",
+      "path": "x",
+      "width": 0,
+      "height": 1,
+      "format": "png",
+      "changed": false,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.screenshot",
+    "case": "numeric-above-maximum@width",
+    "result": {
+      "sessionId": "x",
+      "path": "x",
+      "width": 16385,
+      "height": 1,
+      "format": "png",
+      "changed": false,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.screenshot",
+    "case": "numeric-below-minimum@height",
+    "result": {
+      "sessionId": "x",
+      "path": "x",
+      "width": 1,
+      "height": 0,
+      "format": "png",
+      "changed": false,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.screenshot",
+    "case": "numeric-above-maximum@height",
+    "result": {
+      "sessionId": "x",
+      "path": "x",
+      "width": 1,
+      "height": 16385,
+      "format": "png",
+      "changed": false,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     }
   },
   {
@@ -435,6 +1476,30 @@
     }
   },
   {
+    "operation": "play.status",
+    "case": "numeric-below-minimum@playerCount",
+    "result": {
+      "state": "stopped",
+      "sessionId": null,
+      "worldId": null,
+      "levelId": null,
+      "playerCount": -1,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.status",
+    "case": "numeric-above-maximum@playerCount",
+    "result": {
+      "state": "stopped",
+      "sessionId": null,
+      "worldId": null,
+      "levelId": null,
+      "playerCount": 101,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
     "operation": "play.stop",
     "case": "missing-required",
     "result": {}
@@ -466,6 +1531,54 @@
       "items": [],
       "nextCursor": null,
       "unknown": true
+    }
+  },
+  {
+    "operation": "asset.list",
+    "case": "numeric-below-minimum@count",
+    "result": {
+      "count": -1,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "asset.list",
+    "case": "numeric-above-maximum@count",
+    "result": {
+      "count": 101,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "asset.list",
+    "case": "numeric-below-minimum@total",
+    "result": {
+      "count": 0,
+      "total": -1,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "asset.list",
+    "case": "numeric-above-maximum@total",
+    "result": {
+      "count": 0,
+      "total": 9007199254740992,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
     }
   },
   {
@@ -523,6 +1636,66 @@
     }
   },
   {
+    "operation": "capability.describe",
+    "case": "numeric-below-minimum@capability.version",
+    "result": {
+      "capability": {
+        "id": "x",
+        "version": 0,
+        "domain": "x",
+        "summary": "x",
+        "execution": "local",
+        "mutates": false,
+        "destructive": false,
+        "idempotency": "x",
+        "saveBehavior": "x",
+        "transactionBehavior": "x",
+        "reversibility": "x",
+        "allowedEditorStates": [],
+        "requiresModules": [],
+        "inputSchema": "xx",
+        "outputSchema": "xx",
+        "verification": "xx",
+        "engineSupport": "xx"
+      },
+      "runtime": {
+        "availability": "available",
+        "reasons": [],
+        "catalogHash": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    }
+  },
+  {
+    "operation": "capability.describe",
+    "case": "numeric-above-maximum@capability.version",
+    "result": {
+      "capability": {
+        "id": "x",
+        "version": 2,
+        "domain": "x",
+        "summary": "x",
+        "execution": "local",
+        "mutates": false,
+        "destructive": false,
+        "idempotency": "x",
+        "saveBehavior": "x",
+        "transactionBehavior": "x",
+        "reversibility": "x",
+        "allowedEditorStates": [],
+        "requiresModules": [],
+        "inputSchema": "xx",
+        "outputSchema": "xx",
+        "verification": "xx",
+        "engineSupport": "xx"
+      },
+      "runtime": {
+        "availability": "available",
+        "reasons": [],
+        "catalogHash": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    }
+  },
+  {
     "operation": "capability.search",
     "case": "missing-required",
     "result": {}
@@ -537,6 +1710,50 @@
       "items": [],
       "nextCursor": null,
       "unknown": true
+    }
+  },
+  {
+    "operation": "capability.search",
+    "case": "numeric-below-minimum@count",
+    "result": {
+      "count": -1,
+      "total": 0,
+      "scope": "x",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "capability.search",
+    "case": "numeric-above-maximum@count",
+    "result": {
+      "count": 51,
+      "total": 0,
+      "scope": "x",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "capability.search",
+    "case": "numeric-below-minimum@total",
+    "result": {
+      "count": 0,
+      "total": -1,
+      "scope": "x",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "capability.search",
+    "case": "numeric-above-maximum@total",
+    "result": {
+      "count": 0,
+      "total": 9007199254740992,
+      "scope": "x",
+      "items": [],
+      "nextCursor": null
     }
   },
   {
@@ -555,6 +1772,54 @@
       "pie": "running",
       "dirtyPackageCount": 0,
       "unknown": true
+    }
+  },
+  {
+    "operation": "editor.status",
+    "case": "numeric-below-minimum@editorPid",
+    "result": {
+      "state": "starting",
+      "projectId": "x",
+      "editorPid": -1,
+      "levelId": "",
+      "pie": "running",
+      "dirtyPackageCount": 0
+    }
+  },
+  {
+    "operation": "editor.status",
+    "case": "numeric-above-maximum@editorPid",
+    "result": {
+      "state": "starting",
+      "projectId": "x",
+      "editorPid": 4294967296,
+      "levelId": "",
+      "pie": "running",
+      "dirtyPackageCount": 0
+    }
+  },
+  {
+    "operation": "editor.status",
+    "case": "numeric-below-minimum@dirtyPackageCount",
+    "result": {
+      "state": "starting",
+      "projectId": "x",
+      "editorPid": 0,
+      "levelId": "",
+      "pie": "running",
+      "dirtyPackageCount": -1
+    }
+  },
+  {
+    "operation": "editor.status",
+    "case": "numeric-above-maximum@dirtyPackageCount",
+    "result": {
+      "state": "starting",
+      "projectId": "x",
+      "editorPid": 0,
+      "levelId": "",
+      "pie": "running",
+      "dirtyPackageCount": 9007199254740992
     }
   },
   {
@@ -610,6 +1875,54 @@
       "items": [],
       "nextCursor": null,
       "unknown": true
+    }
+  },
+  {
+    "operation": "level.list",
+    "case": "numeric-below-minimum@count",
+    "result": {
+      "count": -1,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "level.list",
+    "case": "numeric-above-maximum@count",
+    "result": {
+      "count": 101,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "level.list",
+    "case": "numeric-below-minimum@total",
+    "result": {
+      "count": 0,
+      "total": -1,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "level.list",
+    "case": "numeric-above-maximum@total",
+    "result": {
+      "count": 0,
+      "total": 9007199254740992,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [],
+      "nextCursor": null
     }
   },
   {
@@ -674,6 +1987,204 @@
         "matched": false
       },
       "unknown": true
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-below-minimum@editorPid",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 0,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-above-maximum@editorPid",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 4294967296,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-below-minimum@verification.errorCount",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "errorCount": 0
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-above-maximum@verification.errorCount",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "errorCount": 101
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-below-minimum@verification.warningCount",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "warningCount": -1
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-above-maximum@verification.warningCount",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "warningCount": 101
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-below-minimum@verification.requestValue",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestValue": -1000001.0
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-above-maximum@verification.requestValue",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestValue": 1000001.0
+      }
     }
   },
   {
@@ -757,6 +2268,106 @@
         0.0
       ],
       "revision": "short"
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "partial-graph-row",
+    "result": {
+      "blueprintId": "x",
+      "count": 0,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [
+        {
+          "graphId": "/Game/BP.BP:graph",
+          "kind": "ubergraph",
+          "name": "EventGraph"
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "hybrid-row",
+    "result": {
+      "blueprintId": "x",
+      "count": 0,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [
+        {
+          "graphId": "/Game/BP.BP:graph",
+          "kind": "ubergraph",
+          "name": "EventGraph",
+          "nodeCount": 1,
+          "nodeId": "node"
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "empty-row",
+    "result": {
+      "blueprintId": "x",
+      "count": 0,
+      "total": 0,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [
+        {}
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "primitive-row",
+    "result": {
+      "blueprintId": "x",
+      "count": 1,
+      "total": 1,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [
+        1
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "null-row",
+    "result": {
+      "blueprintId": "x",
+      "count": 1,
+      "total": 1,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [
+        null
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "operation": "blueprint.graph_view",
+    "case": "array-row",
+    "result": {
+      "blueprintId": "x",
+      "count": 1,
+      "total": 1,
+      "scope": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "items": [
+        []
+      ],
+      "nextCursor": null
     }
   },
   {

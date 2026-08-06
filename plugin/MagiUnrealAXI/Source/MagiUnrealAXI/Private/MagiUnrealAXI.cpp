@@ -11,6 +11,7 @@
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "InputKeyEventArgs.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SCS_Node.h"
 #include "Kismet2/CompilerResultsLog.h"
@@ -18,11 +19,21 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "EdGraph/EdGraph.h"
 #include "K2Node_CustomEvent.h"
+#include "K2Node_Event.h"
+#include "K2Node_InputKey.h"
+#include "EdGraphSchema_K2.h"
 #include "EdGraph/EdGraphNode.h"
 #include "K2Node_CallFunction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Logging/TokenizedMessage.h"
+#include "Components/InputComponent.h"
+#include "Engine/InputKeyDelegateBinding.h"
 #include "GameFramework/Actor.h"
+#include "Engine/StaticMeshActor.h"
+#include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "ScopedTransaction.h"
+#include "Components/StaticMeshComponent.h"
 #include "Components/ActorComponent.h"
 #include "Components/SceneComponent.h"
 #include "GameFramework/GameModeBase.h"
@@ -58,8 +69,10 @@
 #include "SocketSubsystem.h"
 #include "Sockets.h"
 #include "UObject/Package.h"
+#include "UObject/MetaData.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/UObjectHash.h"
 #include "MagiAxiCatalog.generated.h"
 #include "Engine/Level.h"
 #if WITH_DEV_AUTOMATION_TESTS
@@ -116,6 +129,32 @@ constexpr uint32 RequestLimit = 8 * 1024 * 1024;
 constexpr uint32 ResponseLimit = 16 * 1024 * 1024;
 constexpr double HandshakeSeconds = 2.0;
 constexpr double RequestSeconds = 30.0;
+constexpr int32 P11MaxGraphs = 10000;
+constexpr int32 P11MaxNodes = 10000;
+constexpr int32 P11MaxPins = 100000;
+constexpr int32 P11MaxLinks = 400000;
+constexpr int32 P11MaxPinsPerNode = 64;
+constexpr int32 P11MaxLinksPerPin = 64;
+constexpr int32 P11MaxPagePins = 512;
+constexpr int32 P11MaxPageLinks = 2048;
+constexpr int32 P11MaxRevisionFieldBytes = 8192;
+constexpr int64 P11MaxRevisionCanonicalBytes = 4 * 1024 * 1024;
+constexpr int32 P11MaxRevisionVariables = 10000;
+constexpr int32 P11MaxRevisionMetadataPerVariable = 256;
+constexpr int32 P11MaxRevisionInterfaces = 1024;
+constexpr int32 P11MaxRevisionGraphsPerInterface = 256;
+constexpr int32 P11MaxRevisionSCSComponents = 10000;
+bool P11RevisionCountWithinBounds(int32 Count, int32 Limit)
+{
+    return Count >= 0 && Count <= Limit;
+}
+bool P11RevisionFieldWithinBounds(const FString& Value, int64& TotalBytes)
+{
+    FTCHARToUTF8 Utf8(*Value);
+    TotalBytes += Utf8.Length() + 16;
+    return Utf8.Length() <= P11MaxRevisionFieldBytes && TotalBytes <= P11MaxRevisionCanonicalBytes;
+}
+
 
 FSocket* Listener = nullptr;
 TArray<FSocket*> ActiveClients;
@@ -166,6 +205,7 @@ struct FGameThreadRequest
     bool Dispatched = false;
     bool EverDispatched = false;
     bool DeferredCompletion = false;
+    uint64 DeferredUntilFrame = 0;
     double Deadline = 0.0;
     std::mutex Mutex;
     std::condition_variable Condition;
@@ -185,6 +225,8 @@ TSharedRef<FJsonObject> LevelSettingsResult(const UWorld& World);
 FString BlueprintStatus(const UBlueprint& Blueprint);
 TSharedRef<FJsonObject> BuildReceiptMetadata(const FString& Id, const FString& Operation, const TSharedRef<FJsonObject>& Result, const TSharedRef<FJsonObject>& Verification, const FString& Target);
 FString Serialize(const TSharedRef<FJsonObject>& Object);
+bool ParseObject(const TArray<uint8>& Bytes, TSharedPtr<FJsonObject>& Out);
+FString ErrorResponse(const FString& Id, const TCHAR* Type, const TCHAR* Message, const bool Retryable = false);
 struct FLedgerRecord
 {
     FString OperationId;
@@ -283,6 +325,14 @@ FLedgerRecord* FindLedger(const FString& Id)
     for (FLedgerRecord& Record : Ledger) if (Record.OperationId == Id) return &Record;
     return nullptr;
 }
+void RemoveLedger(const FString& Id)
+{
+    FScopeLock Lock(&LedgerMutex);
+    PruneLedger();
+    for (int32 Index = Ledger.Num() - 1; Index >= 0; --Index)
+        if (Ledger[Index].OperationId == Id) Ledger.RemoveAt(Index);
+}
+
 
 void SetReceipt(const FString& Id, const FString& Operation, const FString& Response, const FString& State)
 {
@@ -296,6 +346,7 @@ void SetReceipt(const FString& Id, const FString& Operation, const FString& Resp
         NewRecord.Operation = Operation;
         NewRecord.CreatedAt = FPlatformTime::Seconds();
         Ledger.Add(MoveTemp(NewRecord));
+        PruneLedger();
         Record = &Ledger.Last();
     }
     Record->Response = Response;
@@ -424,6 +475,20 @@ FString Serialize(const TSharedRef<FJsonObject>& Object)
     return FJsonSerializer::Serialize(Object, Writer) ? Text : FString();
 }
 
+FString ReplayResponseForRequest(const FString& Response, const FString& RequestId)
+{
+    TArray<uint8> Bytes;
+    FTCHARToUTF8 Utf8(*Response);
+    Bytes.Append(reinterpret_cast<const uint8*>(Utf8.Get()), Utf8.Length());
+    TSharedPtr<FJsonObject> Object;
+    if (!ParseObject(Bytes, Object) || !Object.IsValid()) return ErrorResponse(RequestId, TEXT("outcome_unknown"), TEXT("stored response is unavailable"));
+    FString OperationId;
+    if (!Object->TryGetStringField(TEXT("id"), OperationId) || OperationId.IsEmpty()) return ErrorResponse(RequestId, TEXT("outcome_unknown"), TEXT("stored operation identity is unavailable"));
+    Object->SetStringField(TEXT("operationId"), OperationId);
+    Object->SetStringField(TEXT("id"), RequestId);
+    return Serialize(Object.ToSharedRef());
+}
+
 bool ParseObject(const TArray<uint8>& Bytes, TSharedPtr<FJsonObject>& Out)
 {
     if (Bytes.IsEmpty() || Bytes.Contains(0)) return false;
@@ -442,6 +507,13 @@ bool ResponseStatusIsOk(const FString& Response)
     TSharedPtr<FJsonObject> Object;
     FString Status;
     return ParseObject(Bytes, Object) && Object->TryGetStringField(TEXT("status"), Status) && Status == TEXT("ok");
+}
+
+FString MutationReceiptState(const FString& Response)
+{
+    TArray<uint8> Bytes; FTCHARToUTF8 Utf8(*Response); Bytes.Append(reinterpret_cast<const uint8*>(Utf8.Get()), Utf8.Length()); TSharedPtr<FJsonObject> Envelope; if (!ParseObject(Bytes, Envelope) || !Envelope.IsValid()) return FString();
+    const TSharedPtr<FJsonObject>* Receipt = nullptr; if (!Envelope->TryGetObjectField(TEXT("receipt"), Receipt) || !Receipt || !Receipt->IsValid()) return FString();
+    FString State; return (*Receipt)->TryGetStringField(TEXT("state"), State) ? State : FString();
 }
 
 bool IntegerField(const TSharedPtr<FJsonObject>& Object, const TCHAR* Name, int64& Out)
@@ -534,7 +606,7 @@ bool ConnectionOpen(FSocket* Socket)
     return Socket->Recv(&Byte, 1, Count, ESocketReceiveFlags::Peek) && Count > 0;
 }
 
-FString ErrorResponse(const FString& Id, const TCHAR* Type, const TCHAR* Message, const bool Retryable = false)
+FString ErrorResponse(const FString& Id, const TCHAR* Type, const TCHAR* Message, const bool Retryable)
 {
     const TSharedRef<FJsonObject> Error = MakeShared<FJsonObject>();
     Error->SetStringField(TEXT("type"), Type); Error->SetStringField(TEXT("message"), Message); Error->SetBoolField(TEXT("retryable"), Retryable);
@@ -659,8 +731,19 @@ bool CursorOffset(const FString& Cursor, const FString& Revision, const int32 To
     if (Cursor.IsEmpty()) return true;
     TArray<FString> Parts;
     Cursor.ParseIntoArray(Parts, TEXT("."), false);
-    if (Parts.Num() != 3 || Parts[0] != TEXT("v1") || Parts[1] != Revision || !Parts[2].IsNumeric()) return false;
-    Offset = FCString::Atoi(*Parts[2]);
+    if (Parts.Num() != 3 || Parts[0] != TEXT("v1") || Revision.Len() != 64 || Parts[1].Len() != 64 || Parts[1] != Revision) return false;
+    for (const TCHAR Character : Parts[1])
+        if (!((Character >= '0' && Character <= '9') || (Character >= 'a' && Character <= 'f'))) return false;
+    const FString& Decimal = Parts[2];
+    if (Decimal.IsEmpty() || (Decimal.Len() > 1 && Decimal[0] == '0')) return false;
+    uint64 Parsed = 0;
+    for (const TCHAR Character : Decimal)
+    {
+        if (Character < '0' || Character > '9' || Parsed > (TNumericLimits<uint64>::Max() - static_cast<uint64>(Character - '0')) / 10) return false;
+        Parsed = Parsed * 10 + static_cast<uint64>(Character - '0');
+    }
+    if (Parsed > static_cast<uint64>(TNumericLimits<int32>::Max())) return false;
+    Offset = static_cast<int32>(Parsed);
     return Offset >= 0 && Offset < Total;
 }
 
@@ -838,11 +921,17 @@ TSharedRef<FJsonObject> BuildReceiptMetadata(const FString& Id, const FString& O
 
 
 FString LevelSettingsRevision(const UWorld& World);
-bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJsonObject>& Result, const FString& Target, const TSharedRef<FJsonObject>& Verification);
+bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJsonObject>& Result, const FString& Target, const TSharedRef<FJsonObject>& Verification, const TSharedPtr<FJsonObject>& Args = nullptr);
 UActorComponent* FindComponentById(UWorld& World, const FString& Wanted, AActor*& OutActor);
 FString ComponentRevision(const AActor& Actor, const UActorComponent& Component);
 FString ObjectContentRevision(const UObject* Object);
-FString SuccessResponse(const FString& Id, const TSharedRef<FJsonObject>& Result, const FString& Operation = FString())
+UEdGraph* P11FindGraph(UBlueprint& Blueprint, const FString& GraphId);
+UEdGraphNode* P11FindNode(UBlueprint& Blueprint, const FString& NodeId, UEdGraph*& OutGraph);
+UEdGraphPin* P11FindPin(UBlueprint& Blueprint, const FString& PinId, UEdGraph*& OutGraph, UEdGraphNode*& OutNode);
+FString P11NodeIntent(const UEdGraphNode& Node);
+FString P11NodeOwner(UBlueprint& Blueprint, const UEdGraphNode& Node);
+bool P11AllowedConnection(const UEdGraphNode& SourceNode, const UEdGraphPin& Source, const UEdGraphNode& TargetNode, const UEdGraphPin& Target);
+FString SuccessResponse(const FString& Id, const TSharedRef<FJsonObject>& Result, const FString& Operation = FString(), const TSharedPtr<FJsonObject>& Args = nullptr)
 {
     if (!Operation.IsEmpty() && !MagiAxiValidateOutput(Operation, Result)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("native output failed generated schema validation"));
     const TSharedRef<FJsonObject> Response = MakeShared<FJsonObject>();
@@ -858,7 +947,30 @@ FString SuccessResponse(const FString& Id, const TSharedRef<FJsonObject>& Result
         Verification->SetStringField(TEXT("readback"), Metadata ? Metadata->Readback : TEXT(""));
         if (!ValidateSaveBehavior(Operation, Result)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("native result violates catalog saveBehavior"));
         Verification->SetStringField(TEXT("target"), Target);
-        if (!VerifyMutationPostcondition(Operation, Result, Target, Verification)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("mutation postcondition verification failed"));
+        if (Args.IsValid() && Operation == TEXT("blueprint.create"))
+        {
+            FString Path, ParentClass; Args->TryGetStringField(TEXT("path"), Path); Args->TryGetStringField(TEXT("parentClass"), ParentClass);
+            Verification->SetStringField(TEXT("requestPath"), Path); Verification->SetStringField(TEXT("requestParentClass"), ParentClass);
+        }
+        else if (Args.IsValid() && (Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure")))
+        {
+            FString BlueprintId, GraphId, AgentKey, Intent; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("graphId"), GraphId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Args->TryGetStringField(Operation == TEXT("blueprint.event_ensure") ? TEXT("event") : TEXT("node"), Intent);
+            Verification->SetStringField(TEXT("requestBlueprintId"), BlueprintId); Verification->SetStringField(TEXT("requestGraphId"), GraphId); Verification->SetStringField(TEXT("requestAgentKey"), AgentKey); Verification->SetStringField(TEXT("requestIntent"), Intent);
+        }
+        else if (Args.IsValid() && Operation == TEXT("blueprint.pin_default_set"))
+        {
+            FString BlueprintId, PinId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("pinId"), PinId); Verification->SetStringField(TEXT("requestBlueprintId"), BlueprintId); Verification->SetStringField(TEXT("requestPinId"), PinId);
+            const TSharedPtr<FJsonObject>* ValueObject = nullptr; FString ValueType; double Value = 0; if (Args->TryGetObjectField(TEXT("value"), ValueObject) && ValueObject && ValueObject->IsValid() && (*ValueObject)->TryGetStringField(TEXT("type"), ValueType) && (*ValueObject)->TryGetNumberField(TEXT("value"), Value)) { Verification->SetStringField(TEXT("requestValueType"), ValueType); Verification->SetNumberField(TEXT("requestValue"), Value); }
+        }
+        else if (Args.IsValid() && Operation == TEXT("blueprint.pin_connect"))
+        {
+            FString BlueprintId, SourcePinId, TargetPinId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("sourcePinId"), SourcePinId); Args->TryGetStringField(TEXT("targetPinId"), TargetPinId);
+            Verification->SetStringField(TEXT("requestBlueprintId"), BlueprintId); Verification->SetStringField(TEXT("requestSourcePinId"), SourcePinId); Verification->SetStringField(TEXT("requestTargetPinId"), TargetPinId);
+        }
+        if (Args.IsValid() && (Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure"))) { FString BlueprintId, GraphId, AgentKey; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("graphId"), GraphId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Target = BlueprintId + TEXT("#") + GraphId + TEXT("#") + AgentKey; }
+        else if (Args.IsValid() && Operation == TEXT("blueprint.pin_default_set")) { FString BlueprintId, PinId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("pinId"), PinId); Target = BlueprintId + TEXT("#") + PinId; }
+        else if (Args.IsValid() && Operation == TEXT("blueprint.pin_connect")) { FString BlueprintId, SourcePinId, TargetPinId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("sourcePinId"), SourcePinId); Args->TryGetStringField(TEXT("targetPinId"), TargetPinId); Target = BlueprintId + TEXT("#") + SourcePinId + TEXT("#") + TargetPinId; }
+        if (!VerifyMutationPostcondition(Operation, Result, Target, Verification, Args)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("mutation postcondition verification failed"));
         bool Matched = true;
         if (Operation == TEXT("play.input"))
         {
@@ -870,7 +982,6 @@ FString SuccessResponse(const FString& Id, const TSharedRef<FJsonObject>& Result
         Response->SetObjectField(TEXT("receipt"), BuildReceiptMetadata(Id, Operation, Result, Verification, Target));
     }
     const FString Wire = Serialize(Response);
-    if (IsMutationOperation(Operation)) SetReceipt(Id, Operation, Wire, TEXT("completed"));
     return Wire;
 }
 
@@ -966,38 +1077,142 @@ FString BlueprintGraphKind(const UBlueprint& Blueprint, const UEdGraph& Graph)
     if (Blueprint.DelegateSignatureGraphs.Contains(const_cast<UEdGraph*>(&Graph))) return TEXT("delegate_signature");
     return TEXT("other");
 }
+FString CanonicalBlueprintPinDefault(const UEdGraphPin& Pin)
+{
+    if (Pin.DefaultValue.IsEmpty()) return FString();
+    if (Pin.PinType.PinCategory == UEdGraphSchema_K2::PC_Real)
+        return FString::SanitizeFloat(FCString::Atod(*Pin.DefaultValue));
+    if (Pin.PinType.PinCategory == UEdGraphSchema_K2::PC_Int || Pin.PinType.PinCategory == UEdGraphSchema_K2::PC_Int64)
+        return LexToString(FCString::Atoi64(*Pin.DefaultValue));
+    if (Pin.PinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
+        return Pin.DefaultValue.Equals(TEXT("true"), ESearchCase::IgnoreCase) ? TEXT("true") : TEXT("false");
+    return Pin.DefaultValue;
+}
+FName P11OwnershipMetadataKey(const FGuid& NodeGuid)
+{
+    return FName(*FString::Printf(TEXT("MagiP11Owner_%s"), *NodeGuid.ToString(EGuidFormats::Digits)));
+}
 FString BlueprintContentRevision(const UBlueprint& Blueprint)
 {
     TArray<UEdGraph*> Graphs;
     Blueprint.GetAllGraphs(Graphs);
+    if (Graphs.Num() > P11MaxGraphs) return FString();
     for (const UEdGraph* Graph : Graphs) if (Graph && BlueprintGraphIdentity(Blueprint, *Graph).IsEmpty()) return FString();
-    Graphs.Sort([&Blueprint](const UEdGraph& Left, const UEdGraph& Right) { return BlueprintGraphIdentity(Blueprint, Left) < BlueprintGraphIdentity(Blueprint, Right); });
     const FString BlueprintPath = Blueprint.GetPathName();
     if (BlueprintPath.IsEmpty()) return FString();
+    int64 RevisionCanonicalBytes = 0;
+    auto RevisionFieldsWithinBounds = [&RevisionCanonicalBytes](const TArray<FString>& Fields)
+    {
+        for (const FString& Field : Fields)
+            if (!P11RevisionFieldWithinBounds(Field, RevisionCanonicalBytes)) return false;
+        return true;
+    };
+    if (!RevisionFieldsWithinBounds({BlueprintPath, Blueprint.ParentClass ? Blueprint.ParentClass->GetPathName() : FString()})) return FString();
+    int32 PreflightNodes = 0, PreflightPins = 0, PreflightLinks = 0;
+    for (const UEdGraph* Graph : Graphs)
+    {
+        if (!Graph) continue;
+        if (Graph->Nodes.Num() > P11MaxNodes - PreflightNodes) return FString();
+        PreflightNodes += Graph->Nodes.Num();
+        if (!RevisionFieldsWithinBounds({BlueprintGraphIdentity(Blueprint, *Graph), Graph->GetName()})) return FString();
+        for (const UEdGraphNode* Node : Graph->Nodes)
+        {
+            if (!Node) continue;
+            if (Node->Pins.Num() > P11MaxPinsPerNode || Node->Pins.Num() > P11MaxPins - PreflightPins) return FString();
+            PreflightPins += Node->Pins.Num();
+            const FString GraphIdentity = BlueprintGraphIdentity(Blueprint, *Graph);
+            if (!RevisionFieldsWithinBounds({BlueprintNodeIdentity(GraphIdentity, *Node), Node->GetClass()->GetPathName(), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString(), Node->NodeComment, const_cast<UPackage*>(Blueprint.GetOutermost())->GetMetaData().GetValue(&Blueprint, P11OwnershipMetadataKey(Node->NodeGuid)), FString::FromInt(Node->NodePosX), FString::FromInt(Node->NodePosY)})) return FString();
+            if (const UK2Node_InputKey* Input = Cast<UK2Node_InputKey>(Node))
+                if (!RevisionFieldsWithinBounds({Input->InputKey.ToString()})) return FString();
+            if (const UK2Node_Event* Event = Cast<UK2Node_Event>(Node))
+            {
+                const UClass* Parent = Event->EventReference.GetMemberParentClass(Event->GetBlueprintClassFromNode());
+                if (!RevisionFieldsWithinBounds({Parent ? Parent->GetPathName() : FString(), Event->EventReference.GetMemberName().ToString()})) return FString();
+            }
+            for (const UEdGraphPin* Pin : Node->Pins)
+            {
+                if (!Pin) continue;
+                if (Pin->LinkedTo.Num() > P11MaxLinksPerPin || Pin->LinkedTo.Num() > P11MaxLinks - PreflightLinks) return FString();
+                PreflightLinks += Pin->LinkedTo.Num();
+                const FString NodeIdentity = BlueprintNodeIdentity(GraphIdentity, *Node);
+                const UObject* SubCategoryObject = Pin->PinType.PinSubCategoryObject.Get();
+                if (!RevisionFieldsWithinBounds({BlueprintPinIdentity(NodeIdentity, *Pin), Pin->PinName.ToString(), Pin->PinType.PinCategory.ToString(), Pin->PinType.PinSubCategory.ToString(), SubCategoryObject ? SubCategoryObject->GetPathName() : FString(), CanonicalBlueprintPinDefault(*Pin), Pin->DefaultObject ? Pin->DefaultObject->GetPathName() : FString(), Pin->DefaultTextValue.ToString()})) return FString();
+                if (Pin->LinkedTo.Num() > P11MaxLinksPerPin) return FString();
+                for (const UEdGraphPin* Link : Pin->LinkedTo)
+                    if (Link && Link->GetOwningNode() && !RevisionFieldsWithinBounds({BlueprintPinIdentity(BlueprintNodeIdentity(GraphIdentity, *Link->GetOwningNode()), *Link)})) return FString();
+            }
+        }
+    }
+    if (const AStaticMeshActor* Defaults = Blueprint.GeneratedClass ? Cast<AStaticMeshActor>(Blueprint.GeneratedClass->GetDefaultObject()) : nullptr)
+        if (!RevisionFieldsWithinBounds({FString::FromInt(static_cast<int32>(Defaults->GetStaticMeshComponent()->Mobility))})) return FString();
+    if (!P11RevisionCountWithinBounds(Blueprint.NewVariables.Num(), P11MaxRevisionVariables) ||
+        !P11RevisionCountWithinBounds(Blueprint.ImplementedInterfaces.Num(), P11MaxRevisionInterfaces)) return FString();
+    for (const FBPVariableDescription& Variable : Blueprint.NewVariables)
+    {
+        if (!Variable.VarGuid.IsValid() || !P11RevisionCountWithinBounds(Variable.MetaDataArray.Num(), P11MaxRevisionMetadataPerVariable)) return FString();
+        const UObject* SubCategoryObject = Variable.VarType.PinSubCategoryObject.Get();
+        if (!RevisionFieldsWithinBounds({Variable.VarGuid.ToString(), Variable.VarName.ToString(), Variable.FriendlyName, Variable.Category.ToString(), Variable.VarType.PinCategory.ToString(), Variable.VarType.PinSubCategory.ToString(), SubCategoryObject ? SubCategoryObject->GetPathName() : FString(), FString::FromInt(static_cast<int32>(Variable.VarType.ContainerType)), Variable.DefaultValue, FString::Printf(TEXT("%llu"), static_cast<unsigned long long>(Variable.PropertyFlags)), Variable.RepNotifyFunc.ToString(), FString::FromInt(static_cast<int32>(Variable.ReplicationCondition))})) return FString();
+        for (const FBPVariableMetaDataEntry& Entry : Variable.MetaDataArray)
+            if (!RevisionFieldsWithinBounds({Entry.DataKey.ToString(), Entry.DataValue})) return FString();
+    }
+    for (const FBPInterfaceDescription& Interface : Blueprint.ImplementedInterfaces)
+    {
+        if (!RevisionFieldsWithinBounds({Interface.Interface ? Interface.Interface->GetPathName() : FString()}) ||
+            !P11RevisionCountWithinBounds(Interface.Graphs.Num(), P11MaxRevisionGraphsPerInterface)) return FString();
+        for (const UEdGraph* Graph : Interface.Graphs)
+            if (Graph && !RevisionFieldsWithinBounds({BlueprintGraphIdentity(Blueprint, *Graph)})) return FString();
+    }
+    if (Blueprint.SimpleConstructionScript)
+    {
+        TArray<USCS_Node*> Components = Blueprint.SimpleConstructionScript->GetAllNodes();
+        if (!P11RevisionCountWithinBounds(Components.Num(), P11MaxRevisionSCSComponents)) return FString();
+        for (const USCS_Node* Node : Components)
+        {
+            if (!Node) continue;
+            const USceneComponent* Scene = Cast<USceneComponent>(Node->ComponentTemplate);
+            if (!RevisionFieldsWithinBounds({BlueprintSCSIdentity(Blueprint, *Node), Node->GetVariableName().ToString(), Node->ComponentClass ? Node->ComponentClass->GetPathName() : FString(), Node->ParentComponentOrVariableName.ToString(), Node->AttachToName.ToString(), Scene ? CanonicalTransform(Scene->GetRelativeTransform()) : FString()})) return FString();
+        }
+    }
+    Graphs.Sort([&Blueprint](const UEdGraph& Left, const UEdGraph& Right) { return BlueprintGraphIdentity(Blueprint, Left) < BlueprintGraphIdentity(Blueprint, Right); });
     FString Revision = Sha256(CanonicalRow({BlueprintPath, Blueprint.ParentClass ? Blueprint.ParentClass->GetPathName() : FString()}));
+    if (const AStaticMeshActor* Defaults = Blueprint.GeneratedClass ? Cast<AStaticMeshActor>(Blueprint.GeneratedClass->GetDefaultObject()) : nullptr)
+        Revision = ExtendRevision(Revision, {TEXT("staticMeshMobility"), FString::FromInt(static_cast<int32>(Defaults->GetStaticMeshComponent()->Mobility))});
+    int32 RevisionNodes = 0, RevisionPins = 0, RevisionLinks = 0;
     for (const UEdGraph* Graph : Graphs)
     {
         if (!Graph) continue;
         const FString GraphIdentity = BlueprintGraphIdentity(Blueprint, *Graph);
         Revision = ExtendRevision(Revision, {TEXT("graph"), GraphIdentity, Graph->GetName()});
+        if (Graph->Nodes.Num() > P11MaxNodes - RevisionNodes) return FString();
         TArray<const UEdGraphNode*> Nodes;
         for (const UEdGraphNode* Node : Graph->Nodes) if (Node) Nodes.Add(Node);
         Nodes.Sort([&GraphIdentity](const UEdGraphNode& Left, const UEdGraphNode& Right) { return BlueprintNodeIdentity(GraphIdentity, Left) < BlueprintNodeIdentity(GraphIdentity, Right); });
         for (const UEdGraphNode* Node : Nodes)
         {
+            if (++RevisionNodes > P11MaxNodes) return FString();
             const FString NodeIdentity = BlueprintNodeIdentity(GraphIdentity, *Node);
             if (NodeIdentity.IsEmpty()) return FString();
-            Revision = ExtendRevision(Revision, {TEXT("node"), NodeIdentity, Node->GetClass()->GetPathName(), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString(), Node->NodeComment, LexToString(Node->GetDesiredEnabledState()), FString::FromInt(Node->NodePosX), FString::FromInt(Node->NodePosY)});
+            const FString Owner = const_cast<UPackage*>(Blueprint.GetOutermost())->GetMetaData().GetValue(&Blueprint, P11OwnershipMetadataKey(Node->NodeGuid));
+            Revision = ExtendRevision(Revision, {TEXT("node"), NodeIdentity, Node->GetClass()->GetPathName(), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString(), Node->NodeComment, Owner, LexToString(Node->GetDesiredEnabledState()), FString::FromInt(Node->NodePosX), FString::FromInt(Node->NodePosY)});
+            if (const UK2Node_InputKey* Input = Cast<UK2Node_InputKey>(Node)) Revision = ExtendRevision(Revision, {TEXT("inputKey"), Input->InputKey.ToString(), Input->bConsumeInput ? TEXT("consume") : TEXT("noConsume"), Input->bExecuteWhenPaused ? TEXT("paused") : TEXT("notPaused"), Input->bOverrideParentBinding ? TEXT("overrideParent") : TEXT("inheritParent"), Input->bControl ? TEXT("control") : TEXT("noControl"), Input->bAlt ? TEXT("alt") : TEXT("noAlt"), Input->bShift ? TEXT("shift") : TEXT("noShift"), Input->bCommand ? TEXT("command") : TEXT("noCommand")});
+            if (const UK2Node_Event* Event = Cast<UK2Node_Event>(Node))
+            {
+                const UClass* Parent = Event->EventReference.GetMemberParentClass(Event->GetBlueprintClassFromNode());
+                Revision = ExtendRevision(Revision, {TEXT("event"), Parent ? Parent->GetPathName() : FString(), Event->EventReference.GetMemberName().ToString(), Event->bOverrideFunction ? TEXT("override") : TEXT("noOverride")});
+            }
             TArray<const UEdGraphPin*> Pins;
             for (const UEdGraphPin* Pin : Node->Pins) if (Pin) Pins.Add(Pin);
+            if (Pins.Num() > P11MaxPinsPerNode) return FString();
             Pins.Sort([&NodeIdentity](const UEdGraphPin& Left, const UEdGraphPin& Right) { return BlueprintPinIdentity(NodeIdentity, Left) < BlueprintPinIdentity(NodeIdentity, Right); });
             for (const UEdGraphPin* Pin : Pins)
             {
+                if (++RevisionPins > P11MaxPins) return FString();
                 const FEdGraphPinType& Type = Pin->PinType;
                 const UObject* SubCategoryObject = Type.PinSubCategoryObject.Get();
                 const FString PinIdentity = BlueprintPinIdentity(NodeIdentity, *Pin);
                 if (PinIdentity.IsEmpty()) return FString();
-                Revision = ExtendRevision(Revision, {TEXT("pin"), PinIdentity, Pin->PinName.ToString(), FString::FromInt(static_cast<int32>(Pin->Direction)), Type.PinCategory.ToString(), Type.PinSubCategory.ToString(), SubCategoryObject ? SubCategoryObject->GetPathName() : FString(), FString::FromInt(static_cast<int32>(Type.ContainerType)), Type.bIsReference ? TEXT("reference") : FString(), Type.bIsConst ? TEXT("const") : FString(), Pin->DefaultValue, Pin->DefaultObject ? Pin->DefaultObject->GetPathName() : FString(), Pin->DefaultTextValue.ToString()});
+                Revision = ExtendRevision(Revision, {TEXT("pin"), PinIdentity, Pin->PinName.ToString(), FString::FromInt(static_cast<int32>(Pin->Direction)), Type.PinCategory.ToString(), Type.PinSubCategory.ToString(), SubCategoryObject ? SubCategoryObject->GetPathName() : FString(), FString::FromInt(static_cast<int32>(Type.ContainerType)), Type.bIsReference ? TEXT("reference") : FString(), Type.bIsConst ? TEXT("const") : FString(), CanonicalBlueprintPinDefault(*Pin), Pin->DefaultObject ? Pin->DefaultObject->GetPathName() : FString(), Pin->DefaultTextValue.ToString()});
+                if (Pin->LinkedTo.Num() > P11MaxLinksPerPin || (RevisionLinks += Pin->LinkedTo.Num()) > P11MaxLinks) return FString();
                 TArray<const UEdGraphPin*> Links;
                 for (const UEdGraphPin* Link : Pin->LinkedTo) if (Link && Link->GetOwningNode()) Links.Add(Link);
                 auto LinkIdentity = [&GraphIdentity](const UEdGraphPin& Candidate) { return BlueprintPinIdentity(BlueprintNodeIdentity(GraphIdentity, *Candidate.GetOwningNode()), Candidate); };
@@ -1014,7 +1229,6 @@ FString BlueprintContentRevision(const UBlueprint& Blueprint)
     TArray<const FBPVariableDescription*> Variables;
     for (const FBPVariableDescription& Variable : Blueprint.NewVariables)
     {
-        if (!Variable.VarGuid.IsValid()) return FString();
         Variables.Add(&Variable);
     }
     Variables.Sort([](const FBPVariableDescription& Left, const FBPVariableDescription& Right) { return Left.VarGuid.ToString() < Right.VarGuid.ToString(); });
@@ -1028,7 +1242,10 @@ FString BlueprintContentRevision(const UBlueprint& Blueprint)
         for (const FBPVariableMetaDataEntry* Entry : Metadata) Revision = ExtendRevision(Revision, {TEXT("metadata"), Entry->DataKey.ToString(), Entry->DataValue});
     }
     TArray<const FBPInterfaceDescription*> Interfaces;
-    for (const FBPInterfaceDescription& Interface : Blueprint.ImplementedInterfaces) Interfaces.Add(&Interface);
+    for (const FBPInterfaceDescription& Interface : Blueprint.ImplementedInterfaces)
+    {
+        Interfaces.Add(&Interface);
+    }
     Interfaces.Sort([](const FBPInterfaceDescription& Left, const FBPInterfaceDescription& Right) { const FString LeftPath = Left.Interface ? Left.Interface->GetPathName() : FString(); const FString RightPath = Right.Interface ? Right.Interface->GetPathName() : FString(); return LeftPath < RightPath; });
     for (const FBPInterfaceDescription* Interface : Interfaces)
     {
@@ -1046,7 +1263,6 @@ FString BlueprintContentRevision(const UBlueprint& Blueprint)
     {
         TArray<USCS_Node*> Components = Blueprint.SimpleConstructionScript->GetAllNodes();
         Components.RemoveAll([](const USCS_Node* Node) { return Node == nullptr; });
-        for (const USCS_Node* Node : Components) if (BlueprintSCSIdentity(Blueprint, *Node).IsEmpty()) return FString();
         Components.Sort([&Blueprint](const USCS_Node& Left, const USCS_Node& Right) { return BlueprintSCSIdentity(Blueprint, Left) < BlueprintSCSIdentity(Blueprint, Right); });
         for (const USCS_Node* Node : Components)
         {
@@ -1074,17 +1290,25 @@ FString ObjectContentRevision(const UObject* Object)
     return AssetRevision(FAssetData(Object));
 }
 
-bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJsonObject>& Result, const FString& Target, const TSharedRef<FJsonObject>& Verification)
+static bool IsCanonicalSha256Revision(const FString& Value)
+{
+    if (Value.Len() != 64) return false;
+    for (const TCHAR Character : Value)
+        if (!((Character >= '0' && Character <= '9') || (Character >= 'a' && Character <= 'f'))) return false;
+    return true;
+}
+
+bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJsonObject>& Result, const FString& Target, const TSharedRef<FJsonObject>& Verification, const TSharedPtr<FJsonObject>& Args)
 {
     FString Revision;
-    if (!Result->TryGetStringField(TEXT("revision"), Revision) || Revision.Len() != 64) return false;
+    if (!Result->TryGetStringField(TEXT("revision"), Revision) || !IsCanonicalSha256Revision(Revision)) return false;
     auto Verified = [&]() { Verification->SetStringField(TEXT("observedRevision"), Revision); return true; };
     if (Operation == TEXT("play.input"))
     {
         bool Accepted = false; FString Before, After, Session, Event;
         Result->TryGetBoolField(TEXT("accepted"), Accepted); Result->TryGetStringField(TEXT("beforeRevision"), Before); Result->TryGetStringField(TEXT("afterRevision"), After); Result->TryGetStringField(TEXT("sessionId"), Session); Result->TryGetStringField(TEXT("event"), Event);
         const bool Changed = Before != After;
-        if (!Accepted || Before.Len() != 64 || After.Len() != 64 || After != Revision || Result->GetBoolField(TEXT("changed")) != Changed || (Event == TEXT("pressed") && !Changed) || (Event == TEXT("released") && Changed) || !PieWorld()) return false;
+        if (!Accepted || !IsCanonicalSha256Revision(Before) || !IsCanonicalSha256Revision(After) || After != Revision || Result->GetBoolField(TEXT("changed")) != Changed || (Event == TEXT("pressed") && !Changed) || (Event == TEXT("released") && Changed) || !PieWorld()) return false;
         const TSharedRef<FJsonObject> Observation = ObservePlayResult();
         if (Observation->GetStringField(TEXT("sessionId")) != Session || Observation->GetStringField(TEXT("revision")) != After) return false;
         Verification->SetBoolField(TEXT("accepted"), true); Verification->SetStringField(TEXT("beforeRevision"), Before); Verification->SetStringField(TEXT("afterRevision"), After);
@@ -1148,6 +1372,42 @@ bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJso
         if (!Asset || ObjectContentRevision(Asset) != Revision) return false;
         if (Operation == TEXT("asset.save") && (!Asset->GetOutermost() || Asset->GetOutermost()->IsDirty())) return false;
         return Verified();
+    }
+    if (Operation == TEXT("blueprint.create"))
+    {
+        if (!Args.IsValid()) return false;
+        FString BlueprintId, RequestPath, ParentClass; Result->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("path"), RequestPath); Args->TryGetStringField(TEXT("parentClass"), ParentClass);
+        const FString ExpectedId = RequestPath + TEXT(".") + FPackageName::GetShortName(RequestPath);
+        UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *BlueprintId);
+        return Blueprint && BlueprintId == ExpectedId && Target == BlueprintId && Blueprint->ParentClass && Blueprint->ParentClass->GetPathName() == ParentClass && BlueprintContentRevision(*Blueprint) == Revision && Verified();
+    }
+    if (Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure"))
+    {
+        if (!Args.IsValid()) return false;
+        FString BlueprintId, GraphId, NodeId, RequestBlueprintId, RequestGraphId, AgentKey, Intent;
+        Result->TryGetStringField(TEXT("blueprintId"), BlueprintId); Result->TryGetStringField(TEXT("graphId"), GraphId); Result->TryGetStringField(TEXT("nodeId"), NodeId);
+        Args->TryGetStringField(TEXT("blueprintId"), RequestBlueprintId); Args->TryGetStringField(TEXT("graphId"), RequestGraphId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Args->TryGetStringField(Operation == TEXT("blueprint.event_ensure") ? TEXT("event") : TEXT("node"), Intent);
+        UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *BlueprintId); UEdGraph* NodeGraph = nullptr; UEdGraphNode* Node = Blueprint ? P11FindNode(*Blueprint, NodeId, NodeGraph) : nullptr;
+        return Blueprint && Node && NodeGraph && BlueprintId == RequestBlueprintId && GraphId == RequestGraphId && BlueprintGraphIdentity(*Blueprint, *NodeGraph) == GraphId && P11NodeIntent(*Node) == Intent && P11NodeOwner(*Blueprint, *Node) == AgentKey && Target == BlueprintId + TEXT("#") + GraphId + TEXT("#") + AgentKey && BlueprintContentRevision(*Blueprint) == Revision && Verified();
+    }
+    if (Operation == TEXT("blueprint.pin_default_set"))
+    {
+        if (!Args.IsValid()) return false;
+        FString BlueprintId, PinId, RequestBlueprintId, RequestPinId, ValueType; double Value = 0;
+        Result->TryGetStringField(TEXT("blueprintId"), BlueprintId); Result->TryGetStringField(TEXT("pinId"), PinId); Args->TryGetStringField(TEXT("blueprintId"), RequestBlueprintId); Args->TryGetStringField(TEXT("pinId"), RequestPinId);
+        const TSharedPtr<FJsonObject>* ValueObject = nullptr;
+        if (!Args->TryGetObjectField(TEXT("value"), ValueObject) || !ValueObject || !ValueObject->IsValid() || !(*ValueObject)->TryGetStringField(TEXT("type"), ValueType) || !(*ValueObject)->TryGetNumberField(TEXT("value"), Value)) return false;
+        UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *BlueprintId); UEdGraph* PinGraph = nullptr; UEdGraphNode* PinNode = nullptr; UEdGraphPin* Pin = Blueprint ? P11FindPin(*Blueprint, PinId, PinGraph, PinNode) : nullptr;
+        const FString ExpectedDefault = ValueType == TEXT("integer") ? LexToString(static_cast<int64>(Value)) : FString::SanitizeFloat(Value);
+        return Blueprint && Pin && PinGraph && PinNode && BlueprintId == RequestBlueprintId && PinId == RequestPinId && CanonicalBlueprintPinDefault(*Pin) == ExpectedDefault && Target == BlueprintId + TEXT("#") + PinId && BlueprintContentRevision(*Blueprint) == Revision && Verified();
+    }
+    if (Operation == TEXT("blueprint.pin_connect"))
+    {
+        if (!Args.IsValid()) return false;
+        FString BlueprintId, SourcePinId, TargetPinId, RequestBlueprintId, RequestSourcePinId, RequestTargetPinId;
+        Result->TryGetStringField(TEXT("blueprintId"), BlueprintId); Result->TryGetStringField(TEXT("sourcePinId"), SourcePinId); Result->TryGetStringField(TEXT("targetPinId"), TargetPinId); Args->TryGetStringField(TEXT("blueprintId"), RequestBlueprintId); Args->TryGetStringField(TEXT("sourcePinId"), RequestSourcePinId); Args->TryGetStringField(TEXT("targetPinId"), RequestTargetPinId);
+        UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *BlueprintId); UEdGraph* SourceGraph = nullptr; UEdGraphNode* SourceNode = nullptr; UEdGraph* TargetGraph = nullptr; UEdGraphNode* TargetNode = nullptr; UEdGraphPin* Source = Blueprint ? P11FindPin(*Blueprint, SourcePinId, SourceGraph, SourceNode) : nullptr; UEdGraphPin* TargetPin = Blueprint ? P11FindPin(*Blueprint, TargetPinId, TargetGraph, TargetNode) : nullptr;
+        return Blueprint && Source && TargetPin && SourceNode && TargetNode && BlueprintId == RequestBlueprintId && SourcePinId == RequestSourcePinId && TargetPinId == RequestTargetPinId && SourceGraph == TargetGraph && P11AllowedConnection(*SourceNode, *Source, *TargetNode, *TargetPin) && Source->LinkedTo.Contains(TargetPin) && TargetPin->LinkedTo.Contains(Source) && Target == BlueprintId + TEXT("#") + SourcePinId + TEXT("#") + TargetPinId && BlueprintContentRevision(*Blueprint) == Revision && Verified();
     }
     if (Operation == TEXT("blueprint.compile"))
     {
@@ -1338,7 +1598,48 @@ FString ReadPlayResponse(const FString& Id, const FString& Operation, const TSha
     FString Error; if (!ValidPlaySession(Args, Error)) return ErrorResponse(Id, TEXT("unsafe_editor_state"), *Error);
     if (Operation == TEXT("play.start")) return ErrorResponse(Id, TEXT("conflict"), TEXT("PIE session is already active"));
     if (Operation == TEXT("play.observe")) { if (!PieWorld()) return ErrorResponse(Id, TEXT("unsafe_editor_state"), TEXT("PIE world is not running")); return PlayResponse(Id, ObservePlayResult(), Operation); }
-    if (Operation == TEXT("play.input")) { UWorld* World = PieWorld(); if (!World) return ErrorResponse(Id, TEXT("unsafe_editor_state"), TEXT("PIE world is not running")); FString KeyName, Event; Args->TryGetStringField(TEXT("key"), KeyName); Args->TryGetStringField(TEXT("event"), Event); FKey Key{FName(*KeyName)}; APlayerController* Controller = World->GetFirstPlayerController(); const TSharedRef<FJsonObject> Before = ObservePlayResult(); FString BeforeRevision; Before->TryGetStringField(TEXT("revision"), BeforeRevision); const float Amount = Event == TEXT("pressed") ? 1.0f : 0.0f; bool Accepted = Controller && Key.IsValid() && Controller->InputKey(FInputKeyEventArgs::CreateSimulated(Key, Event == TEXT("pressed") ? IE_Pressed : IE_Released, Amount)); if (!Accepted) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("play input was not accepted by active session")); const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("sessionId"), PlaySessionId); Result->SetStringField(TEXT("key"), KeyName); Result->SetStringField(TEXT("event"), Event); Result->SetBoolField(TEXT("accepted"), true); Result->SetBoolField(TEXT("changed"), false); Result->SetStringField(TEXT("beforeRevision"), BeforeRevision); Result->SetStringField(TEXT("afterRevision"), BeforeRevision); Result->SetStringField(TEXT("revision"), BeforeRevision); return PendingPlayInputResponse(Id, Result); }
+    if (Operation == TEXT("play.input"))
+    {
+        UWorld* World = PieWorld();
+        if (!World) return ErrorResponse(Id, TEXT("unsafe_editor_state"), TEXT("PIE world is not running"));
+        FString KeyName, Event;
+        Args->TryGetStringField(TEXT("key"), KeyName); Args->TryGetStringField(TEXT("event"), Event);
+        FKey Key{FName(*KeyName)}; APlayerController* Controller = World->GetFirstPlayerController();
+        if (!Controller || !Key.IsValid()) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("play input target or key is unavailable"));
+        const TSharedRef<FJsonObject> Before = ObservePlayResult(); FString BeforeRevision; Before->TryGetStringField(TEXT("revision"), BeforeRevision);
+        const float Amount = Event == TEXT("pressed") ? 1.0f : 0.0f;
+        const FInputDeviceId InputDevice = IPlatformInputDeviceMapper::Get().GetPrimaryInputDeviceForUser(Controller->GetPlatformUserId());
+        if (!InputDevice.IsValid()) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("play input device is unavailable"));
+        int32 RuntimeInputComponents = 0;
+        int32 RuntimeKeyBindings = 0;
+        int32 StackedKeyBindings = 0;
+        int32 GeneratedKeyBindings = 0;
+        for (TActorIterator<AActor> It(World); It; ++It)
+        {
+            AActor* Actor = *It;
+            if (!IsValid(Actor)) continue;
+            TArray<UObject*> NestedObjects;
+            GetObjectsWithOuter(Actor, NestedObjects, EGetObjectsFlags::IncludeNestedObjects);
+            for (UObject* Object : NestedObjects)
+                if (const UInputComponent* Input = Cast<UInputComponent>(Object))
+                {
+                    ++RuntimeInputComponents;
+                    for (const FInputKeyBinding& Binding : Input->KeyBindings)
+                    {
+                        if (Binding.Chord.Key != Key || Binding.KeyEvent != (Event == TEXT("pressed") ? IE_Pressed : IE_Released)) continue;
+                        ++RuntimeKeyBindings;
+                        if (Controller->IsInputComponentInStack(Input)) ++StackedKeyBindings;
+                    }
+                }
+            if (const UInputKeyDelegateBinding* Binding = Cast<UInputKeyDelegateBinding>(UBlueprintGeneratedClass::GetDynamicBindingObject(Actor->GetClass(), UInputKeyDelegateBinding::StaticClass())))
+                for (const FBlueprintInputKeyDelegateBinding& KeyBinding : Binding->InputKeyDelegateBindings)
+                    if (KeyBinding.InputChord.Key == Key && KeyBinding.InputKeyEvent == (Event == TEXT("pressed") ? IE_Pressed : IE_Released)) ++GeneratedKeyBindings;
+        }
+        if (Event == TEXT("pressed") && (RuntimeKeyBindings == 0 || StackedKeyBindings == 0))
+            return ErrorResponse(Id, TEXT("operation_failed"), *FString::Printf(TEXT("play input has no matching stacked runtime binding (inputComponents=%d runtimeBindings=%d stackedBindings=%d generatedBindings=%d)"), RuntimeInputComponents, RuntimeKeyBindings, StackedKeyBindings, GeneratedKeyBindings));
+        Controller->InputKey(FInputKeyEventArgs::CreateSimulated(Key, Event == TEXT("pressed") ? IE_Pressed : IE_Released, Amount, -1, InputDevice));
+        const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("sessionId"), PlaySessionId); Result->SetStringField(TEXT("key"), KeyName); Result->SetStringField(TEXT("event"), Event); Result->SetBoolField(TEXT("accepted"), true); Result->SetBoolField(TEXT("changed"), false); Result->SetStringField(TEXT("beforeRevision"), BeforeRevision); Result->SetStringField(TEXT("afterRevision"), BeforeRevision); Result->SetStringField(TEXT("revision"), BeforeRevision); return PendingPlayInputResponse(Id, Result);
+    }
     if (Operation == TEXT("play.screenshot")) { if (!PieWorld()) return ErrorResponse(Id, TEXT("unsafe_editor_state"), TEXT("PIE world is not running")); FViewport* Viewport = GUnrealEd ? GUnrealEd->GetPIEViewport() : nullptr; if (!Viewport) return ErrorResponse(Id, TEXT("unsafe_editor_state"), TEXT("PIE viewport is unavailable")); FString Name; Args->TryGetStringField(TEXT("path"), Name); if (Name.IsEmpty()) Name = PlaySessionId + TEXT(".png"); FString Root = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("MagiUnrealAXI/Screenshots")); FString Path = FPaths::ConvertRelativePathToFull(Root / Name); FPaths::NormalizeFilename(Path); if (!Path.StartsWith(Root + TEXT("/")) || !Path.EndsWith(TEXT(".png"))) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("screenshot path must remain under Saved/MagiUnrealAXI/Screenshots and end in .png")); IFileManager::Get().MakeDirectory(*Root, true); char CanonicalRoot[PATH_MAX]{}, CanonicalParent[PATH_MAX]{}; const FTCHARToUTF8 NativeRoot(*Root); const FString Parent = FPaths::GetPath(Path); const FTCHARToUTF8 NativeParent(*Parent); if (!realpath(NativeRoot.Get(), CanonicalRoot) || !realpath(NativeParent.Get(), CanonicalParent)) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("screenshot path resolves outside screenshot directory")); const FString CanonicalRootPath = UTF8_TO_TCHAR(CanonicalRoot); const FString CanonicalParentPath = UTF8_TO_TCHAR(CanonicalParent); if (!(CanonicalParentPath == CanonicalRootPath || CanonicalParentPath.StartsWith(CanonicalRootPath + TEXT("/")))) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("screenshot path resolves outside screenshot directory")); struct stat Existing{}; const FTCHARToUTF8 NativePath(*Path); if (lstat(NativePath.Get(), &Existing) == 0 && S_ISLNK(Existing.st_mode)) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("screenshot path cannot be a symlink")); TArray<FColor> Pixels; FIntRect Rect(0, 0, Viewport->GetSizeXY().X, Viewport->GetSizeXY().Y); if (!Viewport->ReadPixels(Pixels, FReadSurfaceDataFlags(), Rect) || Pixels.IsEmpty()) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("PIE viewport readback failed")); TArray64<uint8> Png; FImageUtils::PNGCompressImageArray(Rect.Width(), Rect.Height(), Pixels, Png); if (!FFileHelper::SaveArrayToFile(Png, *Path) || Png.Num() < 8 || Png[0] != 0x89 || Png[1] != 'P' || Png[2] != 'N' || Png[3] != 'G' || !FPaths::FileExists(Path)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("PNG write or signature verification failed")); const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("sessionId"), PlaySessionId); Result->SetStringField(TEXT("path"), Path); Result->SetNumberField(TEXT("width"), Rect.Width()); Result->SetNumberField(TEXT("height"), Rect.Height()); Result->SetStringField(TEXT("format"), TEXT("png")); Result->SetBoolField(TEXT("changed"), true); Result->SetStringField(TEXT("revision"), Sha256(Path)); return PlayResponse(Id, Result, Operation); }
     return ErrorResponse(Id, TEXT("unsupported"), TEXT("unsupported play operation"));
 }
@@ -1388,7 +1689,12 @@ TSharedRef<FJsonObject> BridgeDescribeResultOnGameThread()
     return Result;
 }
 
-FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, const TSharedPtr<FJsonObject>& Args, const FString& ExpectedRevision = FString())
+FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, const TSharedPtr<FJsonObject>& Args, const FString& ExpectedRevision = FString());
+bool TryEnqueueGameThreadRequest(const TSharedRef<FGameThreadRequest>& Request);
+bool DrainGameThreadQueue(float DeltaSeconds);
+#include "MagiBlueprintAuthoring.inl"
+
+FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, const TSharedPtr<FJsonObject>& Args, const FString& ExpectedRevision)
 {
     check(IsInGameThread());
     if (Operation == TEXT("bridge.describe")) return SuccessResponse(Id, BridgeDescribeResultOnGameThread());
@@ -1430,8 +1736,9 @@ FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, co
     if (IsMutationOperation(Operation) && !IsPlayOperation(Operation))
     {
         FString GateMessage;
-        if (!MutationGate(GateMessage)) return ErrorResponse(Id, TEXT("unsafe_editor_state"), *GateMessage);
+        if (!MutationGate(GateMessage)) return ErrorResponse(Id, TEXT("unsafe_editor_state"), *GateMessage, true);
     }
+    if (IsP11BlueprintOperation(Operation)) return HandleP11BlueprintOperation(Id, Operation, Args, ExpectedRevision);
     UWorld* MutationWorld = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
     if (Operation == TEXT("level.create") || Operation == TEXT("level.open") || Operation == TEXT("level.save"))
     {
@@ -1925,6 +2232,13 @@ bool TryEnqueueGameThreadRequest(const TSharedRef<FGameThreadRequest>& Request)
     return true;
 }
 
+bool TryEnqueueTrackedMutation(const TSharedRef<FGameThreadRequest>& Request)
+{
+    if (TryEnqueueGameThreadRequest(Request)) return true;
+    RemoveLedger(Request->Id);
+    return false;
+}
+
 bool CancelQueuedRequest(const TSharedRef<FGameThreadRequest>& Request)
 {
     {
@@ -1934,9 +2248,13 @@ bool CancelQueuedRequest(const TSharedRef<FGameThreadRequest>& Request)
         GameThreadQueue.RemoveSingle(Request);
         Request->Response = ErrorResponse(Request->Id, TEXT("timeout"), TEXT("game-thread request timed out before dispatch"), true);
         Request->Cancelled = true;
+        Request->Done = false;
+    }
+    if (IsMutationOperation(Request->Operation)) RemoveLedger(Request->Id);
+    {
+        std::lock_guard RequestLock(Request->Mutex);
         Request->Done = true;
     }
-    if (IsMutationOperation(Request->Operation)) SetReceipt(Request->Id, Request->Operation, Request->Response, TEXT("failed"));
     Request->Condition.notify_one();
     return true;
 }
@@ -1963,13 +2281,20 @@ bool DrainGameThreadQueue(float)
             {
                 Request->Response = ErrorResponse(Request->Id, TEXT("timeout"), TEXT("game-thread request timed out before dispatch"), true);
                 Request->Cancelled = true;
-                Request->Done = true;
+                Request->Done = false;
                 FailedBeforeDispatch = true;
-                Request->Condition.notify_one();
             }
         }
     }
-    if (FailedBeforeDispatch && IsMutationOperation(Request->Operation)) SetReceipt(Request->Id, Request->Operation, Request->Response, TEXT("failed"));
+    if (FailedBeforeDispatch)
+    {
+        if (IsMutationOperation(Request->Operation)) RemoveLedger(Request->Id);
+        {
+            std::lock_guard RequestLock(Request->Mutex);
+            Request->Done = true;
+        }
+        Request->Condition.notify_one();
+    }
     if (Execute)
     {
         if (IsMutationOperation(Request->Operation)) SetReceipt(Request->Id, Request->Operation, FString(), TEXT("running"));
@@ -1977,6 +2302,14 @@ bool DrainGameThreadQueue(float)
         bool MayStop = false;
         if (Request->DeferredCompletion)
         {
+            if (GFrameCounter < Request->DeferredUntilFrame)
+            {
+                Request->Dispatched = false;
+                RequestLock.unlock();
+                FScopeLock StateLock(&StateMutex);
+                GameThreadQueue.Insert(Request.ToSharedRef(), 0);
+                return Running.load();
+            }
             TSharedPtr<FJsonObject> PendingResponse;
             const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Request->Response);
             const TSharedPtr<FJsonObject>* PendingResult = nullptr;
@@ -2003,6 +2336,7 @@ bool DrainGameThreadQueue(float)
         if (Request->Operation == TEXT("play.input") && !Request->DeferredCompletion && ResponseStatusIsOk(Request->Response))
         {
             Request->DeferredCompletion = true;
+            Request->DeferredUntilFrame = GFrameCounter + 2;
             Request->Dispatched = false;
             RequestLock.unlock();
             FScopeLock StateLock(&StateMutex);
@@ -2010,10 +2344,14 @@ bool DrainGameThreadQueue(float)
             return Running.load();
         }
         Request->MayStop = MayStop;
-        Request->Done = true;
         const FString CompletedResponse = Request->Response;
+        if (IsMutationOperation(Request->Operation))
+        {
+            const FString ReceiptState = MutationReceiptState(CompletedResponse);
+            SetReceipt(Request->Id, Request->Operation, CompletedResponse, ReceiptState.IsEmpty() ? (ResponseStatusIsOk(CompletedResponse) ? TEXT("completed") : TEXT("failed")) : *ReceiptState);
+        }
+        Request->Done = true;
         RequestLock.unlock();
-        if (IsMutationOperation(Request->Operation)) SetReceipt(Request->Id, Request->Operation, CompletedResponse, ResponseStatusIsOk(CompletedResponse) ? TEXT("completed") : TEXT("failed"));
         Request->Condition.notify_one();
     }
     if (CloseRequested.exchange(false) && Running) FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame")).RequestCloseEditor();
@@ -2088,6 +2426,8 @@ void Handle(FSocket* Socket)
     Request->ExpectedRevision = ExpectedRevision;
     Request->IdempotencyKey = IdempotencyKey;
     Request->Fingerprint = Sha256(Operation + TEXT("\n") + Serialize(Args.ToSharedRef()) + TEXT("\n") + ExpectedRevision);
+    Request->Deadline = Deadline;
+    bool Enqueued = false;
     if (IsMutationOperation(Operation))
     {
         FScopeLock Lock(&LedgerMutex); PruneLedger();
@@ -2096,15 +2436,26 @@ void Handle(FSocket* Socket)
         {
             if (Record.OperationId != Id && (IdempotencyKey.IsEmpty() || Record.IntentKey != IntentKey)) continue;
             if (Record.Fingerprint != Request->Fingerprint) { SendResponse(ErrorResponse(Id, TEXT("conflict"), TEXT("operation identity conflicts with prior intent"))); return; }
-            if (Record.State == TEXT("completed") || Record.State == TEXT("failed")) { SendResponse(Record.Response.IsEmpty() ? ErrorResponse(Id, TEXT("outcome_unknown"), TEXT("terminal receipt is unavailable")) : Record.Response); return; }
+            if (Record.State == TEXT("completed") || Record.State == TEXT("failed") || Record.State == TEXT("outcome_unknown")) { SendResponse(Record.Response.IsEmpty() ? ErrorResponse(Id, TEXT("outcome_unknown"), TEXT("terminal receipt is unavailable")) : ReplayResponseForRequest(Record.Response, Id)); return; }
             SendResponse(ErrorResponse(Id, TEXT("busy"), TEXT("operation is already queued or running"), true)); return;
         }
-        FLedgerRecord Record; Record.OperationId = Id; Record.Operation = Operation; Record.Fingerprint = Request->Fingerprint; Record.IntentKey = IntentKey; Record.CreatedAt = FPlatformTime::Seconds(); Ledger.Add(MoveTemp(Record));
+        FLedgerRecord Record;
+        Record.OperationId = Id;
+        Record.Operation = Operation;
+        Record.Fingerprint = Request->Fingerprint;
+        Record.IntentKey = IntentKey;
+        Record.CreatedAt = FPlatformTime::Seconds();
+        Ledger.Add(MoveTemp(Record));
+        PruneLedger();
+        Lock.Unlock();
+        Enqueued = TryEnqueueTrackedMutation(Request);
     }
-    Request->Deadline = Deadline;
-    if (!TryEnqueueGameThreadRequest(Request))
+    else
     {
-        if (IsMutationOperation(Operation)) SetReceipt(Id, Operation, FString(), TEXT("failed"));
+        Enqueued = TryEnqueueGameThreadRequest(Request);
+    }
+    if (!Enqueued)
+    {
         SendResponse(ErrorResponse(Id, TEXT("busy"), TEXT("game-thread request queue is full"), true));
         return;
     }
@@ -2206,7 +2557,31 @@ void RemoveDiscovery()
     IFileManager::Get().Delete(*(RuntimeDirectory / TEXT("token")));
     IFileManager::Get().DeleteDirectory(*RuntimeDirectory, false, true);
 }
-#if WITH_DEV_AUTOMATION_TESTS
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagiUnrealAXIRevisionBudgetHelpers, "MagiUnrealAXI.P11.RevisionBudgetHelpers", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FMagiUnrealAXIRevisionBudgetHelpers::RunTest(const FString&)
+{
+    TestTrue(TEXT("count lower boundary accepted"), P11RevisionCountWithinBounds(0, 4));
+    TestTrue(TEXT("count upper boundary accepted"), P11RevisionCountWithinBounds(4, 4));
+    TestFalse(TEXT("count above boundary rejected"), P11RevisionCountWithinBounds(5, 4));
+    TestFalse(TEXT("negative count rejected"), P11RevisionCountWithinBounds(-1, 4));
+    int64 Aggregate = 0;
+    TestTrue(TEXT("field lower boundary accepted"), P11RevisionFieldWithinBounds(FString(), Aggregate));
+    TestTrue(TEXT("field upper boundary accepted"), P11RevisionFieldWithinBounds(FString::ChrN(P11MaxRevisionFieldBytes, TCHAR('x')), Aggregate));
+    TestFalse(TEXT("field above boundary rejected"), P11RevisionFieldWithinBounds(FString::ChrN(P11MaxRevisionFieldBytes + 1, TCHAR('x')), Aggregate));
+    Aggregate = P11MaxRevisionCanonicalBytes - 15;
+    TestFalse(TEXT("aggregate above boundary rejected"), P11RevisionFieldWithinBounds(TEXT("x"), Aggregate));
+    return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagiUnrealAXICanonicalCursorParser, "MagiUnrealAXI.Protocol.CanonicalCursorParser", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FMagiUnrealAXICanonicalCursorParser::RunTest(const FString&)
+{
+    const FString Revision = TEXT("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"); int32 Offset = -1;
+    TestTrue(TEXT("canonical cursor accepted"), CursorOffset(TEXT("v1.0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.0"), Revision, 1, Offset) && Offset == 0);
+    TestFalse(TEXT("uppercase revision rejected"), CursorOffset(TEXT("v1.0123456789ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef.0"), Revision, 1, Offset));
+    TestFalse(TEXT("leading-zero offset rejected"), CursorOffset(TEXT("v1.0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.00"), Revision, 1, Offset));
+    TestFalse(TEXT("signed offset rejected"), CursorOffset(TEXT("v1.0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.+0"), Revision, 1, Offset));
+    return true;
+}
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagiUnrealAXILevelOperations, "MagiUnrealAXI.Mutation.LevelOperations", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FMagiUnrealAXILevelOperations::RunTest(const FString&)
 {
@@ -2337,6 +2712,20 @@ bool FMagiUnrealAXIAdversarialFrames::RunTest(const FString&)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagiUnrealAXIResponseIdentity, "MagiUnrealAXI.Bridge.ResponseIdentity", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FMagiUnrealAXIResponseIdentity::RunTest(const FString&)
 {
+    const TSharedRef<FJsonObject> Stored = MakeShared<FJsonObject>();
+    Stored->SetNumberField(TEXT("protocol"), ProtocolVersion);
+    Stored->SetStringField(TEXT("id"), TEXT("original-operation"));
+    Stored->SetStringField(TEXT("status"), TEXT("ok"));
+    const TSharedRef<FJsonObject> Receipt = MakeShared<FJsonObject>();
+    Receipt->SetStringField(TEXT("operationId"), TEXT("original-operation"));
+    Stored->SetObjectField(TEXT("receipt"), Receipt);
+    TSharedPtr<FJsonObject> Replay;
+    const TSharedRef<TJsonReader<>> ReplayReader = TJsonReaderFactory<>::Create(ReplayResponseForRequest(Serialize(Stored), TEXT("retry-request")));
+    TestTrue(TEXT("idempotency replay response parses"), FJsonSerializer::Deserialize(ReplayReader, Replay) && Replay.IsValid());
+    TestEqual(TEXT("idempotency replay binds current request id"), Replay->GetStringField(TEXT("id")), FString(TEXT("retry-request")));
+    TestEqual(TEXT("idempotency replay exposes canonical operation id"), Replay->GetStringField(TEXT("operationId")), FString(TEXT("original-operation")));
+    const TSharedPtr<FJsonObject>* ReplayReceipt = nullptr;
+    TestTrue(TEXT("idempotency replay preserves original receipt"), Replay->TryGetObjectField(TEXT("receipt"), ReplayReceipt) && ReplayReceipt && (*ReplayReceipt)->GetStringField(TEXT("operationId")) == TEXT("original-operation"));
     const ELifecycle Previous = Lifecycle.exchange(ELifecycle::Ready);
     bool MayStop = false;
     TSharedPtr<FJsonObject> Response;
@@ -2389,7 +2778,23 @@ bool FMagiUnrealAXIQueueBounds::RunTest(const FString&)
         }
     }
     const TSharedRef<FGameThreadRequest> Overflow = MakeShared<FGameThreadRequest>();
-    TestFalse(TEXT("queue overflow is rejected as busy"), TryEnqueueGameThreadRequest(Overflow));
+    Overflow->Id = TEXT("queue-full-mutation");
+    Overflow->Operation = TEXT("blueprint.compile");
+    Overflow->Fingerprint = TEXT("queue-full-fingerprint");
+    {
+        FScopeLock Lock(&LedgerMutex);
+        FLedgerRecord Record;
+        Record.OperationId = Overflow->Id;
+        Record.Operation = Overflow->Operation;
+        Record.Fingerprint = Overflow->Fingerprint;
+        Record.CreatedAt = FPlatformTime::Seconds();
+        Ledger.Add(MoveTemp(Record));
+    }
+    TestFalse(TEXT("queue overflow is rejected as busy"), TryEnqueueTrackedMutation(Overflow));
+    {
+        FScopeLock Lock(&LedgerMutex);
+        TestNull(TEXT("queue-full mutation releases ledger identity"), FindLedger(Overflow->Id));
+    }
     {
         FScopeLock Lock(&StateMutex);
         GameThreadQueue.Reset();
@@ -2397,13 +2802,26 @@ bool FMagiUnrealAXIQueueBounds::RunTest(const FString&)
 
     const TSharedRef<FGameThreadRequest> Expired = MakeShared<FGameThreadRequest>();
     Expired->Id = TEXT("expired");
+    Expired->Operation = TEXT("blueprint.compile");
     Expired->Deadline = FPlatformTime::Seconds() - 1.0;
+    {
+        FScopeLock Lock(&LedgerMutex);
+        FLedgerRecord Record;
+        Record.OperationId = Expired->Id;
+        Record.Operation = Expired->Operation;
+        Record.CreatedAt = FPlatformTime::Seconds();
+        Ledger.Add(MoveTemp(Record));
+    }
     TestTrue(TEXT("expired request is admitted before dispatch"), TryEnqueueGameThreadRequest(Expired));
     DrainGameThreadQueue(0.0f);
     {
         std::lock_guard ExpiredLock(Expired->Mutex);
         TestTrue(TEXT("expired request is cancelled before game-thread execution"), Expired->Cancelled && Expired->Done && !Expired->EverDispatched && !Expired->MayStop);
         TestTrue(TEXT("undispatched timeout has terminal error response"), !Expired->Response.IsEmpty() && !ResponseStatusIsOk(Expired->Response));
+    }
+    {
+        FScopeLock Lock(&LedgerMutex);
+        TestNull(TEXT("undispatched timeout releases request-key identity"), FindLedger(Expired->Id));
     }
 
     const TSharedRef<FGameThreadRequest> Deferred = MakeShared<FGameThreadRequest>();
@@ -2421,6 +2839,20 @@ bool FMagiUnrealAXIQueueBounds::RunTest(const FString&)
         std::lock_guard DeferredLock(Deferred->Mutex);
         TestTrue(TEXT("post-dispatch deadline completes instead of cancelling"), Deferred->Done && !Deferred->Cancelled && Deferred->EverDispatched);
         TestTrue(TEXT("failed deferred readback is terminal"), !ResponseStatusIsOk(Deferred->Response));
+    }
+    {
+        FScopeLock Lock(&LedgerMutex);
+        TArray<FLedgerRecord> SavedLedger = MoveTemp(Ledger);
+        for (int32 Index = 0; Index <= MaxLedgerRecords; ++Index)
+        {
+            FLedgerRecord Record;
+            Record.OperationId = FString::FromInt(Index);
+            Record.CreatedAt = FPlatformTime::Seconds();
+            Ledger.Add(MoveTemp(Record));
+        }
+        PruneLedger();
+        TestEqual(TEXT("ledger remains at configured record cap after insertion"), Ledger.Num(), MaxLedgerRecords);
+        Ledger = MoveTemp(SavedLedger);
     }
     return true;
 }
@@ -2721,6 +3153,7 @@ bool FMagiUnrealAXIRuntimeContract::RunTest(const FString&)
     Package->AddToRoot();
     UBlueprint* Blueprint = NewObject<UBlueprint>(Package, TEXT("ContractBlueprint"));
     UEdGraph* Graph = NewObject<UEdGraph>(Blueprint, TEXT("ContractGraph"));
+    Graph->Schema = UEdGraphSchema_K2::StaticClass();
     Graph->GraphGuid = FGuid(1, 2, 3, 4);
     UEdGraphNode* Node = NewObject<UEdGraphNode>(Graph, TEXT("ContractNode"));
     Node->NodeGuid = FGuid(5, 6, 7, 8);
@@ -2729,6 +3162,56 @@ bool FMagiUnrealAXIRuntimeContract::RunTest(const FString&)
     Blueprint->FunctionGraphs.Add(Graph);
     USCS_Node* ScsNode = NewObject<USCS_Node>(Blueprint, TEXT("ContractSCSNode"));
     ScsNode->VariableGuid = FGuid(9, 10, 11, 12);
+    TestTrue(TEXT("cumulative graph budgets accept exact limits"), P11GraphBudgetCountsWithinBounds(P11MaxGraphs, P11MaxNodes, P11MaxPins, P11MaxLinks));
+    TestFalse(TEXT("cumulative graph budgets reject graph overflow"), P11GraphBudgetCountsWithinBounds(P11MaxGraphs + 1, 0, 0, 0));
+    TestFalse(TEXT("cumulative graph budgets reject node overflow"), P11GraphBudgetCountsWithinBounds(0, P11MaxNodes + 1, 0, 0));
+    TestFalse(TEXT("cumulative graph budgets reject pin overflow"), P11GraphBudgetCountsWithinBounds(0, 0, P11MaxPins + 1, 0));
+    TestFalse(TEXT("cumulative graph budgets reject link overflow"), P11GraphBudgetCountsWithinBounds(0, 0, 0, P11MaxLinks + 1));
+    TestTrue(TEXT("page budgets accept exact limits"), P11PageBudgetCountsWithinBounds(P11MaxPagePins, P11MaxPageLinks));
+    TestFalse(TEXT("page budgets reject pin overflow"), P11PageBudgetCountsWithinBounds(P11MaxPagePins + 1, 0));
+    TestFalse(TEXT("page budgets reject link overflow"), P11PageBudgetCountsWithinBounds(0, P11MaxPageLinks + 1));
+    UK2Node_InputKey* InputNode = NewObject<UK2Node_InputKey>(Graph, TEXT("ContractInputNode"));
+    InputNode->NodeGuid = FGuid(13, 14, 15, 16);
+    InputNode->InputKey = EKeys::E;
+    InputNode->bConsumeInput = true;
+    InputNode->bExecuteWhenPaused = false;
+    InputNode->bOverrideParentBinding = true;
+    InputNode->bControl = false;
+    InputNode->bAlt = false;
+    InputNode->bShift = false;
+    InputNode->bCommand = false;
+    Graph->AddNode(InputNode, true, false);
+    InputNode->PostPlacedNewNode();
+    InputNode->AllocateDefaultPins();
+    const FString InputRevision = BlueprintContentRevision(*Blueprint);
+    auto TestInputSemantic = [&](const TCHAR* Label, TFunctionRef<void()> Mutate, TFunctionRef<void()> Restore)
+    {
+        Mutate();
+        TestNotEqual(Label, BlueprintContentRevision(*Blueprint), InputRevision);
+        Restore();
+        TestEqual(FString::Printf(TEXT("%s restore"), Label), BlueprintContentRevision(*Blueprint), InputRevision);
+    };
+    TestInputSemantic(TEXT("input key changes revision"), [&]() { InputNode->InputKey = EKeys::F; }, [&]() { InputNode->InputKey = EKeys::E; });
+    TestInputSemantic(TEXT("consume-input changes revision"), [&]() { InputNode->bConsumeInput = false; }, [&]() { InputNode->bConsumeInput = true; });
+    TestInputSemantic(TEXT("paused-input changes revision"), [&]() { InputNode->bExecuteWhenPaused = true; }, [&]() { InputNode->bExecuteWhenPaused = false; });
+    TestInputSemantic(TEXT("parent-binding changes revision"), [&]() { InputNode->bOverrideParentBinding = false; }, [&]() { InputNode->bOverrideParentBinding = true; });
+    TestInputSemantic(TEXT("control modifier changes revision"), [&]() { InputNode->bControl = true; }, [&]() { InputNode->bControl = false; });
+    TestInputSemantic(TEXT("alt modifier changes revision"), [&]() { InputNode->bAlt = true; }, [&]() { InputNode->bAlt = false; });
+    TestInputSemantic(TEXT("shift modifier changes revision"), [&]() { InputNode->bShift = true; }, [&]() { InputNode->bShift = false; });
+    TestInputSemantic(TEXT("command modifier changes revision"), [&]() { InputNode->bCommand = true; }, [&]() { InputNode->bCommand = false; });
+    UK2Node_Event* EventNode = NewObject<UK2Node_Event>(Graph, TEXT("ContractEventNode"));
+    EventNode->NodeGuid = FGuid(17, 18, 19, 20);
+    EventNode->EventReference.SetExternalMember(FName(TEXT("ReceiveBeginPlay")), AActor::StaticClass());
+    EventNode->bOverrideFunction = true;
+    Graph->AddNode(EventNode, true, false);
+    EventNode->PostPlacedNewNode();
+    EventNode->AllocateDefaultPins();
+    const FString EventRevision = BlueprintContentRevision(*Blueprint);
+    EventNode->bOverrideFunction = false;
+    TestNotEqual(TEXT("event override changes revision"), BlueprintContentRevision(*Blueprint), EventRevision);
+    EventNode->bOverrideFunction = true;
+    EventNode->EventReference.SetExternalMember(FName(TEXT("ReceiveTick")), AActor::StaticClass());
+    TestNotEqual(TEXT("event member changes revision"), BlueprintContentRevision(*Blueprint), EventRevision);
     const FString GraphIdentity = BlueprintGraphIdentity(*Blueprint, *Graph);
     const FString NodeIdentity = BlueprintNodeIdentity(GraphIdentity, *Node);
     TestTrue(TEXT("valid graph identity is stable"), !GraphIdentity.IsEmpty());
@@ -2751,6 +3234,22 @@ bool FMagiUnrealAXIRuntimeContract::RunTest(const FString&)
     TestTrue(TEXT("compile reversibility comes from generated metadata"), CompileMetadata && FString(CompileMetadata->Reversibility) == TEXT("source-control"));
     TestTrue(TEXT("compile readback comes from generated metadata"), CompileMetadata && FString(CompileMetadata->Readback) == TEXT("blueprint.view"));
     TestTrue(TEXT("request-key idempotency comes from generated metadata"), CompileMetadata && FString(CompileMetadata->Idempotency) == TEXT("request-key"));
+    const TSharedRef<FJsonObject> GraphArgs = MakeShared<FJsonObject>();
+    GraphArgs->SetStringField(TEXT("blueprintId"), TEXT("/Game/BP.BP"));
+    GraphArgs->SetNumberField(TEXT("limit"), 100);
+    TestTrue(TEXT("generated input validator accepts graph limit boundary"), MagiAxiValidateInput(TEXT("blueprint.graph_view"), GraphArgs));
+    GraphArgs->SetNumberField(TEXT("limit"), 101);
+    TestFalse(TEXT("generated input validator rejects graph limit above maximum"), MagiAxiValidateInput(TEXT("blueprint.graph_view"), GraphArgs));
+    const TSharedRef<FJsonObject> PinArgs = MakeShared<FJsonObject>();
+    PinArgs->SetStringField(TEXT("blueprintId"), TEXT("/Game/BP.BP"));
+    PinArgs->SetStringField(TEXT("pinId"), TEXT("node#pin:input:X"));
+    const TSharedRef<FJsonObject> PinValue = MakeShared<FJsonObject>();
+    PinValue->SetStringField(TEXT("type"), TEXT("real"));
+    PinValue->SetNumberField(TEXT("value"), 1000000.0);
+    PinArgs->SetObjectField(TEXT("value"), PinValue);
+    TestTrue(TEXT("generated input validator accepts pin number boundary"), MagiAxiValidateInput(TEXT("blueprint.pin_default_set"), PinArgs));
+    PinValue->SetNumberField(TEXT("value"), 1000001.0);
+    TestFalse(TEXT("generated input validator rejects pin number above maximum"), MagiAxiValidateInput(TEXT("blueprint.pin_default_set"), PinArgs));
     Graph->GraphGuid = FGuid();
     TestTrue(TEXT("invalid graph identity fails closed"), BlueprintGraphIdentity(*Blueprint, *Graph).IsEmpty());
     Graph->GraphGuid = FGuid(1, 2, 3, 4);
@@ -2761,7 +3260,6 @@ bool FMagiUnrealAXIRuntimeContract::RunTest(const FString&)
     Package->RemoveFromRoot();
     return true;
 }
-#endif
 }
 
 bool ValidateGeneratedRuntimeContract()

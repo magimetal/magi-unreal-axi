@@ -1250,7 +1250,9 @@ fn parse_automation_report(directory: &Path) -> Result<ParsedAutomationReport, A
             ));
         }
         let state = test.state.to_ascii_lowercase();
+        let inferred_warning_state = state == "success" && test.warnings > 0;
         let index = match state.as_str() {
+            "success" if test.warnings > 0 => 1,
             "success" => 0,
             "successwithwarnings" | "success with warnings" => 1,
             "fail" | "failed" => 2,
@@ -1269,7 +1271,7 @@ fn parse_automation_report(directory: &Path) -> Result<ParsedAutomationReport, A
         if (index != 0 || test.warnings > 0 || test.errors > 0) && notable.len() < 50 {
             notable.push(json!({
                 "id":test.full_test_path,
-                "state":test.state,
+                "state": if inferred_warning_state { "SuccessWithWarnings" } else { &test.state },
                 "warnings":test.warnings,
                 "errors":test.errors
             }));
@@ -1556,13 +1558,14 @@ fn artifact_summary(kind: &str, path: &Path) -> Result<Value, AppError> {
         }
     }
     entries.sort();
+    let inventory_complete = files.len() <= MAX_ARTIFACT_ENTRIES;
     Ok(json!({
         "kind":kind,
         "path":path,
         "exists":true,
         "fileCount":files.len(),
         "totalBytes":total_bytes,
-        "inventoryComplete":true,
+        "inventoryComplete":inventory_complete,
         "entries":entries
     }))
 }
@@ -1874,13 +1877,17 @@ x LogAutomationCommandLine: Display: \t'A.Test'\n",
         let temp = tempdir().unwrap();
         fs::write(
             temp.path().join("index.json"),
-            r#"{"devices":[],"reportCreatedOn":"now","succeeded":1,"succeededWithWarnings":0,"failed":0,"notRun":0,"inProcess":0,"totalDuration":0.25,"tests":[{"testDisplayName":"Pass","fullTestPath":"Magi.Pass","tags":[],"state":"Success","warnings":0,"errors":0,"entries":[],"artifacts":[]}]}"#,
+            r#"{"devices":[],"reportCreatedOn":"now","succeeded":1,"succeededWithWarnings":1,"failed":0,"notRun":0,"inProcess":0,"totalDuration":0.25,"tests":[{"testDisplayName":"Pass","fullTestPath":"Magi.Pass","tags":[],"state":"Success","warnings":0,"errors":0,"entries":[],"artifacts":[]},{"testDisplayName":"Warn","fullTestPath":"Magi.Warn","tags":[],"state":"Success","warnings":2,"errors":0,"entries":[],"artifacts":[]}] }"#,
         )
         .unwrap();
         let parsed = parse_automation_report(temp.path()).unwrap();
-        assert_eq!(parsed.matched, 1);
+        assert_eq!(parsed.matched, 2);
         assert_eq!(parsed.totals["succeeded"], 1);
+        assert_eq!(parsed.totals["succeededWithWarnings"], 1);
         assert_eq!(parsed.totals["durationMs"], 250.0);
+        assert_eq!(parsed.notable.len(), 1);
+        assert_eq!(parsed.notable[0]["id"], "Magi.Warn");
+        assert_eq!(parsed.notable[0]["state"], "SuccessWithWarnings");
     }
 
     #[test]

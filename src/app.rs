@@ -604,15 +604,33 @@ fn execute(cli: &Cli, context: &Context) -> Result<Value, AppError> {
     }
 }
 fn require_revision(operation: &str, revision: Option<&str>) -> Result<(), AppError> {
-    if revision.is_some_and(|value| !value.is_empty()) {
-        Ok(())
-    } else {
-        Err(AppError::usage(
+    match revision {
+        Some(value) if capability::canonical_revision(value) => Ok(()),
+        Some(_) => Err(AppError::usage(
+            "invalid_expected_revision",
+            format!(
+                "{operation} expected revision must be exactly 64 lowercase hexadecimal characters"
+            ),
+            "re-read target, then pass --expected-revision <revision>",
+        )),
+        None => Err(AppError::usage(
             "expected_revision_required",
             format!("{operation} requires --expected-revision"),
             "re-read target, then pass --expected-revision <revision>",
-        ))
+        )),
     }
+}
+fn require_expected_revision(revision: Option<&str>, operation: &str) -> Result<(), AppError> {
+    if revision.is_some_and(|value| !capability::canonical_revision(value)) {
+        return Err(AppError::usage(
+            "invalid_expected_revision",
+            format!(
+                "{operation} expected revision must be exactly 64 lowercase hexadecimal characters"
+            ),
+            "re-read target, then pass --expected-revision <revision>",
+        ));
+    }
+    Ok(())
 }
 fn execute_capability(
     id: &str,
@@ -636,11 +654,16 @@ fn execute_capability_with_options(
     resolved: &config::ResolvedConfig,
     options: bridge::ExecutionOptions,
 ) -> Result<Value, AppError> {
+    require_expected_revision(options.expected_revision.as_deref(), id)?;
     let args = capability::validate_input(id, input.clone())?;
     if matches!(
         id,
         "asset.save"
             | "blueprint.compile"
+            | "blueprint.event_ensure"
+            | "blueprint.node_ensure"
+            | "blueprint.pin_default_set"
+            | "blueprint.pin_connect"
             | "component.add"
             | "component.update"
             | "level.set_game_mode"
@@ -671,7 +694,7 @@ fn execute_capability_with_options(
             require_project(selected_project)?,
             resolved.editor,
             id,
-            args,
+            args.clone(),
             options,
             Duration::from_secs(resolved.timeout_seconds.unwrap_or(30)),
         )?,
@@ -693,10 +716,10 @@ fn execute_capability_with_options(
                 "magi-unreal-axi operation view <id>",
             )
         })?;
-        let validated = capability::validate_output(id, result)?;
+        let validated = capability::validate_output_for_request(id, &args, result)?;
         return Ok(json!({"result": validated, "receipt": object["receipt"]}));
     }
-    capability::validate_output(id, response)
+    capability::validate_output_for_request(id, &args, response)
 }
 
 fn parse_location(value: &Option<String>) -> Result<Value, AppError> {
