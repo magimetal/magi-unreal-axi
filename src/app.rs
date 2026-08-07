@@ -667,6 +667,9 @@ fn execute_capability_with_options(
             | "component.add"
             | "component.update"
             | "level.set_game_mode"
+            | "blueprint.interface_ensure"
+            | "blueprint.scs_component_ensure"
+            | "blueprint.scs_component_update"
     ) && options.expected_revision.is_none()
     {
         return Err(AppError::usage(
@@ -675,7 +678,7 @@ fn execute_capability_with_options(
             "re-read target, then pass --expected-revision <revision>",
         ));
     }
-    if id == "component.remove"
+    if (id == "component.remove" || id == "blueprint.scs_component_remove")
         && !input
             .get("dryRun")
             .and_then(Value::as_bool)
@@ -684,8 +687,8 @@ fn execute_capability_with_options(
     {
         return Err(AppError::usage(
             "expected_revision_required",
-            "component.remove requires --expected-revision unless --dry-run",
-            "re-read component.view, then pass --expected-revision <revision>",
+            format!("{id} requires --expected-revision unless --dry-run"),
+            "re-read target, then pass --expected-revision <revision>",
         ));
     }
     let response = match capability::execute_local(id, &args) {

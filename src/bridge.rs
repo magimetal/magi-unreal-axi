@@ -672,6 +672,11 @@ fn exchange_selected_args(
     if matches!(
         operation,
         "blueprint.create"
+            | "blueprint.interface_create"
+            | "blueprint.interface_ensure"
+            | "blueprint.scs_component_ensure"
+            | "blueprint.scs_component_update"
+            | "blueprint.scs_component_remove"
             | "blueprint.event_ensure"
             | "blueprint.node_ensure"
             | "blueprint.pin_default_set"
@@ -826,6 +831,35 @@ fn validate_failed_atomic_receipt(
                 .as_str()
                 .ok_or_else(|| outcome_unknown(id))?
         ),
+        "blueprint.interface_create" => {
+            let path = args["path"].as_str().ok_or_else(|| outcome_unknown(id))?;
+            format!("{path}.{}", path.rsplit('/').next().unwrap_or_default())
+        }
+        "blueprint.interface_ensure" => format!(
+            "{}#{}",
+            args["blueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["interfaceId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?
+        ),
+        "blueprint.scs_component_ensure" => format!(
+            "{}#scs-name:{}",
+            args["blueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["name"].as_str().ok_or_else(|| outcome_unknown(id))?
+        ),
+        "blueprint.scs_component_update" | "blueprint.scs_component_remove" => format!(
+            "{}#scs:{}",
+            args["blueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["variableGuid"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?
+        ),
         _ => return Err(outcome_unknown(id)),
     };
     let before = verification["beforeRevision"]
@@ -840,7 +874,8 @@ fn validate_failed_atomic_receipt(
         .ok_or_else(|| outcome_unknown(id))?;
     let unknown = error.kind == "outcome_unknown";
     let valid = capability::canonical_revision;
-    let expected_before = if operation == "blueprint.create" {
+    let expected_before = if matches!(operation, "blueprint.create" | "blueprint.interface_create")
+    {
         format!("{:x}", Sha256::digest(format!("{target}\nabsent")))
     } else {
         options
@@ -885,6 +920,59 @@ fn validate_failed_atomic_receipt(
     {
         return Err(outcome_unknown(id));
     }
+    if operation == "blueprint.interface_create"
+        && (verification["requestPath"] != args["path"]
+            || verification["requestFunction"] != args["function"])
+    {
+        return Err(outcome_unknown(id));
+    }
+    if operation == "blueprint.interface_ensure"
+        && (verification["requestBlueprintId"] != args["blueprintId"]
+            || verification["requestInterfaceId"] != args["interfaceId"])
+    {
+        return Err(outcome_unknown(id));
+    }
+    if operation == "blueprint.scs_component_ensure"
+        && (verification["requestBlueprintId"] != args["blueprintId"]
+            || verification["requestName"] != args["name"]
+            || verification["requestClass"] != args["class"]
+            || verification["requestParent"] != args["parent"])
+    {
+        return Err(outcome_unknown(id));
+    }
+    if matches!(
+        operation,
+        "blueprint.scs_component_update" | "blueprint.scs_component_remove"
+    ) && (verification["requestBlueprintId"] != args["blueprintId"]
+        || verification["requestVariableGuid"] != args["variableGuid"])
+    {
+        return Err(outcome_unknown(id));
+    }
+    if operation == "blueprint.scs_component_remove"
+        && (verification["requestForce"] != args["force"]
+            || verification["requestDryRun"] != args["dryRun"])
+    {
+        return Err(outcome_unknown(id));
+    }
+    if operation == "blueprint.scs_component_update" {
+        for (argument, request) in [
+            ("location", "requestLocation"),
+            ("rotation", "requestRotation"),
+            ("scale", "requestScale"),
+            ("collisionEnabled", "requestCollisionEnabled"),
+            ("collisionProfile", "requestCollisionProfile"),
+            ("generateOverlapEvents", "requestGenerateOverlapEvents"),
+            ("simulatePhysics", "requestSimulatePhysics"),
+            ("gravityEnabled", "requestGravityEnabled"),
+            ("massOverride", "requestMassOverride"),
+            ("boxExtent", "requestBoxExtent"),
+            ("sphereRadius", "requestSphereRadius"),
+        ] {
+            if args.get(argument).is_some() && verification[request] != args[argument] {
+                return Err(outcome_unknown(id));
+            }
+        }
+    }
     if matches!(
         operation,
         "blueprint.event_ensure" | "blueprint.node_ensure"
@@ -898,6 +986,8 @@ fn validate_failed_atomic_receipt(
             || verification["requestGraphId"] != args["graphId"]
             || verification["requestAgentKey"] != args["agentKey"]
             || verification["requestIntent"] != args[intent]
+            || verification.get("requestVariableGuid") != args.get("variableGuid")
+            || verification.get("requestInterfaceId") != args.get("interfaceId")
         {
             return Err(outcome_unknown(id));
         }
@@ -1068,6 +1158,21 @@ fn validate_receipt_with_replay(
             args["sourcePinId"].as_str().unwrap_or_default(),
             args["targetPinId"].as_str().unwrap_or_default()
         ),
+        "blueprint.interface_ensure" => format!(
+            "{}#{}",
+            args["blueprintId"].as_str().unwrap_or_default(),
+            args["interfaceId"].as_str().unwrap_or_default()
+        ),
+        "blueprint.scs_component_ensure" => format!(
+            "{}#scs-name:{}",
+            args["blueprintId"].as_str().unwrap_or_default(),
+            args["name"].as_str().unwrap_or_default()
+        ),
+        "blueprint.scs_component_update" | "blueprint.scs_component_remove" => format!(
+            "{}#scs:{}",
+            args["blueprintId"].as_str().unwrap_or_default(),
+            args["variableGuid"].as_str().unwrap_or_default()
+        ),
         _ if !capability_record.target_fields.is_empty() => capability_record
             .target_fields
             .iter()
@@ -1081,6 +1186,48 @@ fn validate_receipt_with_replay(
             .is_none_or(|request_value| result.get(*field) == Some(request_value))
     });
     let p11_request_matches = match operation {
+        "blueprint.interface_create" => {
+            result.get("id").and_then(Value::as_str)
+                == args
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .and_then(|path| {
+                        path.rsplit_once('/')
+                            .map(|(_, name)| format!("{path}.{name}"))
+                    })
+                    .as_deref()
+                && verification.get("requestPath") == args.get("path")
+                && verification.get("requestFunction") == args.get("function")
+        }
+        "blueprint.interface_ensure" => {
+            result.get("blueprintId") == args.get("blueprintId")
+                && result.get("interfaceId") == args.get("interfaceId")
+                && verification.get("requestBlueprintId") == args.get("blueprintId")
+                && verification.get("requestInterfaceId") == args.get("interfaceId")
+        }
+        "blueprint.scs_component_ensure" => {
+            result.get("blueprintId") == args.get("blueprintId")
+                && verification.get("requestBlueprintId") == args.get("blueprintId")
+                && verification.get("requestName") == args.get("name")
+                && verification.get("requestClass") == args.get("class")
+                && verification
+                    .get("requestParent")
+                    .is_some_and(|request_parent| {
+                        args.get("parent").map_or_else(
+                            || request_parent.is_null(),
+                            |parent| request_parent == parent,
+                        )
+                    })
+        }
+        "blueprint.scs_component_update" | "blueprint.scs_component_remove" => {
+            result.get("blueprintId") == args.get("blueprintId")
+                && result.get("variableGuid") == args.get("variableGuid")
+                && verification.get("requestBlueprintId") == args.get("blueprintId")
+                && verification.get("requestVariableGuid") == args.get("variableGuid")
+                && (operation != "blueprint.scs_component_remove"
+                    || (verification.get("requestForce") == args.get("force")
+                        && verification.get("requestDryRun") == args.get("dryRun")))
+        }
         "blueprint.create" => {
             let path = args.get("path").and_then(Value::as_str);
             let expected_id = path.and_then(|path| {
@@ -1104,6 +1251,8 @@ fn validate_receipt_with_replay(
                 && verification.get("requestGraphId") == args.get("graphId")
                 && verification.get("requestAgentKey") == args.get("agentKey")
                 && verification.get("requestIntent") == args.get(intent_field)
+                && verification.get("requestVariableGuid") == args.get("variableGuid")
+                && verification.get("requestInterfaceId") == args.get("interfaceId")
         }
         "blueprint.pin_default_set" => {
             let value = args.get("value").and_then(Value::as_object);
@@ -1127,6 +1276,25 @@ fn validate_receipt_with_replay(
         }
         _ => true,
     };
+    let p12_update_fields_match = operation != "blueprint.scs_component_update"
+        || [
+            ("location", "requestLocation"),
+            ("rotation", "requestRotation"),
+            ("scale", "requestScale"),
+            ("collisionEnabled", "requestCollisionEnabled"),
+            ("collisionProfile", "requestCollisionProfile"),
+            ("generateOverlapEvents", "requestGenerateOverlapEvents"),
+            ("simulatePhysics", "requestSimulatePhysics"),
+            ("gravityEnabled", "requestGravityEnabled"),
+            ("massOverride", "requestMassOverride"),
+            ("boxExtent", "requestBoxExtent"),
+            ("sphereRadius", "requestSphereRadius"),
+        ]
+        .into_iter()
+        .all(|(argument, request)| {
+            args.get(argument)
+                .is_none_or(|value| verification.get(request) == Some(value))
+        });
     let result_changed = result["changed"]
         .as_bool()
         .ok_or_else(|| outcome_unknown(id))?;
@@ -1179,6 +1347,7 @@ fn validate_receipt_with_replay(
         || target.is_empty()
         || !request_target_matches
         || !p11_request_matches
+        || !p12_update_fields_match
         || target.chars().count() > 8192
         || readback.is_empty()
         || readback.chars().count() > 128
@@ -1987,28 +2156,17 @@ mod tests {
         let server_identity = discovery.clone();
         let worker = thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
-            let _: Value = serde_json::from_slice(
-                &read_frame(
-                    &mut stream,
-                    MAX_REQUEST,
-                    Instant::now() + Duration::from_secs(1),
-                )
-                .unwrap(),
-            )
-            .unwrap();
-            write_frame(
+            let _ = read_frame(
                 &mut stream,
-                &json!({"protocol":PROTOCOL,"status":"ok","pluginVersion":VERSION,"pid":server_identity.pid,"processStart":server_identity.process_start,"sessionNonce":server_identity.session_nonce,"catalogHash":CATALOG_HASH}),
+                MAX_REQUEST,
                 Instant::now() + Duration::from_secs(1),
             )
             .unwrap();
-            let _: Value = serde_json::from_slice(
-                &read_frame(
-                    &mut stream,
-                    MAX_REQUEST,
-                    Instant::now() + Duration::from_secs(1),
-                )
-                .unwrap(),
+            write_frame(&mut stream, &json!({"protocol":PROTOCOL,"status":"ok","pluginVersion":VERSION,"pid":server_identity.pid,"processStart":server_identity.process_start,"sessionNonce":server_identity.session_nonce,"catalogHash":CATALOG_HASH}), Instant::now() + Duration::from_secs(1)).unwrap();
+            let _ = read_frame(
+                &mut stream,
+                MAX_REQUEST,
+                Instant::now() + Duration::from_secs(1),
             )
             .unwrap();
         });
@@ -2023,6 +2181,69 @@ mod tests {
         assert_eq!(error.reason, "outcome_unknown");
         assert!(error.operation_id().is_some_and(|id| !id.is_empty()));
         worker.join().unwrap();
+    }
+
+    #[test]
+    fn validate_p12_receipts_bind_blueprint_requests() {
+        let discovery = fake_discovery(0);
+        let revision = "a".repeat(64);
+        let guid = "11111111-2222-3333-4444-555555555555";
+        let result = json!({"blueprintId":"/Game/BP.BP","variableGuid":guid,"changed":false,"dryRun":true,"dirtyPackages":[],"revision":revision});
+        let args =
+            json!({"blueprintId":"/Game/BP.BP","variableGuid":guid,"force":false,"dryRun":true});
+        let request = json!({"requestBlueprintId":"/Game/BP.BP","requestVariableGuid":guid,"requestForce":false,"requestDryRun":true});
+        let mut receipt = receipt_fixture("blueprint.scs_component_remove", result.clone(), true);
+        receipt.target = format!("/Game/BP.BP#scs:{guid}");
+        receipt.verification["target"] = json!(receipt.target);
+        receipt
+            .verification
+            .as_object_mut()
+            .unwrap()
+            .extend(request.as_object().unwrap().clone());
+        assert!(
+            validate_receipt(
+                "blueprint.scs_component_remove",
+                "id",
+                &receipt,
+                &result,
+                &args,
+                &discovery
+            )
+            .is_ok()
+        );
+        receipt.verification["requestBlueprintId"] = json!("wrong");
+        assert!(
+            validate_receipt(
+                "blueprint.scs_component_remove",
+                "id",
+                &receipt,
+                &result,
+                &args,
+                &discovery
+            )
+            .is_err()
+        );
+        let root_result = json!({"blueprintId":"/Game/BP.BP","variableGuid":guid,"changed":true,"dirtyPackages":["/Game/BP"],"revision":revision});
+        let root_args = json!({"blueprintId":"/Game/BP.BP","name":"Root","class":"SceneComponent"});
+        let mut root_receipt =
+            receipt_fixture("blueprint.scs_component_ensure", root_result.clone(), true);
+        root_receipt.target = "/Game/BP.BP#scs-name:Root".into();
+        root_receipt.verification["target"] = json!(root_receipt.target);
+        root_receipt.verification["requestBlueprintId"] = json!("/Game/BP.BP");
+        root_receipt.verification["requestName"] = json!("Root");
+        root_receipt.verification["requestClass"] = json!("SceneComponent");
+        root_receipt.verification["requestParent"] = Value::Null;
+        assert!(
+            validate_receipt(
+                "blueprint.scs_component_ensure",
+                "id",
+                &root_receipt,
+                &root_result,
+                &root_args,
+                &discovery
+            )
+            .is_ok()
+        );
     }
 
     fn receipt_fixture(operation: &str, result: Value, matched: bool) -> Receipt {
@@ -2086,7 +2307,10 @@ mod tests {
             } else {
                 "atomic".into()
             },
-            reversibility: if matches!(operation, "actor.delete" | "component.remove") {
+            reversibility: if matches!(
+                operation,
+                "actor.delete" | "component.remove" | "blueprint.scs_component_remove"
+            ) {
                 "destructive".into()
             } else if operation.starts_with("play.") {
                 "none".into()

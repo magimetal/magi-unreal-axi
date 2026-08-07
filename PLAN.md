@@ -974,7 +974,7 @@ Completed fixture loop:
 - Deferred `play.input` success until next-tick `play.observe` readback; receipts validate exact project/editor/operation/target identity plus declared transaction, reversibility, persistence, and safety metadata.
 - Compiled valid Blueprint as stable no-op on repeat and returned structured graph/node diagnostics for invalid Blueprint. Blueprint authoring remains excluded.
 - Built source-backed fixture project successfully. This proves `project build` for M6 fixture; full build/test/cook/package pipeline normalization remains M7.
-- Canonical catalog contains 40 records with SHA-256 `6213c83a5ad2a61336ec08bd4bfebb9564e434f7f12a9bf2b9bc951f0fc14922`. P1.1 six-capability implementation and integrated certification are complete.
+- Canonical catalog contains 48 records with SHA-256 `fc2c7109093b848359b6307908ede3e5939389c301929394f916a0e0e00c2d60`. P1.1 and P1.2 implementation and integrated certification are complete.
 
 Acceptance:
 
@@ -1019,6 +1019,8 @@ Fixture order:
 2. `ui-state-loop`
 3. `ai-navigation-loop`
 4. `animation-state-loop`
+
+P1.2 is complete. It adds exactly `blueprint.interface_create`, `blueprint.interface_view`, `blueprint.interface_ensure`, `blueprint.scs_view`, `blueprint.scs_component_ensure`, `blueprint.scs_component_update`, `blueprint.scs_component_remove`, and `play.component_observe`. Certification proves one interface, two Actor Blueprints, nested SCS, collision/overlap interaction, deterministic two-PIE reset, and Blueprint-only compile/cook/package gates. Evidence: `~/Library/Caches/magi-unreal-axi/p1.2/native/evidence.iY67AH`. P1.3–P1.6 remain not started; P1 remains active.
 
 ### M7 — Production pipeline
 
@@ -1075,7 +1077,7 @@ Acceptance:
 - [x] README, help, skill, capability docs, protocol docs, and generated artifacts agree.
 - [x] Refreshed release artifact installs CLI and matching plugin without external repository under current hardened gate.
 - [x] Refreshed clean install proves checksum/archive/codesign, home, agent setup, plugin setup, full automation, editor health, read, mutation, restart persistence, build, uninstall, and token non-disclosure.
-- [x] Supported engine/platform matrix contains only UE 5.8.1/macOS arm64, certified through M8.
+- [x] Supported engine/platform matrix contains only UE 5.8.1/macOS arm64, certified through P1.2.
 
 ## 11. Capability expansion order
 
@@ -1205,7 +1207,7 @@ For each record success, CLI calls, Unreal calls, output tokens, avoidable follo
 - Source plugin remains fallback only when required build toolchain is verified.
 - Capability describe output reports certified, runtime-available, and unavailable states separately.
 
-Installed Unreal Engine 5.8.1 (`56057345`) on macOS arm64 is certified through P1.1 for native plugin build/load, authenticated interactive lifecycle, catalogued editor reads and safe mutations, bounded Blueprint construction, explicit persistence, PIE input/observation/screenshot/stop, Blueprint diagnostics, restart/reset, C++ fixture build/editor proof, full automation, Blueprint-only cook/package output, agent integration, exact-artifact clean installation, protected destinations, bounded logs, and durable process summaries.
+Installed Unreal Engine 5.8.1 (`56057345`) on macOS arm64 is certified through P1.2 for native plugin build/load, authenticated interactive lifecycle, catalogued editor reads and safe mutations, bounded Blueprint construction, interface/SCS interaction gameplay, explicit persistence, PIE input/observation/screenshot/stop, Blueprint diagnostics, restart/reset, C++ fixture build/editor proof, exact 22/22 automation, Blueprint-only cook/package output, agent integration, exact-artifact clean installation, protected destinations, bounded logs, and durable process summaries.
 
 ## 15. Release and dependency policy
 

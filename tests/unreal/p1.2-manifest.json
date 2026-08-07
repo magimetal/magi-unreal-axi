@@ -1,0 +1,21 @@
+{
+  "phase": "P1.2",
+  "engine": {"version":"5.8.1","changelist":56057345,"hostArchitecture":"arm64"},
+  "catalog": {"count":48,"sha256":"fc2c7109093b848359b6307908ede3e5939389c301929394f916a0e0e00c2d60"},
+  "plugin": {"binary":"libUnrealEditor-MagiUnrealAXI.dylib","requiredArchitectures":["arm64","x86_64"],"sourceRoot":"plugin/MagiUnrealAXI/Source"},
+  "cli": {"binary":"target/release/magi-unreal-axi"},
+  "fixture": {"name":"interaction-loop","blueprints":2,"interfaces":1,"interfaceFunction":"Interact","timerOrDelegate":false,"paths":{"level":"/Game/MagiP12/P12Interaction","interface":"/Game/MagiP12/BPI_Interact","targetBlueprint":"/Game/MagiP12/BP_Interactable","playerBlueprint":"/Game/MagiP12/BP_Player"}},
+  "limits": {"componentClasses":["SceneComponent","PointLightComponent","StaticMeshComponent","BoxComponent","SphereComponent"],"transformTolerance":0.01,"rotationTolerance":0.01,"scaleTolerance":0.001,"overlapCount":1,"physicsTolerance":0.01},
+  "automationTests": ["MagiUnrealAXI.Bridge.AdversarialFrames","MagiUnrealAXI.Bridge.Authentication","MagiUnrealAXI.Bridge.AuthenticationLimit","MagiUnrealAXI.Bridge.QueueBounds","MagiUnrealAXI.Bridge.ResponseIdentity","MagiUnrealAXI.LiveFixture.DirtyPackage","MagiUnrealAXI.LiveFixture.ReadData","MagiUnrealAXI.M6.BlueprintDiagnosticsContract","MagiUnrealAXI.M6.ComponentWorldSettingsContracts","MagiUnrealAXI.M6.PlayReceiptContracts","MagiUnrealAXI.Mutation.ActorUpdateDelete","MagiUnrealAXI.Mutation.LevelOperations","MagiUnrealAXI.Mutation.UnsafeStates","MagiUnrealAXI.Read.CatalogContract","MagiUnrealAXI.Read.PaginationContract","MagiUnrealAXI.Runtime.GeneratedMetadataAndIdentity","MagiUnrealAXI.P11.BlueprintConstructionKernel","MagiUnrealAXI.P11.RevisionBudgetHelpers","MagiUnrealAXI.Protocol.CanonicalCursorParser","MagiUnrealAXI.P12.SCSContracts","MagiUnrealAXI.P12.InterfaceContracts","MagiUnrealAXI.P12.ComponentObservation"],
+  "runtimeAssertions": ["variable-guid-identity","bounded-scs-allowlist","destructive-dry-run-force","revision-required","filtered-pie-observation"],
+  "liveAssertions": ["two-actor-blueprint-fixture","zero-argument-interact-interface","begin-overlap-calls-interface-once","two-pie-session-deterministic-reset","save-restart-scs-persistence","component-removal-absence"],
+  "pipeline": {"blueprintOnly":true,"compileAllBlueprints":true,"cook":true,"package":true,"projectPath":"tests/unreal/MagiUnrealAXIFixture/MagiUnrealAXIFixture.uproject","packageProjectPath":"tests/unreal/MagiUnrealAXIPackageFixture/MagiUnrealAXIPackageFixture.uproject"},
+  "packageAssertions": {
+    "contentRoot": "MagiP12",
+    "interface": {"file":"MagiP12/BPI_Interact.uasset","object":"/Game/MagiP12/BPI_Interact.BPI_Interact","generatedRuntime":"BPI_Interact_C"},
+    "targetBlueprint": {"file":"MagiP12/BP_Interactable.uasset","object":"/Game/MagiP12/BP_Interactable.BP_Interactable","generatedRuntime":"BP_Interactable_C"},
+    "playerBlueprint": {"file":"MagiP12/BP_Player.uasset","object":"/Game/MagiP12/BP_Player.BP_Player","generatedRuntime":"BP_Player_C"},
+    "map": "MagiP12/P12Interaction.umap",
+    "mapPackage": "/Game/MagiP12/P12Interaction"
+  }
+}

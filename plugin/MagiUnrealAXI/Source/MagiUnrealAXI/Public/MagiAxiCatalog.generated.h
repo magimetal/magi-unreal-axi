@@ -1,10 +1,10 @@
 #pragma once
 
 #define MAGI_AXI_VERSION TEXT("0.1.0")
-#define MAGI_AXI_CATALOG_HASH TEXT("6213c83a5ad2a61336ec08bd4bfebb9564e434f7f12a9bf2b9bc951f0fc14922")
-#define MAGI_AXI_CATALOG_COUNT 40
-#define MAGI_AXI_NATIVE_CAPABILITY_COUNT 38
-#define MAGI_AXI_PUBLIC_OPERATION_COUNT 41
+#define MAGI_AXI_CATALOG_HASH TEXT("fc2c7109093b848359b6307908ede3e5939389c301929394f916a0e0e00c2d60")
+#define MAGI_AXI_CATALOG_COUNT 48
+#define MAGI_AXI_NATIVE_CAPABILITY_COUNT 46
+#define MAGI_AXI_PUBLIC_OPERATION_COUNT 49
 #define MAGI_AXI_NATIVE_CAPABILITIES(X) \
     X(TEXT("actor.delete")) \
     X(TEXT("actor.list")) \
@@ -14,6 +14,14 @@
     X(TEXT("asset.create_input_action")) \
     X(TEXT("asset.create_input_mapping_context")) \
     X(TEXT("asset.save")) \
+    X(TEXT("blueprint.interface_create")) \
+    X(TEXT("blueprint.interface_view")) \
+    X(TEXT("blueprint.interface_ensure")) \
+    X(TEXT("blueprint.scs_view")) \
+    X(TEXT("blueprint.scs_component_ensure")) \
+    X(TEXT("blueprint.scs_component_update")) \
+    X(TEXT("blueprint.scs_component_remove")) \
+    X(TEXT("play.component_observe")) \
     X(TEXT("blueprint.compile")) \
     X(TEXT("blueprint.view")) \
     X(TEXT("blueprint.create")) \
@@ -56,6 +64,14 @@
     X(TEXT("asset.create_input_action")) \
     X(TEXT("asset.create_input_mapping_context")) \
     X(TEXT("asset.save")) \
+    X(TEXT("blueprint.interface_create")) \
+    X(TEXT("blueprint.interface_view")) \
+    X(TEXT("blueprint.interface_ensure")) \
+    X(TEXT("blueprint.scs_view")) \
+    X(TEXT("blueprint.scs_component_ensure")) \
+    X(TEXT("blueprint.scs_component_update")) \
+    X(TEXT("blueprint.scs_component_remove")) \
+    X(TEXT("play.component_observe")) \
     X(TEXT("blueprint.compile")) \
     X(TEXT("blueprint.view")) \
     X(TEXT("blueprint.create")) \
@@ -114,6 +130,14 @@ static const FMagiAxiCapabilityMetadata MagiAxiCapabilityMetadata[] =
     {TEXT("asset.create_input_action"), true, false, TEXT("natural-key"), TEXT("explicit"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("asset.view"), TEXT("id"), TEXT("")},
     {TEXT("asset.create_input_mapping_context"), true, false, TEXT("natural-key"), TEXT("explicit"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("asset.view"), TEXT("id"), TEXT("")},
     {TEXT("asset.save"), true, false, TEXT("natural-key"), TEXT("explicit"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd"), TEXT("asset.view"), TEXT("id"), TEXT("")},
+    {TEXT("blueprint.interface_create"), true, false, TEXT("natural-key"), TEXT("dirty-only"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd|BlueprintGraph"), TEXT("blueprint.interface_view"), TEXT("id"), TEXT("")},
+    {TEXT("blueprint.interface_view"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("UnrealEd|BlueprintGraph"), TEXT(""), TEXT(""), TEXT("")},
+    {TEXT("blueprint.interface_ensure"), true, false, TEXT("natural-key"), TEXT("dirty-only"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd|BlueprintGraph"), TEXT("blueprint.view"), TEXT("blueprintId"), TEXT("")},
+    {TEXT("blueprint.scs_view"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("UnrealEd|BlueprintGraph"), TEXT(""), TEXT(""), TEXT("")},
+    {TEXT("blueprint.scs_component_ensure"), true, false, TEXT("natural-key"), TEXT("dirty-only"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd|BlueprintGraph"), TEXT("blueprint.scs_view"), TEXT("blueprintId"), TEXT("")},
+    {TEXT("blueprint.scs_component_update"), true, false, TEXT("natural-key"), TEXT("dirty-only"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd|BlueprintGraph"), TEXT("blueprint.scs_view"), TEXT("blueprintId|variableGuid"), TEXT("")},
+    {TEXT("blueprint.scs_component_remove"), true, true, TEXT("request-key"), TEXT("dirty-only"), TEXT("atomic"), TEXT("destructive"), TEXT("editing"), TEXT("UnrealEd|BlueprintGraph"), TEXT("blueprint.scs_view"), TEXT("blueprintId|variableGuid"), TEXT("")},
+    {TEXT("play.component_observe"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("playing"), TEXT("UnrealEd"), TEXT(""), TEXT(""), TEXT("")},
     {TEXT("blueprint.compile"), true, false, TEXT("request-key"), TEXT("dirty-only"), TEXT("non-atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd|KismetCompiler"), TEXT("blueprint.view"), TEXT("id"), TEXT("preserved-dirty")},
     {TEXT("blueprint.view"), false, false, TEXT("read-only"), TEXT("none"), TEXT("none"), TEXT("none"), TEXT("editing"), TEXT("UnrealEd|KismetCompiler"), TEXT(""), TEXT(""), TEXT("")},
     {TEXT("blueprint.create"), true, false, TEXT("natural-key"), TEXT("dirty-only"), TEXT("atomic"), TEXT("source-control"), TEXT("editing"), TEXT("UnrealEd|KismetCompiler"), TEXT("blueprint.graph_view"), TEXT("blueprintId"), TEXT("")},
@@ -153,7 +177,7 @@ if (Operation == Metadata.Id) return &Metadata;
 return nullptr;
 }
 
-#define MAGI_AXI_INVALID_OUTPUT_FIXTURES_JSON TEXT("[{\"operation\":\"actor.delete\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.delete\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dryRun\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"actor.list\",\"case\":\"numeric-below-minimum@count\",\"result\":{\"count\":-1,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"actor.list\",\"case\":\"numeric-above-maximum@count\",\"result\":{\"count\":101,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"actor.list\",\"case\":\"numeric-below-minimum@total\",\"result\":{\"count\":0,\"total\":-1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"actor.list\",\"case\":\"numeric-above-maximum@total\",\"result\":{\"count\":0,\"total\":9007199254740992,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"actor.spawn\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.spawn\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.update_transform\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.update_transform\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.view\",\"case\":\"numeric-below-minimum@location.0\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000001.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"actor.view\",\"case\":\"numeric-above-maximum@location.0\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[1000000001.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"actor.view\",\"case\":\"numeric-below-minimum@rotation.0\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-361.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"actor.view\",\"case\":\"numeric-above-maximum@rotation.0\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[361.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"actor.view\",\"case\":\"numeric-below-minimum@scale.0\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[-1.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"actor.view\",\"case\":\"numeric-above-maximum@scale.0\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[1000001.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"asset.create_input_action\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.create_input_action\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"class\":\"x\",\"valueType\":\"Boolean\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.create_input_mapping_context\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.create_input_mapping_context\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"class\":\"x\",\"mappingCount\":0,\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.create_input_mapping_context\",\"case\":\"numeric-below-minimum@mappingCount\",\"result\":{\"id\":\"x\",\"class\":\"x\",\"mappingCount\":-1,\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"asset.create_input_mapping_context\",\"case\":\"numeric-above-maximum@mappingCount\",\"result\":{\"id\":\"x\",\"class\":\"x\",\"mappingCount\":101,\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"asset.save\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.save\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.compile\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.compile\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"unknown\":true}},{\"operation\":\"blueprint.compile\",\"case\":\"numeric-below-minimum@graphCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":-1,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[]}},{\"operation\":\"blueprint.compile\",\"case\":\"numeric-above-maximum@graphCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":10001,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[]}},{\"operation\":\"blueprint.compile\",\"case\":\"numeric-below-minimum@errorCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":-1,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[]}},{\"operation\":\"blueprint.compile\",\"case\":\"numeric-above-maximum@errorCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":101,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[]}},{\"operation\":\"blueprint.compile\",\"case\":\"numeric-below-minimum@warningCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":-1,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[]}},{\"operation\":\"blueprint.compile\",\"case\":\"numeric-above-maximum@warningCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":101,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[]}},{\"operation\":\"blueprint.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.view\",\"case\":\"numeric-below-minimum@graphCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":-1,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.view\",\"case\":\"numeric-above-maximum@graphCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":10001,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.view\",\"case\":\"numeric-below-minimum@errorCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":-1,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.view\",\"case\":\"numeric-above-maximum@errorCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":101,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.view\",\"case\":\"numeric-below-minimum@warningCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":-1,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.view\",\"case\":\"numeric-above-maximum@warningCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":101,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.create\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.create\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.graph_view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.graph_view\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-below-minimum@count\",\"result\":{\"blueprintId\":\"x\",\"count\":-1,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-above-maximum@count\",\"result\":{\"blueprintId\":\"x\",\"count\":101,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-below-minimum@total\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":-1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-above-maximum@total\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":10001,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-below-minimum@items.0.@variant0.nodeCount\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"graphId\":\"x\",\"kind\":\"x\",\"name\":\"x\",\"nodeCount\":-1}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-above-maximum@items.0.@variant0.nodeCount\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"graphId\":\"x\",\"kind\":\"x\",\"name\":\"x\",\"nodeCount\":10001}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-below-minimum@items.0.@variant1.x\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"nodeId\":\"x\",\"class\":\"x\",\"title\":\"x\",\"x\":-1000001,\"y\":-1000000,\"pins\":[]}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-above-maximum@items.0.@variant1.x\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"nodeId\":\"x\",\"class\":\"x\",\"title\":\"x\",\"x\":1000001,\"y\":-1000000,\"pins\":[]}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-below-minimum@items.0.@variant1.y\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"nodeId\":\"x\",\"class\":\"x\",\"title\":\"x\",\"x\":-1000000,\"y\":-1000001,\"pins\":[]}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-above-maximum@items.0.@variant1.y\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"nodeId\":\"x\",\"class\":\"x\",\"title\":\"x\",\"x\":-1000000,\"y\":1000001,\"pins\":[]}],\"nextCursor\":null}},{\"operation\":\"blueprint.event_ensure\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.event_ensure\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"graphId\":\"x\",\"nodeId\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.node_ensure\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.node_ensure\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"graphId\":\"x\",\"nodeId\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.pin_default_set\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.pin_default_set\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"pinId\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.pin_connect\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.pin_connect\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"sourcePinId\":\"x\",\"targetPinId\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.add\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.add\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"component.list\",\"case\":\"numeric-below-minimum@count\",\"result\":{\"count\":-1,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"component.list\",\"case\":\"numeric-above-maximum@count\",\"result\":{\"count\":101,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"component.list\",\"case\":\"numeric-below-minimum@total\",\"result\":{\"count\":0,\"total\":-1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"component.list\",\"case\":\"numeric-above-maximum@total\",\"result\":{\"count\":0,\"total\":9007199254740992,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"component.remove\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.remove\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dryRun\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.update\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.update\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.view\",\"case\":\"numeric-below-minimum@location.0\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000001.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"component.view\",\"case\":\"numeric-above-maximum@location.0\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[1000000001.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"component.view\",\"case\":\"numeric-below-minimum@rotation.0\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-361.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"component.view\",\"case\":\"numeric-above-maximum@rotation.0\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[361.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"component.view\",\"case\":\"numeric-below-minimum@scale.0\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[-1.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"component.view\",\"case\":\"numeric-above-maximum@scale.0\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[1000000001.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"level.set_game_mode\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.set_game_mode\",\"case\":\"root-not-closed\",\"result\":{\"levelId\":\"x\",\"gameModeClass\":\"x\",\"defaultPawnClass\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.settings\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.settings\",\"case\":\"root-not-closed\",\"result\":{\"levelId\":\"x\",\"gameModeClass\":\"\",\"defaultPawnClass\":\"\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.input\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.input\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"key\":\"x\",\"event\":\"pressed\",\"accepted\":false,\"changed\":false,\"beforeRevision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"afterRevision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.observe\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.observe\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"worldId\":null,\"levelId\":null,\"actors\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.observe\",\"case\":\"numeric-below-minimum@actors.0.location.0\",\"result\":{\"sessionId\":\"x\",\"worldId\":null,\"levelId\":null,\"actors\":[{\"id\":\"x\",\"name\":\"x\",\"class\":\"x\",\"location\":[-1000000001.0,-1000000000.0,-1000000000.0],\"tags\":[]}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.observe\",\"case\":\"numeric-above-maximum@actors.0.location.0\",\"result\":{\"sessionId\":\"x\",\"worldId\":null,\"levelId\":null,\"actors\":[{\"id\":\"x\",\"name\":\"x\",\"class\":\"x\",\"location\":[1000000001.0,-1000000000.0,-1000000000.0],\"tags\":[]}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.screenshot\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.screenshot\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"path\":\"x\",\"width\":1,\"height\":1,\"format\":\"png\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.screenshot\",\"case\":\"numeric-below-minimum@width\",\"result\":{\"sessionId\":\"x\",\"path\":\"x\",\"width\":0,\"height\":1,\"format\":\"png\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.screenshot\",\"case\":\"numeric-above-maximum@width\",\"result\":{\"sessionId\":\"x\",\"path\":\"x\",\"width\":16385,\"height\":1,\"format\":\"png\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.screenshot\",\"case\":\"numeric-below-minimum@height\",\"result\":{\"sessionId\":\"x\",\"path\":\"x\",\"width\":1,\"height\":0,\"format\":\"png\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.screenshot\",\"case\":\"numeric-above-maximum@height\",\"result\":{\"sessionId\":\"x\",\"path\":\"x\",\"width\":1,\"height\":16385,\"format\":\"png\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.start\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.start\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"state\":\"starting\",\"worldId\":null,\"levelId\":null,\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.status\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.status\",\"case\":\"root-not-closed\",\"result\":{\"state\":\"stopped\",\"sessionId\":null,\"worldId\":null,\"levelId\":null,\"playerCount\":0,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.status\",\"case\":\"numeric-below-minimum@playerCount\",\"result\":{\"state\":\"stopped\",\"sessionId\":null,\"worldId\":null,\"levelId\":null,\"playerCount\":-1,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.status\",\"case\":\"numeric-above-maximum@playerCount\",\"result\":{\"state\":\"stopped\",\"sessionId\":null,\"worldId\":null,\"levelId\":null,\"playerCount\":101,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.stop\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.stop\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"state\":\"stopping\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"asset.list\",\"case\":\"numeric-below-minimum@count\",\"result\":{\"count\":-1,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"asset.list\",\"case\":\"numeric-above-maximum@count\",\"result\":{\"count\":101,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"asset.list\",\"case\":\"numeric-below-minimum@total\",\"result\":{\"count\":0,\"total\":-1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"asset.list\",\"case\":\"numeric-above-maximum@total\",\"result\":{\"count\":0,\"total\":9007199254740992,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"asset.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"packagePath\":\"x\",\"objectPath\":\"x\",\"name\":\"x\",\"class\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"capability.describe\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"capability.describe\",\"case\":\"root-not-closed\",\"result\":{\"capability\":{\"id\":\"x\",\"version\":1,\"domain\":\"x\",\"summary\":\"x\",\"execution\":\"local\",\"mutates\":false,\"destructive\":false,\"idempotency\":\"x\",\"saveBehavior\":\"x\",\"transactionBehavior\":\"x\",\"reversibility\":\"x\",\"allowedEditorStates\":[],\"requiresModules\":[],\"inputSchema\":\"xx\",\"outputSchema\":\"xx\",\"verification\":\"xx\",\"engineSupport\":\"xx\"},\"runtime\":{\"availability\":\"available\",\"reasons\":[],\"catalogHash\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"},\"unknown\":true}},{\"operation\":\"capability.describe\",\"case\":\"numeric-below-minimum@capability.version\",\"result\":{\"capability\":{\"id\":\"x\",\"version\":0,\"domain\":\"x\",\"summary\":\"x\",\"execution\":\"local\",\"mutates\":false,\"destructive\":false,\"idempotency\":\"x\",\"saveBehavior\":\"x\",\"transactionBehavior\":\"x\",\"reversibility\":\"x\",\"allowedEditorStates\":[],\"requiresModules\":[],\"inputSchema\":\"xx\",\"outputSchema\":\"xx\",\"verification\":\"xx\",\"engineSupport\":\"xx\"},\"runtime\":{\"availability\":\"available\",\"reasons\":[],\"catalogHash\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}}},{\"operation\":\"capability.describe\",\"case\":\"numeric-above-maximum@capability.version\",\"result\":{\"capability\":{\"id\":\"x\",\"version\":2,\"domain\":\"x\",\"summary\":\"x\",\"execution\":\"local\",\"mutates\":false,\"destructive\":false,\"idempotency\":\"x\",\"saveBehavior\":\"x\",\"transactionBehavior\":\"x\",\"reversibility\":\"x\",\"allowedEditorStates\":[],\"requiresModules\":[],\"inputSchema\":\"xx\",\"outputSchema\":\"xx\",\"verification\":\"xx\",\"engineSupport\":\"xx\"},\"runtime\":{\"availability\":\"available\",\"reasons\":[],\"catalogHash\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}}},{\"operation\":\"capability.search\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"capability.search\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"capability.search\",\"case\":\"numeric-below-minimum@count\",\"result\":{\"count\":-1,\"total\":0,\"scope\":\"x\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"capability.search\",\"case\":\"numeric-above-maximum@count\",\"result\":{\"count\":51,\"total\":0,\"scope\":\"x\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"capability.search\",\"case\":\"numeric-below-minimum@total\",\"result\":{\"count\":0,\"total\":-1,\"scope\":\"x\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"capability.search\",\"case\":\"numeric-above-maximum@total\",\"result\":{\"count\":0,\"total\":9007199254740992,\"scope\":\"x\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"editor.status\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"editor.status\",\"case\":\"root-not-closed\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":0,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0,\"unknown\":true}},{\"operation\":\"editor.status\",\"case\":\"numeric-below-minimum@editorPid\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":-1,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0}},{\"operation\":\"editor.status\",\"case\":\"numeric-above-maximum@editorPid\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":4294967296,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0}},{\"operation\":\"editor.status\",\"case\":\"numeric-below-minimum@dirtyPackageCount\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":0,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":-1}},{\"operation\":\"editor.status\",\"case\":\"numeric-above-maximum@dirtyPackageCount\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":0,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":9007199254740992}},{\"operation\":\"level.create\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.create\",\"case\":\"root-not-closed\",\"result\":{\"level\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.current\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.current\",\"case\":\"root-not-closed\",\"result\":{\"level\":{\"id\":\"x\",\"name\":\"x\",\"worldType\":\"x\",\"persistent\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"},\"scope\":\"x\",\"unknown\":true}},{\"operation\":\"level.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"level.list\",\"case\":\"numeric-below-minimum@count\",\"result\":{\"count\":-1,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"level.list\",\"case\":\"numeric-above-maximum@count\",\"result\":{\"count\":101,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"level.list\",\"case\":\"numeric-below-minimum@total\",\"result\":{\"count\":0,\"total\":-1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"level.list\",\"case\":\"numeric-above-maximum@total\",\"result\":{\"count\":0,\"total\":9007199254740992,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"level.open\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.open\",\"case\":\"root-not-closed\",\"result\":{\"level\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.save\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.save\",\"case\":\"root-not-closed\",\"result\":{\"level\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"operation.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"operation.view\",\"case\":\"root-not-closed\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false},\"unknown\":true}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@editorPid\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":0,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@editorPid\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":4294967296,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false}}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@verification.errorCount\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"errorCount\":0}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@verification.errorCount\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"errorCount\":101}}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@verification.warningCount\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"warningCount\":-1}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@verification.warningCount\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"warningCount\":101}}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@verification.requestValue\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestValue\":-1000001.0}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@verification.requestValue\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestValue\":1000001.0}}},{\"operation\":\"actor.list\",\"case\":\"missing-list-id\",\"result\":{\"count\":1,\"total\":1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"label\":\"actor\"}],\"nextCursor\":null}},{\"operation\":\"level.current\",\"case\":\"nested-not-closed\",\"result\":{\"level\":{\"id\":\"x\",\"name\":\"x\",\"worldType\":\"x\",\"persistent\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true},\"scope\":\"x\"}},{\"operation\":\"editor.status\",\"case\":\"wrong-type\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":\"not-an-integer\",\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0}},{\"operation\":\"editor.status\",\"case\":\"enum\",\"result\":{\"state\":\"invalid\",\"projectId\":\"x\",\"editorPid\":0,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0}},{\"operation\":\"actor.view\",\"case\":\"string-bound\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"short\"}},{\"operation\":\"blueprint.graph_view\",\"case\":\"partial-graph-row\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"graphId\":\"/Game/BP.BP:graph\",\"kind\":\"ubergraph\",\"name\":\"EventGraph\"}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"hybrid-row\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"graphId\":\"/Game/BP.BP:graph\",\"kind\":\"ubergraph\",\"name\":\"EventGraph\",\"nodeCount\":1,\"nodeId\":\"node\"}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"empty-row\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"primitive-row\",\"result\":{\"blueprintId\":\"x\",\"count\":1,\"total\":1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[1],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"null-row\",\"result\":{\"blueprintId\":\"x\",\"count\":1,\"total\":1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[null],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"array-row\",\"result\":{\"blueprintId\":\"x\",\"count\":1,\"total\":1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[[]],\"nextCursor\":null}},{\"operation\":\"asset.list\",\"case\":\"array-bound\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"}],\"nextCursor\":null}}]")
+#define MAGI_AXI_INVALID_OUTPUT_FIXTURES_JSON TEXT("[{\"operation\":\"actor.delete\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.delete\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dryRun\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"actor.list\",\"case\":\"numeric-below-minimum@count\",\"result\":{\"count\":-1,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"actor.list\",\"case\":\"numeric-above-maximum@count\",\"result\":{\"count\":101,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"actor.list\",\"case\":\"numeric-below-minimum@total\",\"result\":{\"count\":0,\"total\":-1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"actor.list\",\"case\":\"numeric-above-maximum@total\",\"result\":{\"count\":0,\"total\":9007199254740992,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"actor.spawn\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.spawn\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.update_transform\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.update_transform\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"actor.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"actor.view\",\"case\":\"numeric-below-minimum@location.0\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000001.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"actor.view\",\"case\":\"numeric-above-maximum@location.0\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[1000000001.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"actor.view\",\"case\":\"numeric-below-minimum@rotation.0\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-361.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"actor.view\",\"case\":\"numeric-above-maximum@rotation.0\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[361.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"actor.view\",\"case\":\"numeric-below-minimum@scale.0\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[-1.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"actor.view\",\"case\":\"numeric-above-maximum@scale.0\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[1000001.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"asset.create_input_action\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.create_input_action\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"class\":\"x\",\"valueType\":\"Boolean\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.create_input_mapping_context\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.create_input_mapping_context\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"class\":\"x\",\"mappingCount\":0,\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.create_input_mapping_context\",\"case\":\"numeric-below-minimum@mappingCount\",\"result\":{\"id\":\"x\",\"class\":\"x\",\"mappingCount\":-1,\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"asset.create_input_mapping_context\",\"case\":\"numeric-above-maximum@mappingCount\",\"result\":{\"id\":\"x\",\"class\":\"x\",\"mappingCount\":101,\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"asset.save\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.save\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.interface_create\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.interface_create\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"function\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.interface_view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.interface_view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"function\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.interface_ensure\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.interface_ensure\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"interfaceId\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.scs_view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.scs_view\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"components\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.scs_view\",\"case\":\"numeric-below-minimum@components.0.location.0\",\"result\":{\"blueprintId\":\"x\",\"components\":[{\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"name\":\"x\",\"class\":\"x\",\"parent\":null,\"location\":[-100001.0,-100000.0,-100000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"boxExtent\":null,\"sphereRadius\":null}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.scs_view\",\"case\":\"numeric-above-maximum@components.0.location.0\",\"result\":{\"blueprintId\":\"x\",\"components\":[{\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"name\":\"x\",\"class\":\"x\",\"parent\":null,\"location\":[100001.0,-100000.0,-100000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"boxExtent\":null,\"sphereRadius\":null}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.scs_view\",\"case\":\"numeric-below-minimum@components.0.rotation.0\",\"result\":{\"blueprintId\":\"x\",\"components\":[{\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"name\":\"x\",\"class\":\"x\",\"parent\":null,\"location\":[-100000.0,-100000.0,-100000.0],\"rotation\":[-361.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"boxExtent\":null,\"sphereRadius\":null}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.scs_view\",\"case\":\"numeric-above-maximum@components.0.rotation.0\",\"result\":{\"blueprintId\":\"x\",\"components\":[{\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"name\":\"x\",\"class\":\"x\",\"parent\":null,\"location\":[-100000.0,-100000.0,-100000.0],\"rotation\":[361.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"boxExtent\":null,\"sphereRadius\":null}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.scs_view\",\"case\":\"numeric-below-minimum@components.0.scale.0\",\"result\":{\"blueprintId\":\"x\",\"components\":[{\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"name\":\"x\",\"class\":\"x\",\"parent\":null,\"location\":[-100000.0,-100000.0,-100000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[-1.0,0.0,0.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"boxExtent\":null,\"sphereRadius\":null}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.scs_view\",\"case\":\"numeric-above-maximum@components.0.scale.0\",\"result\":{\"blueprintId\":\"x\",\"components\":[{\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"name\":\"x\",\"class\":\"x\",\"parent\":null,\"location\":[-100000.0,-100000.0,-100000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[1001.0,0.0,0.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"boxExtent\":null,\"sphereRadius\":null}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.scs_view\",\"case\":\"numeric-below-minimum@components.0.massOverride\",\"result\":{\"blueprintId\":\"x\",\"components\":[{\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"name\":\"x\",\"class\":\"x\",\"parent\":null,\"location\":[-100000.0,-100000.0,-100000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":-1.0,\"boxExtent\":null,\"sphereRadius\":null}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.scs_view\",\"case\":\"numeric-above-maximum@components.0.massOverride\",\"result\":{\"blueprintId\":\"x\",\"components\":[{\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"name\":\"x\",\"class\":\"x\",\"parent\":null,\"location\":[-100000.0,-100000.0,-100000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":100001.0,\"boxExtent\":null,\"sphereRadius\":null}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.scs_view\",\"case\":\"numeric-below-minimum@components.0.boxExtent.0\",\"result\":{\"blueprintId\":\"x\",\"components\":[{\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"name\":\"x\",\"class\":\"x\",\"parent\":null,\"location\":[-100000.0,-100000.0,-100000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"boxExtent\":[-1.0],\"sphereRadius\":null}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.scs_view\",\"case\":\"numeric-above-maximum@components.0.boxExtent.0\",\"result\":{\"blueprintId\":\"x\",\"components\":[{\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"name\":\"x\",\"class\":\"x\",\"parent\":null,\"location\":[-100000.0,-100000.0,-100000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"boxExtent\":[100001.0],\"sphereRadius\":null}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.scs_view\",\"case\":\"numeric-below-minimum@components.0.sphereRadius\",\"result\":{\"blueprintId\":\"x\",\"components\":[{\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"name\":\"x\",\"class\":\"x\",\"parent\":null,\"location\":[-100000.0,-100000.0,-100000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"boxExtent\":null,\"sphereRadius\":-1.0}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.scs_view\",\"case\":\"numeric-above-maximum@components.0.sphereRadius\",\"result\":{\"blueprintId\":\"x\",\"components\":[{\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"name\":\"x\",\"class\":\"x\",\"parent\":null,\"location\":[-100000.0,-100000.0,-100000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"boxExtent\":null,\"sphereRadius\":100001.0}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.scs_component_ensure\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.scs_component_ensure\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"variableGuid\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.scs_component_update\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.scs_component_update\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.scs_component_remove\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.scs_component_remove\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"variableGuid\":\"x\",\"changed\":false,\"dryRun\":false,\"dirtyPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.component_observe\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.component_observe\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-below-minimum@actorLocation.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":[-1000000001.0],\"location\":null,\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-above-maximum@actorLocation.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":[1000000001.0],\"location\":null,\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-below-minimum@location.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":[-1000000001.0],\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-above-maximum@location.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":[1000000001.0],\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-below-minimum@rotation.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":[-361.0],\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-above-maximum@rotation.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":[361.0],\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-below-minimum@scale.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":null,\"scale\":[-1.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-above-maximum@scale.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":null,\"scale\":[1000000001.0],\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-below-minimum@massOverride\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":-1.0,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-above-maximum@massOverride\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":1000001.0,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-below-minimum@linearVelocity.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":[-1000000001.0],\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-above-maximum@linearVelocity.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":[1000000001.0],\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-below-minimum@angularVelocity.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":[-1000000001.0],\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-above-maximum@angularVelocity.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":[1000000001.0],\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-below-minimum@overlapCount\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":-1,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-above-maximum@overlapCount\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":1001,\"overlappingActorIds\":[],\"interactionDisplacement\":null,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-below-minimum@interactionDisplacement.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":[-1000000001.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.component_observe\",\"case\":\"numeric-above-maximum@interactionDisplacement.0\",\"result\":{\"sessionId\":\"x\",\"actorId\":\"x\",\"variableGuid\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"resolved\":false,\"reason\":null,\"componentName\":null,\"componentClass\":null,\"actorLocation\":null,\"location\":null,\"rotation\":null,\"scale\":null,\"collisionEnabled\":null,\"collisionProfile\":null,\"objectType\":null,\"generateOverlapEvents\":null,\"simulatePhysics\":null,\"gravityEnabled\":null,\"massOverride\":null,\"linearVelocity\":null,\"angularVelocity\":null,\"overlapCount\":null,\"overlappingActorIds\":[],\"interactionDisplacement\":[1000000001.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.compile\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.compile\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"unknown\":true}},{\"operation\":\"blueprint.compile\",\"case\":\"numeric-below-minimum@graphCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":-1,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[]}},{\"operation\":\"blueprint.compile\",\"case\":\"numeric-above-maximum@graphCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":10001,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[]}},{\"operation\":\"blueprint.compile\",\"case\":\"numeric-below-minimum@errorCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":-1,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[]}},{\"operation\":\"blueprint.compile\",\"case\":\"numeric-above-maximum@errorCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":101,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[]}},{\"operation\":\"blueprint.compile\",\"case\":\"numeric-below-minimum@warningCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":-1,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[]}},{\"operation\":\"blueprint.compile\",\"case\":\"numeric-above-maximum@warningCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":101,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[]}},{\"operation\":\"blueprint.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.view\",\"case\":\"numeric-below-minimum@graphCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":-1,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.view\",\"case\":\"numeric-above-maximum@graphCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":10001,\"errorCount\":0,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.view\",\"case\":\"numeric-below-minimum@errorCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":-1,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.view\",\"case\":\"numeric-above-maximum@errorCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":101,\"warningCount\":0,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.view\",\"case\":\"numeric-below-minimum@warningCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":-1,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.view\",\"case\":\"numeric-above-maximum@warningCount\",\"result\":{\"id\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"status\":\"unknown\",\"graphCount\":0,\"errorCount\":0,\"warningCount\":101,\"diagnostics\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"blueprint.create\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.create\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"parentClass\":\"x\",\"generatedClass\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.graph_view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.graph_view\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-below-minimum@count\",\"result\":{\"blueprintId\":\"x\",\"count\":-1,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-above-maximum@count\",\"result\":{\"blueprintId\":\"x\",\"count\":101,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-below-minimum@total\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":-1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-above-maximum@total\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":10001,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-below-minimum@items.0.@variant0.nodeCount\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"graphId\":\"x\",\"kind\":\"x\",\"name\":\"x\",\"nodeCount\":-1}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-above-maximum@items.0.@variant0.nodeCount\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"graphId\":\"x\",\"kind\":\"x\",\"name\":\"x\",\"nodeCount\":10001}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-below-minimum@items.0.@variant1.x\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"nodeId\":\"x\",\"class\":\"x\",\"title\":\"x\",\"x\":-1000001,\"y\":-1000000,\"pins\":[]}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-above-maximum@items.0.@variant1.x\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"nodeId\":\"x\",\"class\":\"x\",\"title\":\"x\",\"x\":1000001,\"y\":-1000000,\"pins\":[]}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-below-minimum@items.0.@variant1.y\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"nodeId\":\"x\",\"class\":\"x\",\"title\":\"x\",\"x\":-1000000,\"y\":-1000001,\"pins\":[]}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"numeric-above-maximum@items.0.@variant1.y\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"nodeId\":\"x\",\"class\":\"x\",\"title\":\"x\",\"x\":-1000000,\"y\":1000001,\"pins\":[]}],\"nextCursor\":null}},{\"operation\":\"blueprint.event_ensure\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.event_ensure\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"graphId\":\"x\",\"nodeId\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.node_ensure\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.node_ensure\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"graphId\":\"x\",\"nodeId\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.pin_default_set\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.pin_default_set\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"pinId\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"blueprint.pin_connect\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"blueprint.pin_connect\",\"case\":\"root-not-closed\",\"result\":{\"blueprintId\":\"x\",\"sourcePinId\":\"x\",\"targetPinId\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.add\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.add\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"component.list\",\"case\":\"numeric-below-minimum@count\",\"result\":{\"count\":-1,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"component.list\",\"case\":\"numeric-above-maximum@count\",\"result\":{\"count\":101,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"component.list\",\"case\":\"numeric-below-minimum@total\",\"result\":{\"count\":0,\"total\":-1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"component.list\",\"case\":\"numeric-above-maximum@total\",\"result\":{\"count\":0,\"total\":9007199254740992,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"component.remove\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.remove\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dryRun\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.update\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.update\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"component.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"component.view\",\"case\":\"numeric-below-minimum@location.0\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000001.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"component.view\",\"case\":\"numeric-above-maximum@location.0\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[1000000001.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"component.view\",\"case\":\"numeric-below-minimum@rotation.0\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-361.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"component.view\",\"case\":\"numeric-above-maximum@rotation.0\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[361.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"component.view\",\"case\":\"numeric-below-minimum@scale.0\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[-1.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"component.view\",\"case\":\"numeric-above-maximum@scale.0\",\"result\":{\"id\":\"x\",\"actorId\":\"x\",\"name\":\"x\",\"class\":\"x\",\"scene\":false,\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[1000000001.0,0.0,0.0],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"level.set_game_mode\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.set_game_mode\",\"case\":\"root-not-closed\",\"result\":{\"levelId\":\"x\",\"gameModeClass\":\"x\",\"defaultPawnClass\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.settings\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.settings\",\"case\":\"root-not-closed\",\"result\":{\"levelId\":\"x\",\"gameModeClass\":\"\",\"defaultPawnClass\":\"\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.input\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.input\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"key\":\"x\",\"event\":\"pressed\",\"accepted\":false,\"changed\":false,\"beforeRevision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"afterRevision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.observe\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.observe\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"worldId\":null,\"levelId\":null,\"actors\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.observe\",\"case\":\"numeric-below-minimum@actors.0.location.0\",\"result\":{\"sessionId\":\"x\",\"worldId\":null,\"levelId\":null,\"actors\":[{\"id\":\"x\",\"name\":\"x\",\"class\":\"x\",\"location\":[-1000000001.0,-1000000000.0,-1000000000.0],\"tags\":[]}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.observe\",\"case\":\"numeric-above-maximum@actors.0.location.0\",\"result\":{\"sessionId\":\"x\",\"worldId\":null,\"levelId\":null,\"actors\":[{\"id\":\"x\",\"name\":\"x\",\"class\":\"x\",\"location\":[1000000001.0,-1000000000.0,-1000000000.0],\"tags\":[]}],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.screenshot\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.screenshot\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"path\":\"x\",\"width\":1,\"height\":1,\"format\":\"png\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.screenshot\",\"case\":\"numeric-below-minimum@width\",\"result\":{\"sessionId\":\"x\",\"path\":\"x\",\"width\":0,\"height\":1,\"format\":\"png\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.screenshot\",\"case\":\"numeric-above-maximum@width\",\"result\":{\"sessionId\":\"x\",\"path\":\"x\",\"width\":16385,\"height\":1,\"format\":\"png\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.screenshot\",\"case\":\"numeric-below-minimum@height\",\"result\":{\"sessionId\":\"x\",\"path\":\"x\",\"width\":1,\"height\":0,\"format\":\"png\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.screenshot\",\"case\":\"numeric-above-maximum@height\",\"result\":{\"sessionId\":\"x\",\"path\":\"x\",\"width\":1,\"height\":16385,\"format\":\"png\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.start\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.start\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"state\":\"starting\",\"worldId\":null,\"levelId\":null,\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.status\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.status\",\"case\":\"root-not-closed\",\"result\":{\"state\":\"stopped\",\"sessionId\":null,\"worldId\":null,\"levelId\":null,\"playerCount\":0,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"play.status\",\"case\":\"numeric-below-minimum@playerCount\",\"result\":{\"state\":\"stopped\",\"sessionId\":null,\"worldId\":null,\"levelId\":null,\"playerCount\":-1,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.status\",\"case\":\"numeric-above-maximum@playerCount\",\"result\":{\"state\":\"stopped\",\"sessionId\":null,\"worldId\":null,\"levelId\":null,\"playerCount\":101,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"operation\":\"play.stop\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"play.stop\",\"case\":\"root-not-closed\",\"result\":{\"sessionId\":\"x\",\"state\":\"stopping\",\"changed\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"asset.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"asset.list\",\"case\":\"numeric-below-minimum@count\",\"result\":{\"count\":-1,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"asset.list\",\"case\":\"numeric-above-maximum@count\",\"result\":{\"count\":101,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"asset.list\",\"case\":\"numeric-below-minimum@total\",\"result\":{\"count\":0,\"total\":-1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"asset.list\",\"case\":\"numeric-above-maximum@total\",\"result\":{\"count\":0,\"total\":9007199254740992,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"asset.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"asset.view\",\"case\":\"root-not-closed\",\"result\":{\"id\":\"x\",\"packagePath\":\"x\",\"objectPath\":\"x\",\"name\":\"x\",\"class\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"capability.describe\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"capability.describe\",\"case\":\"root-not-closed\",\"result\":{\"capability\":{\"id\":\"x\",\"version\":1,\"domain\":\"x\",\"summary\":\"x\",\"execution\":\"local\",\"mutates\":false,\"destructive\":false,\"idempotency\":\"x\",\"saveBehavior\":\"x\",\"transactionBehavior\":\"x\",\"reversibility\":\"x\",\"allowedEditorStates\":[],\"requiresModules\":[],\"inputSchema\":\"xx\",\"outputSchema\":\"xx\",\"verification\":\"xx\",\"engineSupport\":\"xx\"},\"runtime\":{\"availability\":\"available\",\"reasons\":[],\"catalogHash\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"},\"unknown\":true}},{\"operation\":\"capability.describe\",\"case\":\"numeric-below-minimum@capability.version\",\"result\":{\"capability\":{\"id\":\"x\",\"version\":0,\"domain\":\"x\",\"summary\":\"x\",\"execution\":\"local\",\"mutates\":false,\"destructive\":false,\"idempotency\":\"x\",\"saveBehavior\":\"x\",\"transactionBehavior\":\"x\",\"reversibility\":\"x\",\"allowedEditorStates\":[],\"requiresModules\":[],\"inputSchema\":\"xx\",\"outputSchema\":\"xx\",\"verification\":\"xx\",\"engineSupport\":\"xx\"},\"runtime\":{\"availability\":\"available\",\"reasons\":[],\"catalogHash\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}}},{\"operation\":\"capability.describe\",\"case\":\"numeric-above-maximum@capability.version\",\"result\":{\"capability\":{\"id\":\"x\",\"version\":2,\"domain\":\"x\",\"summary\":\"x\",\"execution\":\"local\",\"mutates\":false,\"destructive\":false,\"idempotency\":\"x\",\"saveBehavior\":\"x\",\"transactionBehavior\":\"x\",\"reversibility\":\"x\",\"allowedEditorStates\":[],\"requiresModules\":[],\"inputSchema\":\"xx\",\"outputSchema\":\"xx\",\"verification\":\"xx\",\"engineSupport\":\"xx\"},\"runtime\":{\"availability\":\"available\",\"reasons\":[],\"catalogHash\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}}},{\"operation\":\"capability.search\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"capability.search\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"capability.search\",\"case\":\"numeric-below-minimum@count\",\"result\":{\"count\":-1,\"total\":0,\"scope\":\"x\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"capability.search\",\"case\":\"numeric-above-maximum@count\",\"result\":{\"count\":51,\"total\":0,\"scope\":\"x\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"capability.search\",\"case\":\"numeric-below-minimum@total\",\"result\":{\"count\":0,\"total\":-1,\"scope\":\"x\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"capability.search\",\"case\":\"numeric-above-maximum@total\",\"result\":{\"count\":0,\"total\":9007199254740992,\"scope\":\"x\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"editor.status\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"editor.status\",\"case\":\"root-not-closed\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":0,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0,\"unknown\":true}},{\"operation\":\"editor.status\",\"case\":\"numeric-below-minimum@editorPid\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":-1,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0}},{\"operation\":\"editor.status\",\"case\":\"numeric-above-maximum@editorPid\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":4294967296,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0}},{\"operation\":\"editor.status\",\"case\":\"numeric-below-minimum@dirtyPackageCount\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":0,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":-1}},{\"operation\":\"editor.status\",\"case\":\"numeric-above-maximum@dirtyPackageCount\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":0,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":9007199254740992}},{\"operation\":\"level.create\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.create\",\"case\":\"root-not-closed\",\"result\":{\"level\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.current\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.current\",\"case\":\"root-not-closed\",\"result\":{\"level\":{\"id\":\"x\",\"name\":\"x\",\"worldType\":\"x\",\"persistent\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"},\"scope\":\"x\",\"unknown\":true}},{\"operation\":\"level.list\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.list\",\"case\":\"root-not-closed\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null,\"unknown\":true}},{\"operation\":\"level.list\",\"case\":\"numeric-below-minimum@count\",\"result\":{\"count\":-1,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"level.list\",\"case\":\"numeric-above-maximum@count\",\"result\":{\"count\":101,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"level.list\",\"case\":\"numeric-below-minimum@total\",\"result\":{\"count\":0,\"total\":-1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"level.list\",\"case\":\"numeric-above-maximum@total\",\"result\":{\"count\":0,\"total\":9007199254740992,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[],\"nextCursor\":null}},{\"operation\":\"level.open\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.open\",\"case\":\"root-not-closed\",\"result\":{\"level\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"level.save\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"level.save\",\"case\":\"root-not-closed\",\"result\":{\"level\":\"x\",\"changed\":false,\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true}},{\"operation\":\"operation.view\",\"case\":\"missing-required\",\"result\":{}},{\"operation\":\"operation.view\",\"case\":\"root-not-closed\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false},\"unknown\":true}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@editorPid\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":0,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@editorPid\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":4294967296,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false}}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@verification.errorCount\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"errorCount\":0}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@verification.errorCount\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"errorCount\":101}}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@verification.warningCount\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"warningCount\":-1}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@verification.warningCount\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"warningCount\":101}}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@verification.requestValue\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestValue\":-1000001.0}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@verification.requestValue\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestValue\":1000001.0}}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@verification.requestLocation.0\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestLocation\":[-100001.0,-100000.0,-100000.0]}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@verification.requestLocation.0\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestLocation\":[100001.0,-100000.0,-100000.0]}}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@verification.requestRotation.0\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestRotation\":[-361.0,-360.0,-360.0]}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@verification.requestRotation.0\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestRotation\":[361.0,-360.0,-360.0]}}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@verification.requestScale.0\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestScale\":[-1.0,0.0,0.0]}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@verification.requestScale.0\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestScale\":[1001.0,0.0,0.0]}}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@verification.requestMassOverride\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestMassOverride\":-0.999}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@verification.requestMassOverride\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestMassOverride\":100001.0}}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@verification.requestBoxExtent.0\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestBoxExtent\":[-0.999,0.001,0.001]}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@verification.requestBoxExtent.0\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestBoxExtent\":[100001.0,0.001,0.001]}}},{\"operation\":\"operation.view\",\"case\":\"numeric-below-minimum@verification.requestSphereRadius\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestSphereRadius\":-0.999}}},{\"operation\":\"operation.view\",\"case\":\"numeric-above-maximum@verification.requestSphereRadius\",\"result\":{\"operationId\":\"x\",\"operation\":\"x\",\"state\":\"queued\",\"projectId\":\"x\",\"editorPid\":1,\"target\":\"x\",\"changed\":false,\"transaction\":\"x\",\"reversibility\":\"x\",\"dirtyPackages\":[],\"savedPackages\":[],\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"persistence\":\"x\",\"verification\":{\"readback\":\"x\",\"target\":\"x\",\"matched\":false,\"requestSphereRadius\":100001.0}}},{\"operation\":\"actor.list\",\"case\":\"missing-list-id\",\"result\":{\"count\":1,\"total\":1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"label\":\"actor\"}],\"nextCursor\":null}},{\"operation\":\"level.current\",\"case\":\"nested-not-closed\",\"result\":{\"level\":{\"id\":\"x\",\"name\":\"x\",\"worldType\":\"x\",\"persistent\":false,\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"unknown\":true},\"scope\":\"x\"}},{\"operation\":\"editor.status\",\"case\":\"wrong-type\",\"result\":{\"state\":\"starting\",\"projectId\":\"x\",\"editorPid\":\"not-an-integer\",\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0}},{\"operation\":\"editor.status\",\"case\":\"enum\",\"result\":{\"state\":\"invalid\",\"projectId\":\"x\",\"editorPid\":0,\"levelId\":\"\",\"pie\":\"running\",\"dirtyPackageCount\":0}},{\"operation\":\"actor.view\",\"case\":\"string-bound\",\"result\":{\"id\":\"x\",\"actorGuid\":\"x\",\"levelId\":\"x\",\"label\":\"x\",\"class\":\"x\",\"objectPath\":\"x\",\"location\":[-1000000000.0,-1000000000.0,-1000000000.0],\"rotation\":[-360.0,-360.0,-360.0],\"scale\":[0.0,0.0,0.0],\"revision\":\"short\"}},{\"operation\":\"blueprint.graph_view\",\"case\":\"partial-graph-row\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"graphId\":\"/Game/BP.BP:graph\",\"kind\":\"ubergraph\",\"name\":\"EventGraph\"}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"hybrid-row\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"graphId\":\"/Game/BP.BP:graph\",\"kind\":\"ubergraph\",\"name\":\"EventGraph\",\"nodeCount\":1,\"nodeId\":\"node\"}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"empty-row\",\"result\":{\"blueprintId\":\"x\",\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{}],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"primitive-row\",\"result\":{\"blueprintId\":\"x\",\"count\":1,\"total\":1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[1],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"null-row\",\"result\":{\"blueprintId\":\"x\",\"count\":1,\"total\":1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[null],\"nextCursor\":null}},{\"operation\":\"blueprint.graph_view\",\"case\":\"array-row\",\"result\":{\"blueprintId\":\"x\",\"count\":1,\"total\":1,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[[]],\"nextCursor\":null}},{\"operation\":\"asset.list\",\"case\":\"array-bound\",\"result\":{\"count\":0,\"total\":0,\"scope\":\"x\",\"revision\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"items\":[{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"},{\"id\":\"x\"}],\"nextCursor\":null}}]")
 
 static int32 MagiAxiUnicodeScalarCount(const FString& Text)
 {
@@ -451,6 +475,281 @@ static bool MagiAxiValidateInput(const FString& Operation, const TSharedRef<FJso
         if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
         return true;
     }
+    if (Operation == TEXT("blueprint.interface_create"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("path") && Entry.Key != TEXT("function")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("path"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("function"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::String) return false;
+        const FString Text4 = Value3->AsString();
+        if (MagiAxiUnicodeScalarCount(Text4) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text4) > 128) return false;
+        if (Text4 != TEXT("Interact")) return false;
+        return true;
+    }
+    if (Operation == TEXT("blueprint.interface_view"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("id")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("id"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        return true;
+    }
+    if (Operation == TEXT("blueprint.interface_ensure"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId") && Entry.Key != TEXT("interfaceId")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("blueprintId"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("interfaceId"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::String) return false;
+        const FString Text4 = Value3->AsString();
+        if (MagiAxiUnicodeScalarCount(Text4) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text4) > 512) return false;
+        return true;
+    }
+    if (Operation == TEXT("blueprint.scs_view"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("blueprintId"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        return true;
+    }
+    if (Operation == TEXT("blueprint.scs_component_ensure"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId") && Entry.Key != TEXT("name") && Entry.Key != TEXT("class") && Entry.Key != TEXT("parent")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("blueprintId"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("name"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::String) return false;
+        const FString Text4 = Value3->AsString();
+        if (MagiAxiUnicodeScalarCount(Text4) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text4) > 128) return false;
+        const TSharedPtr<FJsonValue> Value5 = Object0->TryGetField(TEXT("class"));
+        if (!Value5.IsValid()) return false;
+        if (!Value5.IsValid() || Value5->Type != EJson::String) return false;
+        const FString Text6 = Value5->AsString();
+        if (MagiAxiUnicodeScalarCount(Text6) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text6) > 128) return false;
+        if (Text6 != TEXT("SceneComponent") && Text6 != TEXT("PointLightComponent") && Text6 != TEXT("StaticMeshComponent") && Text6 != TEXT("BoxComponent") && Text6 != TEXT("SphereComponent")) return false;
+        const TSharedPtr<FJsonValue> Value7 = Object0->TryGetField(TEXT("parent"));
+        if (Value7.IsValid())
+        {
+            if (!Value7.IsValid() || Value7->Type != EJson::String) return false;
+            const FString Text8 = Value7->AsString();
+            if (MagiAxiUnicodeScalarCount(Text8) < 1) return false;
+            if (MagiAxiUnicodeScalarCount(Text8) > 128) return false;
+        }
+        return true;
+    }
+    if (Operation == TEXT("blueprint.scs_component_update"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId") && Entry.Key != TEXT("variableGuid") && Entry.Key != TEXT("location") && Entry.Key != TEXT("rotation") && Entry.Key != TEXT("scale") && Entry.Key != TEXT("collisionEnabled") && Entry.Key != TEXT("generateOverlapEvents") && Entry.Key != TEXT("simulatePhysics") && Entry.Key != TEXT("gravityEnabled") && Entry.Key != TEXT("massOverride") && Entry.Key != TEXT("boxExtent") && Entry.Key != TEXT("sphereRadius") && Entry.Key != TEXT("collisionProfile")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("blueprintId"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("variableGuid"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::String) return false;
+        const FString Text4 = Value3->AsString();
+        if (MagiAxiUnicodeScalarCount(Text4) < 36) return false;
+        if (MagiAxiUnicodeScalarCount(Text4) > 36) return false;
+        const TSharedPtr<FJsonValue> Value5 = Object0->TryGetField(TEXT("location"));
+        if (Value5.IsValid())
+        {
+            if (!Value5.IsValid() || Value5->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array6 = Value5->AsArray();
+            if (Array6.Num() < 3) return false;
+            if (Array6.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value7 : Array6)
+            {
+                double Number8 = 0;
+                if (!Value7.IsValid() || !Value7->TryGetNumber(Number8) || !FMath::IsFinite(Number8)) return false;
+                if (Number8 < -100000.0) return false;
+                if (Number8 > 100000.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value9 = Object0->TryGetField(TEXT("rotation"));
+        if (Value9.IsValid())
+        {
+            if (!Value9.IsValid() || Value9->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array10 = Value9->AsArray();
+            if (Array10.Num() < 3) return false;
+            if (Array10.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value11 : Array10)
+            {
+                double Number12 = 0;
+                if (!Value11.IsValid() || !Value11->TryGetNumber(Number12) || !FMath::IsFinite(Number12)) return false;
+                if (Number12 < -360.0) return false;
+                if (Number12 > 360.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value13 = Object0->TryGetField(TEXT("scale"));
+        if (Value13.IsValid())
+        {
+            if (!Value13.IsValid() || Value13->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array14 = Value13->AsArray();
+            if (Array14.Num() < 3) return false;
+            if (Array14.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value15 : Array14)
+            {
+                double Number16 = 0;
+                if (!Value15.IsValid() || !Value15->TryGetNumber(Number16) || !FMath::IsFinite(Number16)) return false;
+                if (Number16 < 0.0) return false;
+                if (Number16 > 1000.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value17 = Object0->TryGetField(TEXT("collisionEnabled"));
+        if (Value17.IsValid())
+        {
+            if (!Value17.IsValid() || Value17->Type != EJson::String) return false;
+            const FString Text18 = Value17->AsString();
+            if (MagiAxiUnicodeScalarCount(Text18) > 32) return false;
+            if (Text18 != TEXT("NoCollision") && Text18 != TEXT("QueryOnly") && Text18 != TEXT("PhysicsOnly") && Text18 != TEXT("QueryAndPhysics")) return false;
+        }
+        const TSharedPtr<FJsonValue> Value19 = Object0->TryGetField(TEXT("generateOverlapEvents"));
+        if (Value19.IsValid())
+        {
+            if (!Value19.IsValid() || Value19->Type != EJson::Boolean) return false;
+        }
+        const TSharedPtr<FJsonValue> Value20 = Object0->TryGetField(TEXT("simulatePhysics"));
+        if (Value20.IsValid())
+        {
+            if (!Value20.IsValid() || Value20->Type != EJson::Boolean) return false;
+        }
+        const TSharedPtr<FJsonValue> Value21 = Object0->TryGetField(TEXT("gravityEnabled"));
+        if (Value21.IsValid())
+        {
+            if (!Value21.IsValid() || Value21->Type != EJson::Boolean) return false;
+        }
+        const TSharedPtr<FJsonValue> Value22 = Object0->TryGetField(TEXT("massOverride"));
+        if (Value22.IsValid())
+        {
+            double Number23 = 0;
+            if (!Value22.IsValid() || !Value22->TryGetNumber(Number23) || !FMath::IsFinite(Number23)) return false;
+            if (Number23 < 0.001) return false;
+            if (Number23 > 100000.0) return false;
+        }
+        const TSharedPtr<FJsonValue> Value24 = Object0->TryGetField(TEXT("boxExtent"));
+        if (Value24.IsValid())
+        {
+            if (!Value24.IsValid() || Value24->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array25 = Value24->AsArray();
+            if (Array25.Num() < 3) return false;
+            if (Array25.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value26 : Array25)
+            {
+                double Number27 = 0;
+                if (!Value26.IsValid() || !Value26->TryGetNumber(Number27) || !FMath::IsFinite(Number27)) return false;
+                if (Number27 < 0.001) return false;
+                if (Number27 > 100000.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value28 = Object0->TryGetField(TEXT("sphereRadius"));
+        if (Value28.IsValid())
+        {
+            double Number29 = 0;
+            if (!Value28.IsValid() || !Value28->TryGetNumber(Number29) || !FMath::IsFinite(Number29)) return false;
+            if (Number29 < 0.001) return false;
+            if (Number29 > 100000.0) return false;
+        }
+        const TSharedPtr<FJsonValue> Value30 = Object0->TryGetField(TEXT("collisionProfile"));
+        if (Value30.IsValid())
+        {
+            if (!Value30.IsValid() || Value30->Type != EJson::String) return false;
+            const FString Text31 = Value30->AsString();
+            if (MagiAxiUnicodeScalarCount(Text31) > 128) return false;
+            if (Text31 != TEXT("OverlapAllDynamic")) return false;
+        }
+        return true;
+    }
+    if (Operation == TEXT("blueprint.scs_component_remove"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId") && Entry.Key != TEXT("variableGuid") && Entry.Key != TEXT("force") && Entry.Key != TEXT("dryRun")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("blueprintId"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("variableGuid"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::String) return false;
+        const FString Text4 = Value3->AsString();
+        if (MagiAxiUnicodeScalarCount(Text4) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text4) > 128) return false;
+        const TSharedPtr<FJsonValue> Value5 = Object0->TryGetField(TEXT("force"));
+        if (!Value5.IsValid()) return false;
+        if (!Value5.IsValid() || Value5->Type != EJson::Boolean) return false;
+        const TSharedPtr<FJsonValue> Value6 = Object0->TryGetField(TEXT("dryRun"));
+        if (!Value6.IsValid()) return false;
+        if (!Value6.IsValid() || Value6->Type != EJson::Boolean) return false;
+        return true;
+    }
+    if (Operation == TEXT("play.component_observe"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("sessionId") && Entry.Key != TEXT("actorId") && Entry.Key != TEXT("variableGuid")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("sessionId"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 128) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("actorId"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::String) return false;
+        const FString Text4 = Value3->AsString();
+        if (MagiAxiUnicodeScalarCount(Text4) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text4) > 512) return false;
+        const TSharedPtr<FJsonValue> Value5 = Object0->TryGetField(TEXT("variableGuid"));
+        if (!Value5.IsValid()) return false;
+        if (!Value5.IsValid() || Value5->Type != EJson::String) return false;
+        const FString Text6 = Value5->AsString();
+        if (MagiAxiUnicodeScalarCount(Text6) < 36) return false;
+        if (MagiAxiUnicodeScalarCount(Text6) > 36) return false;
+        return true;
+    }
     if (Operation == TEXT("blueprint.compile"))
     {
         if (!Root.IsValid() || Root->Type != EJson::Object) return false;
@@ -494,7 +793,7 @@ static bool MagiAxiValidateInput(const FString& Operation, const TSharedRef<FJso
         const FString Text4 = Value3->AsString();
         if (MagiAxiUnicodeScalarCount(Text4) < 1) return false;
         if (MagiAxiUnicodeScalarCount(Text4) > 64) return false;
-        if (Text4 != TEXT("/Script/Engine.StaticMeshActor")) return false;
+        if (Text4 != TEXT("/Script/Engine.StaticMeshActor") && Text4 != TEXT("/Script/Engine.Actor")) return false;
         return true;
     }
     if (Operation == TEXT("blueprint.graph_view"))
@@ -538,7 +837,7 @@ static bool MagiAxiValidateInput(const FString& Operation, const TSharedRef<FJso
     {
         if (!Root.IsValid() || Root->Type != EJson::Object) return false;
         const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
-        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId") && Entry.Key != TEXT("graphId") && Entry.Key != TEXT("agentKey") && Entry.Key != TEXT("event")) return false;
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId") && Entry.Key != TEXT("graphId") && Entry.Key != TEXT("agentKey") && Entry.Key != TEXT("event") && Entry.Key != TEXT("variableGuid") && Entry.Key != TEXT("interfaceId")) return false;
         const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("blueprintId"));
         if (!Value1.IsValid()) return false;
         if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
@@ -562,14 +861,30 @@ static bool MagiAxiValidateInput(const FString& Operation, const TSharedRef<FJso
         if (!Value7.IsValid() || Value7->Type != EJson::String) return false;
         const FString Text8 = Value7->AsString();
         if (MagiAxiUnicodeScalarCount(Text8) > 32) return false;
-        if (Text8 != TEXT("actor.begin_play") && Text8 != TEXT("input.key_e")) return false;
+        if (Text8 != TEXT("actor.begin_play") && Text8 != TEXT("input.key_e") && Text8 != TEXT("component.begin_overlap") && Text8 != TEXT("interface.interact")) return false;
+        const TSharedPtr<FJsonValue> Value9 = Object0->TryGetField(TEXT("variableGuid"));
+        if (Value9.IsValid())
+        {
+            if (!Value9.IsValid() || Value9->Type != EJson::String) return false;
+            const FString Text10 = Value9->AsString();
+            if (MagiAxiUnicodeScalarCount(Text10) < 36) return false;
+            if (MagiAxiUnicodeScalarCount(Text10) > 36) return false;
+        }
+        const TSharedPtr<FJsonValue> Value11 = Object0->TryGetField(TEXT("interfaceId"));
+        if (Value11.IsValid())
+        {
+            if (!Value11.IsValid() || Value11->Type != EJson::String) return false;
+            const FString Text12 = Value11->AsString();
+            if (MagiAxiUnicodeScalarCount(Text12) < 1) return false;
+            if (MagiAxiUnicodeScalarCount(Text12) > 512) return false;
+        }
         return true;
     }
     if (Operation == TEXT("blueprint.node_ensure"))
     {
         if (!Root.IsValid() || Root->Type != EJson::Object) return false;
         const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
-        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId") && Entry.Key != TEXT("graphId") && Entry.Key != TEXT("agentKey") && Entry.Key != TEXT("node")) return false;
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId") && Entry.Key != TEXT("graphId") && Entry.Key != TEXT("agentKey") && Entry.Key != TEXT("node") && Entry.Key != TEXT("interfaceId")) return false;
         const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("blueprintId"));
         if (!Value1.IsValid()) return false;
         if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
@@ -593,7 +908,15 @@ static bool MagiAxiValidateInput(const FString& Operation, const TSharedRef<FJso
         if (!Value7.IsValid() || Value7->Type != EJson::String) return false;
         const FString Text8 = Value7->AsString();
         if (MagiAxiUnicodeScalarCount(Text8) > 64) return false;
-        if (Text8 != TEXT("game.get_player_controller") && Text8 != TEXT("actor.enable_input") && Text8 != TEXT("math.make_vector") && Text8 != TEXT("actor.add_world_offset")) return false;
+        if (Text8 != TEXT("game.get_player_controller") && Text8 != TEXT("actor.enable_input") && Text8 != TEXT("math.make_vector") && Text8 != TEXT("actor.add_world_offset") && Text8 != TEXT("interface.message_interact")) return false;
+        const TSharedPtr<FJsonValue> Value9 = Object0->TryGetField(TEXT("interfaceId"));
+        if (Value9.IsValid())
+        {
+            if (!Value9.IsValid() || Value9->Type != EJson::String) return false;
+            const FString Text10 = Value9->AsString();
+            if (MagiAxiUnicodeScalarCount(Text10) < 1) return false;
+            if (MagiAxiUnicodeScalarCount(Text10) > 512) return false;
+        }
         return true;
     }
     if (Operation == TEXT("blueprint.pin_default_set"))
@@ -1598,6 +1921,677 @@ static bool MagiAxiValidateOutput(const FString& Operation, const TSharedRef<FJs
         const FString Text15 = Value14->AsString();
         if (MagiAxiUnicodeScalarCount(Text15) < 64) return false;
         if (MagiAxiUnicodeScalarCount(Text15) > 64) return false;
+        return true;
+    }
+    if (Operation == TEXT("blueprint.interface_create"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("id") && Entry.Key != TEXT("function") && Entry.Key != TEXT("changed") && Entry.Key != TEXT("dirtyPackages") && Entry.Key != TEXT("savedPackages") && Entry.Key != TEXT("revision")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("id"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("function"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::String) return false;
+        const FString Text4 = Value3->AsString();
+        if (MagiAxiUnicodeScalarCount(Text4) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text4) > 128) return false;
+        const TSharedPtr<FJsonValue> Value5 = Object0->TryGetField(TEXT("changed"));
+        if (!Value5.IsValid()) return false;
+        if (!Value5.IsValid() || Value5->Type != EJson::Boolean) return false;
+        const TSharedPtr<FJsonValue> Value6 = Object0->TryGetField(TEXT("dirtyPackages"));
+        if (!Value6.IsValid()) return false;
+        if (!Value6.IsValid() || Value6->Type != EJson::Array) return false;
+        const TArray<TSharedPtr<FJsonValue>>& Array7 = Value6->AsArray();
+        if (Array7.Num() > 100) return false;
+        for (const TSharedPtr<FJsonValue>& Value8 : Array7)
+        {
+            if (!Value8.IsValid() || Value8->Type != EJson::String) return false;
+            const FString Text9 = Value8->AsString();
+            if (MagiAxiUnicodeScalarCount(Text9) > 256) return false;
+        }
+        const TSharedPtr<FJsonValue> Value10 = Object0->TryGetField(TEXT("savedPackages"));
+        if (!Value10.IsValid()) return false;
+        if (!Value10.IsValid() || Value10->Type != EJson::Array) return false;
+        const TArray<TSharedPtr<FJsonValue>>& Array11 = Value10->AsArray();
+        if (Array11.Num() > 100) return false;
+        for (const TSharedPtr<FJsonValue>& Value12 : Array11)
+        {
+            if (!Value12.IsValid() || Value12->Type != EJson::String) return false;
+            const FString Text13 = Value12->AsString();
+            if (MagiAxiUnicodeScalarCount(Text13) > 256) return false;
+        }
+        const TSharedPtr<FJsonValue> Value14 = Object0->TryGetField(TEXT("revision"));
+        if (!Value14.IsValid()) return false;
+        if (!Value14.IsValid() || Value14->Type != EJson::String) return false;
+        const FString Text15 = Value14->AsString();
+        if (MagiAxiUnicodeScalarCount(Text15) < 64) return false;
+        if (MagiAxiUnicodeScalarCount(Text15) > 64) return false;
+        return true;
+    }
+    if (Operation == TEXT("blueprint.interface_view"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("id") && Entry.Key != TEXT("function") && Entry.Key != TEXT("revision")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("id"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("function"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::String) return false;
+        const FString Text4 = Value3->AsString();
+        if (MagiAxiUnicodeScalarCount(Text4) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text4) > 128) return false;
+        const TSharedPtr<FJsonValue> Value5 = Object0->TryGetField(TEXT("revision"));
+        if (!Value5.IsValid()) return false;
+        if (!Value5.IsValid() || Value5->Type != EJson::String) return false;
+        const FString Text6 = Value5->AsString();
+        if (MagiAxiUnicodeScalarCount(Text6) < 64) return false;
+        if (MagiAxiUnicodeScalarCount(Text6) > 64) return false;
+        return true;
+    }
+    if (Operation == TEXT("blueprint.interface_ensure"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId") && Entry.Key != TEXT("interfaceId") && Entry.Key != TEXT("changed") && Entry.Key != TEXT("dirtyPackages") && Entry.Key != TEXT("savedPackages") && Entry.Key != TEXT("revision")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("blueprintId"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("interfaceId"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::String) return false;
+        const FString Text4 = Value3->AsString();
+        if (MagiAxiUnicodeScalarCount(Text4) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text4) > 512) return false;
+        const TSharedPtr<FJsonValue> Value5 = Object0->TryGetField(TEXT("changed"));
+        if (!Value5.IsValid()) return false;
+        if (!Value5.IsValid() || Value5->Type != EJson::Boolean) return false;
+        const TSharedPtr<FJsonValue> Value6 = Object0->TryGetField(TEXT("dirtyPackages"));
+        if (!Value6.IsValid()) return false;
+        if (!Value6.IsValid() || Value6->Type != EJson::Array) return false;
+        const TArray<TSharedPtr<FJsonValue>>& Array7 = Value6->AsArray();
+        if (Array7.Num() > 100) return false;
+        for (const TSharedPtr<FJsonValue>& Value8 : Array7)
+        {
+            if (!Value8.IsValid() || Value8->Type != EJson::String) return false;
+            const FString Text9 = Value8->AsString();
+            if (MagiAxiUnicodeScalarCount(Text9) > 256) return false;
+        }
+        const TSharedPtr<FJsonValue> Value10 = Object0->TryGetField(TEXT("savedPackages"));
+        if (!Value10.IsValid()) return false;
+        if (!Value10.IsValid() || Value10->Type != EJson::Array) return false;
+        const TArray<TSharedPtr<FJsonValue>>& Array11 = Value10->AsArray();
+        if (Array11.Num() > 100) return false;
+        for (const TSharedPtr<FJsonValue>& Value12 : Array11)
+        {
+            if (!Value12.IsValid() || Value12->Type != EJson::String) return false;
+            const FString Text13 = Value12->AsString();
+            if (MagiAxiUnicodeScalarCount(Text13) > 256) return false;
+        }
+        const TSharedPtr<FJsonValue> Value14 = Object0->TryGetField(TEXT("revision"));
+        if (!Value14.IsValid()) return false;
+        if (!Value14.IsValid() || Value14->Type != EJson::String) return false;
+        const FString Text15 = Value14->AsString();
+        if (MagiAxiUnicodeScalarCount(Text15) < 64) return false;
+        if (MagiAxiUnicodeScalarCount(Text15) > 64) return false;
+        return true;
+    }
+    if (Operation == TEXT("blueprint.scs_view"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId") && Entry.Key != TEXT("components") && Entry.Key != TEXT("revision")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("blueprintId"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("components"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::Array) return false;
+        const TArray<TSharedPtr<FJsonValue>>& Array4 = Value3->AsArray();
+        if (Array4.Num() > 100) return false;
+        for (const TSharedPtr<FJsonValue>& Value5 : Array4)
+        {
+            if (!Value5.IsValid() || Value5->Type != EJson::Object) return false;
+            const TSharedPtr<FJsonObject> Object6 = Value5->AsObject();
+            for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object6->Values) if (Entry.Key != TEXT("variableGuid") && Entry.Key != TEXT("name") && Entry.Key != TEXT("class") && Entry.Key != TEXT("parent") && Entry.Key != TEXT("location") && Entry.Key != TEXT("rotation") && Entry.Key != TEXT("scale") && Entry.Key != TEXT("collisionEnabled") && Entry.Key != TEXT("collisionProfile") && Entry.Key != TEXT("objectType") && Entry.Key != TEXT("generateOverlapEvents") && Entry.Key != TEXT("simulatePhysics") && Entry.Key != TEXT("gravityEnabled") && Entry.Key != TEXT("massOverride") && Entry.Key != TEXT("boxExtent") && Entry.Key != TEXT("sphereRadius")) return false;
+            const TSharedPtr<FJsonValue> Value7 = Object6->TryGetField(TEXT("variableGuid"));
+            if (!Value7.IsValid()) return false;
+            if (!Value7.IsValid() || Value7->Type != EJson::String) return false;
+            const FString Text8 = Value7->AsString();
+            if (MagiAxiUnicodeScalarCount(Text8) < 36) return false;
+            if (MagiAxiUnicodeScalarCount(Text8) > 36) return false;
+            const TSharedPtr<FJsonValue> Value9 = Object6->TryGetField(TEXT("name"));
+            if (!Value9.IsValid()) return false;
+            if (!Value9.IsValid() || Value9->Type != EJson::String) return false;
+            const FString Text10 = Value9->AsString();
+            if (MagiAxiUnicodeScalarCount(Text10) < 1) return false;
+            if (MagiAxiUnicodeScalarCount(Text10) > 128) return false;
+            const TSharedPtr<FJsonValue> Value11 = Object6->TryGetField(TEXT("class"));
+            if (!Value11.IsValid()) return false;
+            if (!Value11.IsValid() || Value11->Type != EJson::String) return false;
+            const FString Text12 = Value11->AsString();
+            if (MagiAxiUnicodeScalarCount(Text12) < 1) return false;
+            if (MagiAxiUnicodeScalarCount(Text12) > 512) return false;
+            const TSharedPtr<FJsonValue> Value13 = Object6->TryGetField(TEXT("parent"));
+            if (!Value13.IsValid()) return false;
+            if (Value13->Type != EJson::Null)
+            {
+                if (!Value13.IsValid() || Value13->Type != EJson::String) return false;
+                const FString Text14 = Value13->AsString();
+                if (MagiAxiUnicodeScalarCount(Text14) > 128) return false;
+            }
+            const TSharedPtr<FJsonValue> Value15 = Object6->TryGetField(TEXT("location"));
+            if (!Value15.IsValid()) return false;
+            if (!Value15.IsValid() || Value15->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array16 = Value15->AsArray();
+            if (Array16.Num() < 3) return false;
+            if (Array16.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value17 : Array16)
+            {
+                double Number18 = 0;
+                if (!Value17.IsValid() || !Value17->TryGetNumber(Number18) || !FMath::IsFinite(Number18)) return false;
+                if (Number18 < -100000.0) return false;
+                if (Number18 > 100000.0) return false;
+            }
+            const TSharedPtr<FJsonValue> Value19 = Object6->TryGetField(TEXT("rotation"));
+            if (!Value19.IsValid()) return false;
+            if (!Value19.IsValid() || Value19->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array20 = Value19->AsArray();
+            if (Array20.Num() < 3) return false;
+            if (Array20.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value21 : Array20)
+            {
+                double Number22 = 0;
+                if (!Value21.IsValid() || !Value21->TryGetNumber(Number22) || !FMath::IsFinite(Number22)) return false;
+                if (Number22 < -360.0) return false;
+                if (Number22 > 360.0) return false;
+            }
+            const TSharedPtr<FJsonValue> Value23 = Object6->TryGetField(TEXT("scale"));
+            if (!Value23.IsValid()) return false;
+            if (!Value23.IsValid() || Value23->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array24 = Value23->AsArray();
+            if (Array24.Num() < 3) return false;
+            if (Array24.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value25 : Array24)
+            {
+                double Number26 = 0;
+                if (!Value25.IsValid() || !Value25->TryGetNumber(Number26) || !FMath::IsFinite(Number26)) return false;
+                if (Number26 < 0.0) return false;
+                if (Number26 > 1000.0) return false;
+            }
+            const TSharedPtr<FJsonValue> Value27 = Object6->TryGetField(TEXT("collisionEnabled"));
+            if (!Value27.IsValid()) return false;
+            if (Value27->Type != EJson::Null)
+            {
+                if (!Value27.IsValid() || Value27->Type != EJson::String) return false;
+                const FString Text28 = Value27->AsString();
+                if (MagiAxiUnicodeScalarCount(Text28) > 32) return false;
+            }
+            const TSharedPtr<FJsonValue> Value29 = Object6->TryGetField(TEXT("collisionProfile"));
+            if (!Value29.IsValid()) return false;
+            if (Value29->Type != EJson::Null)
+            {
+                if (!Value29.IsValid() || Value29->Type != EJson::String) return false;
+                const FString Text30 = Value29->AsString();
+                if (MagiAxiUnicodeScalarCount(Text30) > 128) return false;
+            }
+            const TSharedPtr<FJsonValue> Value31 = Object6->TryGetField(TEXT("objectType"));
+            if (!Value31.IsValid()) return false;
+            if (Value31->Type != EJson::Null)
+            {
+                if (!Value31.IsValid() || Value31->Type != EJson::String) return false;
+                const FString Text32 = Value31->AsString();
+                if (MagiAxiUnicodeScalarCount(Text32) > 128) return false;
+            }
+            const TSharedPtr<FJsonValue> Value33 = Object6->TryGetField(TEXT("generateOverlapEvents"));
+            if (!Value33.IsValid()) return false;
+            if (Value33->Type != EJson::Null)
+            {
+                if (!Value33.IsValid() || Value33->Type != EJson::Boolean) return false;
+            }
+            const TSharedPtr<FJsonValue> Value34 = Object6->TryGetField(TEXT("simulatePhysics"));
+            if (!Value34.IsValid()) return false;
+            if (Value34->Type != EJson::Null)
+            {
+                if (!Value34.IsValid() || Value34->Type != EJson::Boolean) return false;
+            }
+            const TSharedPtr<FJsonValue> Value35 = Object6->TryGetField(TEXT("gravityEnabled"));
+            if (!Value35.IsValid()) return false;
+            if (Value35->Type != EJson::Null)
+            {
+                if (!Value35.IsValid() || Value35->Type != EJson::Boolean) return false;
+            }
+            const TSharedPtr<FJsonValue> Value36 = Object6->TryGetField(TEXT("massOverride"));
+            if (!Value36.IsValid()) return false;
+            if (Value36->Type != EJson::Null)
+            {
+                double Number37 = 0;
+                if (!Value36.IsValid() || !Value36->TryGetNumber(Number37) || !FMath::IsFinite(Number37)) return false;
+                if (Number37 < 0.0) return false;
+                if (Number37 > 100000.0) return false;
+            }
+            const TSharedPtr<FJsonValue> Value38 = Object6->TryGetField(TEXT("boxExtent"));
+            if (!Value38.IsValid()) return false;
+            if (Value38->Type != EJson::Null)
+            {
+                if (!Value38.IsValid() || Value38->Type != EJson::Array) return false;
+                const TArray<TSharedPtr<FJsonValue>>& Array39 = Value38->AsArray();
+                if (Array39.Num() < 3) return false;
+                if (Array39.Num() > 3) return false;
+                for (const TSharedPtr<FJsonValue>& Value40 : Array39)
+                {
+                    double Number41 = 0;
+                    if (!Value40.IsValid() || !Value40->TryGetNumber(Number41) || !FMath::IsFinite(Number41)) return false;
+                    if (Number41 < 0.0) return false;
+                    if (Number41 > 100000.0) return false;
+                }
+            }
+            const TSharedPtr<FJsonValue> Value42 = Object6->TryGetField(TEXT("sphereRadius"));
+            if (!Value42.IsValid()) return false;
+            if (Value42->Type != EJson::Null)
+            {
+                double Number43 = 0;
+                if (!Value42.IsValid() || !Value42->TryGetNumber(Number43) || !FMath::IsFinite(Number43)) return false;
+                if (Number43 < 0.0) return false;
+                if (Number43 > 100000.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value44 = Object0->TryGetField(TEXT("revision"));
+        if (!Value44.IsValid()) return false;
+        if (!Value44.IsValid() || Value44->Type != EJson::String) return false;
+        const FString Text45 = Value44->AsString();
+        if (MagiAxiUnicodeScalarCount(Text45) < 64) return false;
+        if (MagiAxiUnicodeScalarCount(Text45) > 64) return false;
+        return true;
+    }
+    if (Operation == TEXT("blueprint.scs_component_ensure"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId") && Entry.Key != TEXT("variableGuid") && Entry.Key != TEXT("changed") && Entry.Key != TEXT("dirtyPackages") && Entry.Key != TEXT("revision")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("blueprintId"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("variableGuid"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::String) return false;
+        const FString Text4 = Value3->AsString();
+        if (MagiAxiUnicodeScalarCount(Text4) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text4) > 128) return false;
+        const TSharedPtr<FJsonValue> Value5 = Object0->TryGetField(TEXT("changed"));
+        if (!Value5.IsValid()) return false;
+        if (!Value5.IsValid() || Value5->Type != EJson::Boolean) return false;
+        const TSharedPtr<FJsonValue> Value6 = Object0->TryGetField(TEXT("dirtyPackages"));
+        if (!Value6.IsValid()) return false;
+        if (!Value6.IsValid() || Value6->Type != EJson::Array) return false;
+        const TArray<TSharedPtr<FJsonValue>>& Array7 = Value6->AsArray();
+        if (Array7.Num() > 100) return false;
+        for (const TSharedPtr<FJsonValue>& Value8 : Array7)
+        {
+            if (!Value8.IsValid() || Value8->Type != EJson::String) return false;
+            const FString Text9 = Value8->AsString();
+            if (MagiAxiUnicodeScalarCount(Text9) > 256) return false;
+        }
+        const TSharedPtr<FJsonValue> Value10 = Object0->TryGetField(TEXT("revision"));
+        if (!Value10.IsValid()) return false;
+        if (!Value10.IsValid() || Value10->Type != EJson::String) return false;
+        const FString Text11 = Value10->AsString();
+        if (MagiAxiUnicodeScalarCount(Text11) < 64) return false;
+        if (MagiAxiUnicodeScalarCount(Text11) > 64) return false;
+        return true;
+    }
+    if (Operation == TEXT("blueprint.scs_component_update"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId") && Entry.Key != TEXT("variableGuid") && Entry.Key != TEXT("changed") && Entry.Key != TEXT("dirtyPackages") && Entry.Key != TEXT("savedPackages") && Entry.Key != TEXT("revision")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("blueprintId"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("variableGuid"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::String) return false;
+        const FString Text4 = Value3->AsString();
+        if (MagiAxiUnicodeScalarCount(Text4) < 36) return false;
+        if (MagiAxiUnicodeScalarCount(Text4) > 36) return false;
+        const TSharedPtr<FJsonValue> Value5 = Object0->TryGetField(TEXT("changed"));
+        if (!Value5.IsValid()) return false;
+        if (!Value5.IsValid() || Value5->Type != EJson::Boolean) return false;
+        const TSharedPtr<FJsonValue> Value6 = Object0->TryGetField(TEXT("dirtyPackages"));
+        if (!Value6.IsValid()) return false;
+        if (!Value6.IsValid() || Value6->Type != EJson::Array) return false;
+        const TArray<TSharedPtr<FJsonValue>>& Array7 = Value6->AsArray();
+        if (Array7.Num() > 100) return false;
+        for (const TSharedPtr<FJsonValue>& Value8 : Array7)
+        {
+            if (!Value8.IsValid() || Value8->Type != EJson::String) return false;
+            const FString Text9 = Value8->AsString();
+            if (MagiAxiUnicodeScalarCount(Text9) > 256) return false;
+        }
+        const TSharedPtr<FJsonValue> Value10 = Object0->TryGetField(TEXT("savedPackages"));
+        if (Value10.IsValid())
+        {
+            if (!Value10.IsValid() || Value10->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array11 = Value10->AsArray();
+            if (Array11.Num() > 100) return false;
+            for (const TSharedPtr<FJsonValue>& Value12 : Array11)
+            {
+                if (!Value12.IsValid() || Value12->Type != EJson::String) return false;
+                const FString Text13 = Value12->AsString();
+                if (MagiAxiUnicodeScalarCount(Text13) > 256) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value14 = Object0->TryGetField(TEXT("revision"));
+        if (!Value14.IsValid()) return false;
+        if (!Value14.IsValid() || Value14->Type != EJson::String) return false;
+        const FString Text15 = Value14->AsString();
+        if (MagiAxiUnicodeScalarCount(Text15) < 64) return false;
+        if (MagiAxiUnicodeScalarCount(Text15) > 64) return false;
+        return true;
+    }
+    if (Operation == TEXT("blueprint.scs_component_remove"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("blueprintId") && Entry.Key != TEXT("variableGuid") && Entry.Key != TEXT("changed") && Entry.Key != TEXT("dryRun") && Entry.Key != TEXT("dirtyPackages") && Entry.Key != TEXT("revision")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("blueprintId"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 512) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("variableGuid"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::String) return false;
+        const FString Text4 = Value3->AsString();
+        if (MagiAxiUnicodeScalarCount(Text4) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text4) > 128) return false;
+        const TSharedPtr<FJsonValue> Value5 = Object0->TryGetField(TEXT("changed"));
+        if (!Value5.IsValid()) return false;
+        if (!Value5.IsValid() || Value5->Type != EJson::Boolean) return false;
+        const TSharedPtr<FJsonValue> Value6 = Object0->TryGetField(TEXT("dryRun"));
+        if (!Value6.IsValid()) return false;
+        if (!Value6.IsValid() || Value6->Type != EJson::Boolean) return false;
+        const TSharedPtr<FJsonValue> Value7 = Object0->TryGetField(TEXT("dirtyPackages"));
+        if (!Value7.IsValid()) return false;
+        if (!Value7.IsValid() || Value7->Type != EJson::Array) return false;
+        const TArray<TSharedPtr<FJsonValue>>& Array8 = Value7->AsArray();
+        if (Array8.Num() > 100) return false;
+        for (const TSharedPtr<FJsonValue>& Value9 : Array8)
+        {
+            if (!Value9.IsValid() || Value9->Type != EJson::String) return false;
+            const FString Text10 = Value9->AsString();
+            if (MagiAxiUnicodeScalarCount(Text10) > 256) return false;
+        }
+        const TSharedPtr<FJsonValue> Value11 = Object0->TryGetField(TEXT("revision"));
+        if (!Value11.IsValid()) return false;
+        if (!Value11.IsValid() || Value11->Type != EJson::String) return false;
+        const FString Text12 = Value11->AsString();
+        if (MagiAxiUnicodeScalarCount(Text12) < 64) return false;
+        if (MagiAxiUnicodeScalarCount(Text12) > 64) return false;
+        return true;
+    }
+    if (Operation == TEXT("play.component_observe"))
+    {
+        if (!Root.IsValid() || Root->Type != EJson::Object) return false;
+        const TSharedPtr<FJsonObject> Object0 = Root->AsObject();
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object0->Values) if (Entry.Key != TEXT("sessionId") && Entry.Key != TEXT("actorId") && Entry.Key != TEXT("variableGuid") && Entry.Key != TEXT("resolved") && Entry.Key != TEXT("reason") && Entry.Key != TEXT("componentName") && Entry.Key != TEXT("componentClass") && Entry.Key != TEXT("actorLocation") && Entry.Key != TEXT("location") && Entry.Key != TEXT("rotation") && Entry.Key != TEXT("scale") && Entry.Key != TEXT("collisionEnabled") && Entry.Key != TEXT("collisionProfile") && Entry.Key != TEXT("objectType") && Entry.Key != TEXT("generateOverlapEvents") && Entry.Key != TEXT("simulatePhysics") && Entry.Key != TEXT("gravityEnabled") && Entry.Key != TEXT("massOverride") && Entry.Key != TEXT("linearVelocity") && Entry.Key != TEXT("angularVelocity") && Entry.Key != TEXT("overlapCount") && Entry.Key != TEXT("overlappingActorIds") && Entry.Key != TEXT("interactionDisplacement") && Entry.Key != TEXT("revision")) return false;
+        const TSharedPtr<FJsonValue> Value1 = Object0->TryGetField(TEXT("sessionId"));
+        if (!Value1.IsValid()) return false;
+        if (!Value1.IsValid() || Value1->Type != EJson::String) return false;
+        const FString Text2 = Value1->AsString();
+        if (MagiAxiUnicodeScalarCount(Text2) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text2) > 128) return false;
+        const TSharedPtr<FJsonValue> Value3 = Object0->TryGetField(TEXT("actorId"));
+        if (!Value3.IsValid()) return false;
+        if (!Value3.IsValid() || Value3->Type != EJson::String) return false;
+        const FString Text4 = Value3->AsString();
+        if (MagiAxiUnicodeScalarCount(Text4) < 1) return false;
+        if (MagiAxiUnicodeScalarCount(Text4) > 512) return false;
+        const TSharedPtr<FJsonValue> Value5 = Object0->TryGetField(TEXT("variableGuid"));
+        if (!Value5.IsValid()) return false;
+        if (!Value5.IsValid() || Value5->Type != EJson::String) return false;
+        const FString Text6 = Value5->AsString();
+        if (MagiAxiUnicodeScalarCount(Text6) < 36) return false;
+        if (MagiAxiUnicodeScalarCount(Text6) > 36) return false;
+        const TSharedPtr<FJsonValue> Value7 = Object0->TryGetField(TEXT("resolved"));
+        if (!Value7.IsValid()) return false;
+        if (!Value7.IsValid() || Value7->Type != EJson::Boolean) return false;
+        const TSharedPtr<FJsonValue> Value8 = Object0->TryGetField(TEXT("reason"));
+        if (!Value8.IsValid()) return false;
+        if (Value8->Type != EJson::Null)
+        {
+            if (!Value8.IsValid() || Value8->Type != EJson::String) return false;
+            const FString Text9 = Value8->AsString();
+            if (MagiAxiUnicodeScalarCount(Text9) > 128) return false;
+        }
+        const TSharedPtr<FJsonValue> Value10 = Object0->TryGetField(TEXT("componentName"));
+        if (!Value10.IsValid()) return false;
+        if (Value10->Type != EJson::Null)
+        {
+            if (!Value10.IsValid() || Value10->Type != EJson::String) return false;
+            const FString Text11 = Value10->AsString();
+            if (MagiAxiUnicodeScalarCount(Text11) > 128) return false;
+        }
+        const TSharedPtr<FJsonValue> Value12 = Object0->TryGetField(TEXT("componentClass"));
+        if (!Value12.IsValid()) return false;
+        if (Value12->Type != EJson::Null)
+        {
+            if (!Value12.IsValid() || Value12->Type != EJson::String) return false;
+            const FString Text13 = Value12->AsString();
+            if (MagiAxiUnicodeScalarCount(Text13) > 512) return false;
+        }
+        const TSharedPtr<FJsonValue> Value14 = Object0->TryGetField(TEXT("actorLocation"));
+        if (!Value14.IsValid()) return false;
+        if (Value14->Type != EJson::Null)
+        {
+            if (!Value14.IsValid() || Value14->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array15 = Value14->AsArray();
+            if (Array15.Num() < 3) return false;
+            if (Array15.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value16 : Array15)
+            {
+                double Number17 = 0;
+                if (!Value16.IsValid() || !Value16->TryGetNumber(Number17) || !FMath::IsFinite(Number17)) return false;
+                if (Number17 < -1000000000.0) return false;
+                if (Number17 > 1000000000.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value18 = Object0->TryGetField(TEXT("location"));
+        if (!Value18.IsValid()) return false;
+        if (Value18->Type != EJson::Null)
+        {
+            if (!Value18.IsValid() || Value18->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array19 = Value18->AsArray();
+            if (Array19.Num() < 3) return false;
+            if (Array19.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value20 : Array19)
+            {
+                double Number21 = 0;
+                if (!Value20.IsValid() || !Value20->TryGetNumber(Number21) || !FMath::IsFinite(Number21)) return false;
+                if (Number21 < -1000000000.0) return false;
+                if (Number21 > 1000000000.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value22 = Object0->TryGetField(TEXT("rotation"));
+        if (!Value22.IsValid()) return false;
+        if (Value22->Type != EJson::Null)
+        {
+            if (!Value22.IsValid() || Value22->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array23 = Value22->AsArray();
+            if (Array23.Num() < 3) return false;
+            if (Array23.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value24 : Array23)
+            {
+                double Number25 = 0;
+                if (!Value24.IsValid() || !Value24->TryGetNumber(Number25) || !FMath::IsFinite(Number25)) return false;
+                if (Number25 < -360.0) return false;
+                if (Number25 > 360.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value26 = Object0->TryGetField(TEXT("scale"));
+        if (!Value26.IsValid()) return false;
+        if (Value26->Type != EJson::Null)
+        {
+            if (!Value26.IsValid() || Value26->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array27 = Value26->AsArray();
+            if (Array27.Num() < 3) return false;
+            if (Array27.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value28 : Array27)
+            {
+                double Number29 = 0;
+                if (!Value28.IsValid() || !Value28->TryGetNumber(Number29) || !FMath::IsFinite(Number29)) return false;
+                if (Number29 < 0.0) return false;
+                if (Number29 > 1000000000.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value30 = Object0->TryGetField(TEXT("collisionEnabled"));
+        if (!Value30.IsValid()) return false;
+        if (Value30->Type != EJson::Null)
+        {
+            if (!Value30.IsValid() || Value30->Type != EJson::String) return false;
+            const FString Text31 = Value30->AsString();
+            if (MagiAxiUnicodeScalarCount(Text31) > 32) return false;
+        }
+        const TSharedPtr<FJsonValue> Value32 = Object0->TryGetField(TEXT("collisionProfile"));
+        if (!Value32.IsValid()) return false;
+        if (Value32->Type != EJson::Null)
+        {
+            if (!Value32.IsValid() || Value32->Type != EJson::String) return false;
+            const FString Text33 = Value32->AsString();
+            if (MagiAxiUnicodeScalarCount(Text33) > 128) return false;
+        }
+        const TSharedPtr<FJsonValue> Value34 = Object0->TryGetField(TEXT("objectType"));
+        if (!Value34.IsValid()) return false;
+        if (Value34->Type != EJson::Null)
+        {
+            if (!Value34.IsValid() || Value34->Type != EJson::String) return false;
+            const FString Text35 = Value34->AsString();
+            if (MagiAxiUnicodeScalarCount(Text35) > 128) return false;
+        }
+        const TSharedPtr<FJsonValue> Value36 = Object0->TryGetField(TEXT("generateOverlapEvents"));
+        if (!Value36.IsValid()) return false;
+        if (Value36->Type != EJson::Null)
+        {
+            if (!Value36.IsValid() || Value36->Type != EJson::Boolean) return false;
+        }
+        const TSharedPtr<FJsonValue> Value37 = Object0->TryGetField(TEXT("simulatePhysics"));
+        if (!Value37.IsValid()) return false;
+        if (Value37->Type != EJson::Null)
+        {
+            if (!Value37.IsValid() || Value37->Type != EJson::Boolean) return false;
+        }
+        const TSharedPtr<FJsonValue> Value38 = Object0->TryGetField(TEXT("gravityEnabled"));
+        if (!Value38.IsValid()) return false;
+        if (Value38->Type != EJson::Null)
+        {
+            if (!Value38.IsValid() || Value38->Type != EJson::Boolean) return false;
+        }
+        const TSharedPtr<FJsonValue> Value39 = Object0->TryGetField(TEXT("massOverride"));
+        if (!Value39.IsValid()) return false;
+        if (Value39->Type != EJson::Null)
+        {
+            double Number40 = 0;
+            if (!Value39.IsValid() || !Value39->TryGetNumber(Number40) || !FMath::IsFinite(Number40)) return false;
+            if (Number40 < 0.0) return false;
+            if (Number40 > 1000000.0) return false;
+        }
+        const TSharedPtr<FJsonValue> Value41 = Object0->TryGetField(TEXT("linearVelocity"));
+        if (!Value41.IsValid()) return false;
+        if (Value41->Type != EJson::Null)
+        {
+            if (!Value41.IsValid() || Value41->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array42 = Value41->AsArray();
+            if (Array42.Num() < 3) return false;
+            if (Array42.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value43 : Array42)
+            {
+                double Number44 = 0;
+                if (!Value43.IsValid() || !Value43->TryGetNumber(Number44) || !FMath::IsFinite(Number44)) return false;
+                if (Number44 < -1000000000.0) return false;
+                if (Number44 > 1000000000.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value45 = Object0->TryGetField(TEXT("angularVelocity"));
+        if (!Value45.IsValid()) return false;
+        if (Value45->Type != EJson::Null)
+        {
+            if (!Value45.IsValid() || Value45->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array46 = Value45->AsArray();
+            if (Array46.Num() < 3) return false;
+            if (Array46.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value47 : Array46)
+            {
+                double Number48 = 0;
+                if (!Value47.IsValid() || !Value47->TryGetNumber(Number48) || !FMath::IsFinite(Number48)) return false;
+                if (Number48 < -1000000000.0) return false;
+                if (Number48 > 1000000000.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value49 = Object0->TryGetField(TEXT("overlapCount"));
+        if (!Value49.IsValid()) return false;
+        if (Value49->Type != EJson::Null)
+        {
+            double Number50 = 0;
+            if (!Value49.IsValid() || !Value49->TryGetNumber(Number50) || !FMath::IsFinite(Number50) || FMath::FloorToDouble(Number50) != Number50) return false;
+            if (Number50 < 0.0) return false;
+            if (Number50 > 1000.0) return false;
+        }
+        const TSharedPtr<FJsonValue> Value51 = Object0->TryGetField(TEXT("overlappingActorIds"));
+        if (!Value51.IsValid()) return false;
+        if (!Value51.IsValid() || Value51->Type != EJson::Array) return false;
+        const TArray<TSharedPtr<FJsonValue>>& Array52 = Value51->AsArray();
+        if (Array52.Num() > 100) return false;
+        for (const TSharedPtr<FJsonValue>& Value53 : Array52)
+        {
+            if (!Value53.IsValid() || Value53->Type != EJson::String) return false;
+            const FString Text54 = Value53->AsString();
+            if (MagiAxiUnicodeScalarCount(Text54) < 1) return false;
+            if (MagiAxiUnicodeScalarCount(Text54) > 512) return false;
+        }
+        const TSharedPtr<FJsonValue> Value55 = Object0->TryGetField(TEXT("interactionDisplacement"));
+        if (!Value55.IsValid()) return false;
+        if (Value55->Type != EJson::Null)
+        {
+            if (!Value55.IsValid() || Value55->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array56 = Value55->AsArray();
+            if (Array56.Num() < 3) return false;
+            if (Array56.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value57 : Array56)
+            {
+                double Number58 = 0;
+                if (!Value57.IsValid() || !Value57->TryGetNumber(Number58) || !FMath::IsFinite(Number58)) return false;
+                if (Number58 < -1000000000.0) return false;
+                if (Number58 > 1000000000.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value59 = Object0->TryGetField(TEXT("revision"));
+        if (!Value59.IsValid()) return false;
+        if (!Value59.IsValid() || Value59->Type != EJson::String) return false;
+        const FString Text60 = Value59->AsString();
+        if (MagiAxiUnicodeScalarCount(Text60) < 64) return false;
+        if (MagiAxiUnicodeScalarCount(Text60) > 64) return false;
         return true;
     }
     if (Operation == TEXT("blueprint.compile"))
@@ -3715,7 +4709,7 @@ static bool MagiAxiValidateOutput(const FString& Operation, const TSharedRef<FJs
         if (!Value30.IsValid()) return false;
         if (!Value30.IsValid() || Value30->Type != EJson::Object) return false;
         const TSharedPtr<FJsonObject> Object31 = Value30->AsObject();
-        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object31->Values) if (Entry.Key != TEXT("readback") && Entry.Key != TEXT("target") && Entry.Key != TEXT("matched") && Entry.Key != TEXT("exists") && Entry.Key != TEXT("observedRevision") && Entry.Key != TEXT("accepted") && Entry.Key != TEXT("beforeRevision") && Entry.Key != TEXT("afterRevision") && Entry.Key != TEXT("observedStatus") && Entry.Key != TEXT("failureType") && Entry.Key != TEXT("errorCount") && Entry.Key != TEXT("warningCount") && Entry.Key != TEXT("diagnostics") && Entry.Key != TEXT("changedObjects") && Entry.Key != TEXT("requestPath") && Entry.Key != TEXT("requestParentClass") && Entry.Key != TEXT("requestBlueprintId") && Entry.Key != TEXT("requestGraphId") && Entry.Key != TEXT("requestAgentKey") && Entry.Key != TEXT("requestIntent") && Entry.Key != TEXT("requestPinId") && Entry.Key != TEXT("requestSourcePinId") && Entry.Key != TEXT("requestTargetPinId") && Entry.Key != TEXT("requestValueType") && Entry.Key != TEXT("requestValue")) return false;
+        for (const TPair<FString, TSharedPtr<FJsonValue>>& Entry : Object31->Values) if (Entry.Key != TEXT("readback") && Entry.Key != TEXT("target") && Entry.Key != TEXT("matched") && Entry.Key != TEXT("exists") && Entry.Key != TEXT("observedRevision") && Entry.Key != TEXT("accepted") && Entry.Key != TEXT("beforeRevision") && Entry.Key != TEXT("afterRevision") && Entry.Key != TEXT("observedStatus") && Entry.Key != TEXT("failureType") && Entry.Key != TEXT("errorCount") && Entry.Key != TEXT("warningCount") && Entry.Key != TEXT("diagnostics") && Entry.Key != TEXT("changedObjects") && Entry.Key != TEXT("requestPath") && Entry.Key != TEXT("requestParentClass") && Entry.Key != TEXT("requestBlueprintId") && Entry.Key != TEXT("requestGraphId") && Entry.Key != TEXT("requestAgentKey") && Entry.Key != TEXT("requestIntent") && Entry.Key != TEXT("requestPinId") && Entry.Key != TEXT("requestSourcePinId") && Entry.Key != TEXT("requestTargetPinId") && Entry.Key != TEXT("requestValueType") && Entry.Key != TEXT("requestValue") && Entry.Key != TEXT("requestFunction") && Entry.Key != TEXT("requestInterfaceId") && Entry.Key != TEXT("requestName") && Entry.Key != TEXT("requestClass") && Entry.Key != TEXT("requestParent") && Entry.Key != TEXT("requestVariableGuid") && Entry.Key != TEXT("requestForce") && Entry.Key != TEXT("requestDryRun") && Entry.Key != TEXT("requestLocation") && Entry.Key != TEXT("requestRotation") && Entry.Key != TEXT("requestScale") && Entry.Key != TEXT("requestCollisionEnabled") && Entry.Key != TEXT("requestCollisionProfile") && Entry.Key != TEXT("requestGenerateOverlapEvents") && Entry.Key != TEXT("requestSimulatePhysics") && Entry.Key != TEXT("requestGravityEnabled") && Entry.Key != TEXT("requestMassOverride") && Entry.Key != TEXT("requestBoxExtent") && Entry.Key != TEXT("requestSphereRadius")) return false;
         const TSharedPtr<FJsonValue> Value32 = Object31->TryGetField(TEXT("readback"));
         if (!Value32.IsValid()) return false;
         if (!Value32.IsValid() || Value32->Type != EJson::String) return false;
@@ -3938,6 +4932,173 @@ static bool MagiAxiValidateOutput(const FString& Operation, const TSharedRef<FJs
             if (!Value91.IsValid() || !Value91->TryGetNumber(Number92) || !FMath::IsFinite(Number92)) return false;
             if (Number92 < -1000000.0) return false;
             if (Number92 > 1000000.0) return false;
+        }
+        const TSharedPtr<FJsonValue> Value93 = Object31->TryGetField(TEXT("requestFunction"));
+        if (Value93.IsValid())
+        {
+            if (!Value93.IsValid() || Value93->Type != EJson::String) return false;
+            const FString Text94 = Value93->AsString();
+            if (MagiAxiUnicodeScalarCount(Text94) > 128) return false;
+            if (Text94 != TEXT("Interact")) return false;
+        }
+        const TSharedPtr<FJsonValue> Value95 = Object31->TryGetField(TEXT("requestInterfaceId"));
+        if (Value95.IsValid())
+        {
+            if (!Value95.IsValid() || Value95->Type != EJson::String) return false;
+            const FString Text96 = Value95->AsString();
+            if (MagiAxiUnicodeScalarCount(Text96) < 1) return false;
+            if (MagiAxiUnicodeScalarCount(Text96) > 512) return false;
+        }
+        const TSharedPtr<FJsonValue> Value97 = Object31->TryGetField(TEXT("requestName"));
+        if (Value97.IsValid())
+        {
+            if (!Value97.IsValid() || Value97->Type != EJson::String) return false;
+            const FString Text98 = Value97->AsString();
+            if (MagiAxiUnicodeScalarCount(Text98) < 1) return false;
+            if (MagiAxiUnicodeScalarCount(Text98) > 128) return false;
+        }
+        const TSharedPtr<FJsonValue> Value99 = Object31->TryGetField(TEXT("requestClass"));
+        if (Value99.IsValid())
+        {
+            if (!Value99.IsValid() || Value99->Type != EJson::String) return false;
+            const FString Text100 = Value99->AsString();
+            if (MagiAxiUnicodeScalarCount(Text100) < 1) return false;
+            if (MagiAxiUnicodeScalarCount(Text100) > 128) return false;
+        }
+        const TSharedPtr<FJsonValue> Value101 = Object31->TryGetField(TEXT("requestParent"));
+        if (Value101.IsValid())
+        {
+            if (Value101->Type != EJson::Null)
+            {
+                if (!Value101.IsValid() || Value101->Type != EJson::String) return false;
+                const FString Text102 = Value101->AsString();
+                if (MagiAxiUnicodeScalarCount(Text102) > 128) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value103 = Object31->TryGetField(TEXT("requestVariableGuid"));
+        if (Value103.IsValid())
+        {
+            if (!Value103.IsValid() || Value103->Type != EJson::String) return false;
+            const FString Text104 = Value103->AsString();
+            if (MagiAxiUnicodeScalarCount(Text104) < 36) return false;
+            if (MagiAxiUnicodeScalarCount(Text104) > 36) return false;
+        }
+        const TSharedPtr<FJsonValue> Value105 = Object31->TryGetField(TEXT("requestForce"));
+        if (Value105.IsValid())
+        {
+            if (!Value105.IsValid() || Value105->Type != EJson::Boolean) return false;
+        }
+        const TSharedPtr<FJsonValue> Value106 = Object31->TryGetField(TEXT("requestDryRun"));
+        if (Value106.IsValid())
+        {
+            if (!Value106.IsValid() || Value106->Type != EJson::Boolean) return false;
+        }
+        const TSharedPtr<FJsonValue> Value107 = Object31->TryGetField(TEXT("requestLocation"));
+        if (Value107.IsValid())
+        {
+            if (!Value107.IsValid() || Value107->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array108 = Value107->AsArray();
+            if (Array108.Num() < 3) return false;
+            if (Array108.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value109 : Array108)
+            {
+                double Number110 = 0;
+                if (!Value109.IsValid() || !Value109->TryGetNumber(Number110) || !FMath::IsFinite(Number110)) return false;
+                if (Number110 < -100000.0) return false;
+                if (Number110 > 100000.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value111 = Object31->TryGetField(TEXT("requestRotation"));
+        if (Value111.IsValid())
+        {
+            if (!Value111.IsValid() || Value111->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array112 = Value111->AsArray();
+            if (Array112.Num() < 3) return false;
+            if (Array112.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value113 : Array112)
+            {
+                double Number114 = 0;
+                if (!Value113.IsValid() || !Value113->TryGetNumber(Number114) || !FMath::IsFinite(Number114)) return false;
+                if (Number114 < -360.0) return false;
+                if (Number114 > 360.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value115 = Object31->TryGetField(TEXT("requestScale"));
+        if (Value115.IsValid())
+        {
+            if (!Value115.IsValid() || Value115->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array116 = Value115->AsArray();
+            if (Array116.Num() < 3) return false;
+            if (Array116.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value117 : Array116)
+            {
+                double Number118 = 0;
+                if (!Value117.IsValid() || !Value117->TryGetNumber(Number118) || !FMath::IsFinite(Number118)) return false;
+                if (Number118 < 0.0) return false;
+                if (Number118 > 1000.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value119 = Object31->TryGetField(TEXT("requestCollisionEnabled"));
+        if (Value119.IsValid())
+        {
+            if (!Value119.IsValid() || Value119->Type != EJson::String) return false;
+            const FString Text120 = Value119->AsString();
+            if (MagiAxiUnicodeScalarCount(Text120) > 32) return false;
+            if (Text120 != TEXT("NoCollision") && Text120 != TEXT("QueryOnly") && Text120 != TEXT("PhysicsOnly") && Text120 != TEXT("QueryAndPhysics")) return false;
+        }
+        const TSharedPtr<FJsonValue> Value121 = Object31->TryGetField(TEXT("requestCollisionProfile"));
+        if (Value121.IsValid())
+        {
+            if (!Value121.IsValid() || Value121->Type != EJson::String) return false;
+            const FString Text122 = Value121->AsString();
+            if (MagiAxiUnicodeScalarCount(Text122) > 128) return false;
+            if (Text122 != TEXT("OverlapAllDynamic")) return false;
+        }
+        const TSharedPtr<FJsonValue> Value123 = Object31->TryGetField(TEXT("requestGenerateOverlapEvents"));
+        if (Value123.IsValid())
+        {
+            if (!Value123.IsValid() || Value123->Type != EJson::Boolean) return false;
+        }
+        const TSharedPtr<FJsonValue> Value124 = Object31->TryGetField(TEXT("requestSimulatePhysics"));
+        if (Value124.IsValid())
+        {
+            if (!Value124.IsValid() || Value124->Type != EJson::Boolean) return false;
+        }
+        const TSharedPtr<FJsonValue> Value125 = Object31->TryGetField(TEXT("requestGravityEnabled"));
+        if (Value125.IsValid())
+        {
+            if (!Value125.IsValid() || Value125->Type != EJson::Boolean) return false;
+        }
+        const TSharedPtr<FJsonValue> Value126 = Object31->TryGetField(TEXT("requestMassOverride"));
+        if (Value126.IsValid())
+        {
+            double Number127 = 0;
+            if (!Value126.IsValid() || !Value126->TryGetNumber(Number127) || !FMath::IsFinite(Number127)) return false;
+            if (Number127 < 0.001) return false;
+            if (Number127 > 100000.0) return false;
+        }
+        const TSharedPtr<FJsonValue> Value128 = Object31->TryGetField(TEXT("requestBoxExtent"));
+        if (Value128.IsValid())
+        {
+            if (!Value128.IsValid() || Value128->Type != EJson::Array) return false;
+            const TArray<TSharedPtr<FJsonValue>>& Array129 = Value128->AsArray();
+            if (Array129.Num() < 3) return false;
+            if (Array129.Num() > 3) return false;
+            for (const TSharedPtr<FJsonValue>& Value130 : Array129)
+            {
+                double Number131 = 0;
+                if (!Value130.IsValid() || !Value130->TryGetNumber(Number131) || !FMath::IsFinite(Number131)) return false;
+                if (Number131 < 0.001) return false;
+                if (Number131 > 100000.0) return false;
+            }
+        }
+        const TSharedPtr<FJsonValue> Value132 = Object31->TryGetField(TEXT("requestSphereRadius"));
+        if (Value132.IsValid())
+        {
+            double Number133 = 0;
+            if (!Value132.IsValid() || !Value132->TryGetNumber(Number133) || !FMath::IsFinite(Number133)) return false;
+            if (Number133 < 0.001) return false;
+            if (Number133 > 100000.0) return false;
         }
         return true;
     }

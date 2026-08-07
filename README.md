@@ -1,6 +1,6 @@
 # magi-unreal-axi
 
-Self-contained agent-facing Rust 2024 CLI plus bundled native Unreal editor plugin. Unreal Engine 5.8.1 on macOS arm64 is certified through M8. Default stdout is TOON; `--format json` emits strict JSON.
+Self-contained agent-facing Rust 2024 CLI plus bundled native Unreal editor plugin. Unreal Engine 5.8.1 on macOS arm64 is certified through P1.2. Default stdout is TOON; `--format json` emits strict JSON.
 
 ## Install a release artifact
 
@@ -72,9 +72,9 @@ magi-unreal-axi log search failure --limit 20
 
 Project resolution: `--project`, `MAGI_UNREAL_PROJECT`, then nearest directory containing exactly one `.uproject`. Engine resolution: `--engine`, `MAGI_UNREAL_ENGINE`, project `.magi/unreal-axi.toml` `engine` key, then validated local UE paths; `MAGI_UNREAL_ENGINE_DISCOVERY_ROOT` overrides conventional discovery root. Plugin setup is explicit, atomic, idempotent, hash-managed, preserves unrelated descriptor fields, refuses modified trees, and backs up forced replacement/removal.
 
-Editor bridge uses authenticated loopback-only framed TCP. Native operations execute serially on game thread. Catalog contains 40 records with SHA-256 `6213c83a5ad2a61336ec08bd4bfebb9564e434f7f12a9bf2b9bc951f0fc14922`; every handshake enforces Rust/C++ parity. Discovery reports local `available`, native `unknown` with `editor_offline` when no live matching editor exists, and live native `available` or `unavailable` with structured reasons; execute only `available`. Mutations enforce editor-state gates, expected canonical revisions, idempotency, explicit persistence, and receipts that validate project/editor/operation/target identity plus safety metadata. Failed Blueprint compile returns exit 1 with `blueprint_compile_failed`, a failed non-atomic receipt, no rollback or saved-persistence claim, and `retryable:false`. Dirty invalid assets report dirty persistence and packages; already-invalid clean assets truthfully report unchanged persistence. Inspect `operation view` before retry, including journal fallback offline. P1.1 adds certified bounded `blueprint.create`, `blueprint.graph_view`, event/node ensures, typed pin defaults, and allowlisted pin connections. `play.input` completes after deferred observation readback. `play.stop` ends PIE synchronously and verifies stopped status before success. Screenshots stay under project `Saved/MagiUnrealAXI/Screenshots`, return PNG path and dimensions bounded to 1–16384, and never print binary data.
+Editor bridge uses authenticated loopback-only framed TCP. Native operations execute serially on game thread. Catalog contains 48 records with SHA-256 `fc2c7109093b848359b6307908ede3e5939389c301929394f916a0e0e00c2d60`; every handshake enforces Rust/C++ parity. Discovery reports local `available`, native `unknown` with `editor_offline` when no live matching editor exists, and live native `available` or `unavailable` with structured reasons; execute only `available`. Mutations enforce editor-state gates, expected canonical revisions, idempotency, explicit persistence, and receipts that validate project/editor/operation/target identity plus safety metadata. Failed Blueprint compile returns exit 1 with `blueprint_compile_failed`, a failed non-atomic receipt, no rollback or saved-persistence claim, and `retryable:false`. Dirty invalid assets report dirty persistence and packages; already-invalid clean assets truthfully report unchanged persistence. Inspect `operation view` before retry, including journal fallback offline. P1.1 adds certified bounded `blueprint.create`, `blueprint.graph_view`, event/node ensures, typed pin defaults, and allowlisted pin connections. P1.2 adds certified `blueprint.interface_create`, `blueprint.interface_view`, `blueprint.interface_ensure`, `blueprint.scs_view`, `blueprint.scs_component_ensure`, `blueprint.scs_component_update`, `blueprint.scs_component_remove`, and `play.component_observe`. `play.input` completes after deferred observation readback. `play.stop` ends PIE synchronously and verifies stopped status before success. Screenshots stay under project `Saved/MagiUnrealAXI/Screenshots`, return PNG path and dimensions bounded to 1–16384, and never print binary data.
 
-`project build`, `project test list|run`, cook-only materialization from `Saved/Cooked/Mac`, transactional Blueprint-only package output, bounded logs, strict report parsing, and protected output paths are live-certified. M8 adds agent setup/evaluation, exact-archive clean installation, full 16/16 automation, and release gating.
+`project build`, `project test list|run`, cook-only materialization from `Saved/Cooked/Mac`, transactional Blueprint-only package output, bounded logs, strict report parsing, and protected output paths are live-certified. P1.2 exact 22/22 Unreal automation, interface/two-Blueprint/nested-SCS/overlap/interaction/two-PIE reset, registry/generated-class/IoStore/inventory/receipt/token gates pass. M8 adds agent setup/evaluation, exact-archive clean installation, and release gating.
 
 Expected errors are structured on stdout. Exit codes: 0 success, 1 operational failure, 2 usage failure. Progress and child logs never enter structured stdout.
 
@@ -86,7 +86,7 @@ For clean-install testing, agent configuration may use an isolated `HOME`. Unrea
 
 ## Development
 
-Requires Rust 1.88. Rust gate covers 43 library tests, 5 xtask tests, and 44 real-binary integration tests = 92 tests. Run:
+Requires Rust 1.88. Rust gate covers 44 library tests, 5 xtask tests, and 44 real-binary integration tests = 93 tests. Run:
 
 ```sh
 cargo fmt --check
@@ -108,4 +108,5 @@ cargo run --locked --bin xtask -- release check
 ./tests/unreal/certify-m7-live.sh
 ./tests/unreal/certify-m8-live.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
 ./tests/unreal/certify-p1.1.sh
+./tests/unreal/certify-p1.2.sh
 ```

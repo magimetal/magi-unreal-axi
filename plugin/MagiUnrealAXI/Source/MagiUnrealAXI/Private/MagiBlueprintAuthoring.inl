@@ -44,7 +44,11 @@ bool IsP11BlueprintOperation(const FString& Operation)
 {
     return Operation == TEXT("blueprint.create") || Operation == TEXT("blueprint.graph_view") ||
         Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure") ||
-        Operation == TEXT("blueprint.pin_default_set") || Operation == TEXT("blueprint.pin_connect");
+        Operation == TEXT("blueprint.pin_default_set") || Operation == TEXT("blueprint.pin_connect") ||
+        Operation == TEXT("blueprint.interface_create") || Operation == TEXT("blueprint.interface_view") ||
+        Operation == TEXT("blueprint.interface_ensure") || Operation == TEXT("blueprint.scs_view") ||
+        Operation == TEXT("blueprint.scs_component_ensure") || Operation == TEXT("blueprint.scs_component_update") ||
+        Operation == TEXT("blueprint.scs_component_remove");
 }
 
 FString P11DeterministicGuidSeed(const UBlueprint& Blueprint, const UEdGraph& Graph, const FString& AgentKey)
@@ -57,6 +61,35 @@ FGuid P11DeterministicGuid(const UBlueprint& Blueprint, const UEdGraph& Graph, c
     FGuid Guid;
     FGuid::ParseExact(P11DeterministicGuidSeed(Blueprint, Graph, AgentKey).Left(32), EGuidFormats::Digits, Guid);
     return Guid;
+}
+
+UBlueprint* P11LoadBlueprint(const FString& BlueprintId);
+USCS_Node* P12FindSCSNode(UBlueprint& Blueprint, const FString& VariableGuid);
+
+bool P12InterfaceContract(UBlueprint& Interface, UFunction*& OutFunction)
+{
+    OutFunction = nullptr;
+    if (Interface.BlueprintType != BPTYPE_Interface || Interface.ParentClass != UInterface::StaticClass()) return false;
+    int32 InteractGraphs = 0;
+    TArray<UEdGraph*> Graphs;
+    Interface.GetAllGraphs(Graphs);
+    for (const UEdGraph* Graph : Graphs) if (Graph && Graph->GetFName() == FName(TEXT("Interact"))) ++InteractGraphs;
+    if (InteractGraphs != 1) return false;
+    UClass* InterfaceClass = Interface.GeneratedClass ? Interface.GeneratedClass : Interface.SkeletonGeneratedClass;
+    if (!InterfaceClass || !InterfaceClass->HasAnyClassFlags(CLASS_Interface)) return false;
+    OutFunction = InterfaceClass->FindFunctionByName(FName(TEXT("Interact")));
+    if (!OutFunction || OutFunction->NumParms != 0) return false;
+    for (TFieldIterator<FProperty> Property(OutFunction); Property; ++Property)
+        if (Property->HasAnyPropertyFlags(CPF_Parm)) return false;
+    return true;
+}
+
+UClass* P12InterfaceClass(const FString& InterfaceId, UFunction*& OutFunction)
+{
+    OutFunction = nullptr;
+    UBlueprint* Interface = P11LoadBlueprint(InterfaceId);
+    if (!Interface || Interface->GetPathName() != InterfaceId || !P12InterfaceContract(*Interface, OutFunction)) return nullptr;
+    return OutFunction ? OutFunction->GetOuterUClass() : nullptr;
 }
 
 FString P11CallIntent(const UK2Node_CallFunction& Node)
@@ -74,6 +107,12 @@ FString P11CallIntent(const UK2Node_CallFunction& Node)
 
 FString P11NodeIntent(const UEdGraphNode& Node)
 {
+    if (const UK2Node_ComponentBoundEvent* Event = Cast<UK2Node_ComponentBoundEvent>(&Node))
+    {
+        return Event->DelegatePropertyName == GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, OnComponentBeginOverlap) &&
+            Event->DelegateOwnerClass && Event->DelegateOwnerClass->IsChildOf(UPrimitiveComponent::StaticClass())
+            ? TEXT("component.begin_overlap") : FString();
+    }
     if (const UK2Node_InputKey* Input = Cast<UK2Node_InputKey>(&Node))
     {
         if (Input->InputKey == EKeys::E && Input->bConsumeInput && !Input->bExecuteWhenPaused && Input->bOverrideParentBinding &&
@@ -82,12 +121,46 @@ FString P11NodeIntent(const UEdGraphNode& Node)
     }
     if (const UK2Node_Event* Event = Cast<UK2Node_Event>(&Node))
     {
-        if (Event->bOverrideFunction && Event->EventReference.GetMemberName() == FName(TEXT("ReceiveBeginPlay")) &&
-            Event->EventReference.GetMemberParentClass(Event->GetBlueprintClassFromNode()) == AActor::StaticClass()) return TEXT("actor.begin_play");
+        const UClass* Parent = Event->EventReference.GetMemberParentClass(Event->GetBlueprintClassFromNode());
+        if (Event->bOverrideFunction && Event->EventReference.GetMemberName() == FName(TEXT("ReceiveBeginPlay")) && Parent == AActor::StaticClass()) return TEXT("actor.begin_play");
+        if (Event->bOverrideFunction && Event->EventReference.GetMemberName() == FName(TEXT("Interact")) && Parent && Parent->HasAnyClassFlags(CLASS_Interface)) return TEXT("interface.interact");
         return FString();
+    }
+    if (const UK2Node_Message* Message = Cast<UK2Node_Message>(&Node))
+    {
+        const UClass* Parent = Message->FunctionReference.GetMemberParentClass(Message->GetBlueprintClassFromNode());
+        return Message->FunctionReference.GetMemberName() == FName(TEXT("Interact")) && Parent && Parent->HasAnyClassFlags(CLASS_Interface)
+            ? TEXT("interface.message_interact") : FString();
     }
     if (const UK2Node_CallFunction* Call = Cast<UK2Node_CallFunction>(&Node)) return P11CallIntent(*Call);
     return FString();
+}
+
+bool P12NodeMatchesRequest(UBlueprint& Blueprint, const UEdGraphNode& Node, const FString& Intent, const TSharedPtr<FJsonObject>& Args)
+{
+    if (P11NodeIntent(Node) != Intent || !Args.IsValid()) return false;
+    if (Intent == TEXT("component.begin_overlap"))
+    {
+        FString VariableGuid;
+        Args->TryGetStringField(TEXT("variableGuid"), VariableGuid);
+        const USCS_Node* SCSNode = P12FindSCSNode(Blueprint, VariableGuid);
+        const UK2Node_ComponentBoundEvent* Event = Cast<UK2Node_ComponentBoundEvent>(&Node);
+        return SCSNode && Event && Event->ComponentPropertyName == SCSNode->GetVariableName();
+    }
+    if (Intent == TEXT("interface.interact") || Intent == TEXT("interface.message_interact"))
+    {
+        FString InterfaceId;
+        Args->TryGetStringField(TEXT("interfaceId"), InterfaceId);
+        UFunction* Interact = nullptr;
+        UClass* InterfaceClass = P12InterfaceClass(InterfaceId, Interact);
+        if (!InterfaceClass || !Interact) return false;
+        if (const UK2Node_Event* Event = Cast<UK2Node_Event>(&Node))
+            return Event->EventReference.GetMemberParentClass(Event->GetBlueprintClassFromNode()) == InterfaceClass;
+        if (const UK2Node_Message* Message = Cast<UK2Node_Message>(&Node))
+            return Message->FunctionReference.GetMemberName() == Interact->GetFName() && Message->FunctionReference.GetMemberParentClass(Message->GetBlueprintClassFromNode()) == InterfaceClass;
+        return false;
+    }
+    return true;
 }
 
 UBlueprint* P11LoadBlueprint(const FString& BlueprintId)
@@ -359,6 +432,9 @@ bool P11AllowedConnection(const UEdGraphNode& SourceNode, const UEdGraphPin& Sou
     return (SourceIntent == TEXT("actor.begin_play") && SourceName == UEdGraphSchema_K2::PN_Then && TargetIntent == TEXT("actor.enable_input") && TargetName == UEdGraphSchema_K2::PN_Execute) ||
         (SourceIntent == TEXT("game.get_player_controller") && SourceName == UEdGraphSchema_K2::PN_ReturnValue && TargetIntent == TEXT("actor.enable_input") && TargetName == TEXT("PlayerController")) ||
         (SourceIntent == TEXT("input.key_e") && SourceName == TEXT("Pressed") && TargetIntent == TEXT("actor.add_world_offset") && TargetName == UEdGraphSchema_K2::PN_Execute) ||
+        (SourceIntent == TEXT("component.begin_overlap") && SourceName == UEdGraphSchema_K2::PN_Then && TargetIntent == TEXT("interface.message_interact") && TargetName == UEdGraphSchema_K2::PN_Execute) ||
+        (SourceIntent == TEXT("component.begin_overlap") && SourceName == TEXT("OtherActor") && TargetIntent == TEXT("interface.message_interact") && TargetName == UEdGraphSchema_K2::PN_Self) ||
+        (SourceIntent == TEXT("interface.interact") && SourceName == UEdGraphSchema_K2::PN_Then && TargetIntent == TEXT("actor.add_world_offset") && TargetName == UEdGraphSchema_K2::PN_Execute) ||
         (SourceIntent == TEXT("math.make_vector") && SourceName == UEdGraphSchema_K2::PN_ReturnValue && TargetIntent == TEXT("actor.add_world_offset") && TargetName == TEXT("DeltaLocation"));
 }
 
@@ -387,26 +463,132 @@ FString P11AtomicResponse(const FString& Id, const FString& Response)
 FString P11FailedAtomicResponse(const FString& Id, const FString& Operation, const TSharedPtr<FJsonObject>& Args, const FString& RequestedTarget, const FString& BeforeRevision, const FString& ObservedRevision, const bool RollbackVerified, const TArray<TSharedPtr<FJsonValue>>& DirtyPackages, const TCHAR* Message)
 {
     const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(Operation);
-    FString Target = RequestedTarget, BlueprintId, GraphId, AgentKey, PinId, SourcePinId, TargetPinId;
-    if (Args.IsValid()) { Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("graphId"), GraphId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Args->TryGetStringField(TEXT("pinId"), PinId); Args->TryGetStringField(TEXT("sourcePinId"), SourcePinId); Args->TryGetStringField(TEXT("targetPinId"), TargetPinId); }
+    FString Target = RequestedTarget, BlueprintId, GraphId, AgentKey, PinId, SourcePinId, TargetPinId, InterfaceId, Name, VariableGuid;
+    if (Args.IsValid())
+    {
+        Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("graphId"), GraphId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Args->TryGetStringField(TEXT("pinId"), PinId); Args->TryGetStringField(TEXT("sourcePinId"), SourcePinId); Args->TryGetStringField(TEXT("targetPinId"), TargetPinId); Args->TryGetStringField(TEXT("interfaceId"), InterfaceId); Args->TryGetStringField(TEXT("name"), Name); Args->TryGetStringField(TEXT("variableGuid"), VariableGuid);
+    }
     if (Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure")) Target = BlueprintId + TEXT("#") + GraphId + TEXT("#") + AgentKey;
     else if (Operation == TEXT("blueprint.pin_default_set")) Target = BlueprintId + TEXT("#") + PinId;
     else if (Operation == TEXT("blueprint.pin_connect")) Target = BlueprintId + TEXT("#") + SourcePinId + TEXT("#") + TargetPinId;
+    else if (Operation == TEXT("blueprint.interface_ensure")) Target = BlueprintId + TEXT("#") + InterfaceId;
+    else if (Operation == TEXT("blueprint.scs_component_ensure")) Target = BlueprintId + TEXT("#scs-name:") + Name;
+    else if (Operation == TEXT("blueprint.scs_component_update") || Operation == TEXT("blueprint.scs_component_remove")) Target = BlueprintId + TEXT("#scs:") + VariableGuid;
     const bool Verified = P11RollbackVerificationResult(RollbackVerified);
     const FString State = Verified ? TEXT("failed") : TEXT("outcome_unknown");
     const FString AbsentRevision = Sha256(Target + TEXT("\nabsent"));
-    const FString Before = BeforeRevision.Len() == 64 ? BeforeRevision : (Operation == TEXT("blueprint.create") ? AbsentRevision : Sha256(Target + TEXT("\nbefore")));
+    const FString Before = BeforeRevision.Len() == 64 ? BeforeRevision : ((Operation == TEXT("blueprint.create") || Operation == TEXT("blueprint.interface_create")) ? AbsentRevision : Sha256(Target + TEXT("\nbefore")));
     const FString Observed = ObservedRevision.Len() == 64 ? ObservedRevision : Before;
     const bool Changed = Before != Observed;
     const TSharedRef<FJsonObject> Verification = MakeShared<FJsonObject>(); Verification->SetStringField(TEXT("readback"), Metadata ? Metadata->Readback : TEXT("operation.view")); Verification->SetStringField(TEXT("target"), Target); Verification->SetBoolField(TEXT("matched"), Verified); Verification->SetStringField(TEXT("beforeRevision"), Before); Verification->SetStringField(TEXT("observedRevision"), Observed); Verification->SetStringField(TEXT("observedStatus"), TEXT("error"));
-    if (Operation == TEXT("blueprint.create")) { FString Path, ParentClass; Args->TryGetStringField(TEXT("path"), Path); Args->TryGetStringField(TEXT("parentClass"), ParentClass); Verification->SetStringField(TEXT("requestPath"), Path); Verification->SetStringField(TEXT("requestParentClass"), ParentClass); }
-    else if (Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure")) { FString Intent; Args->TryGetStringField(Operation == TEXT("blueprint.event_ensure") ? TEXT("event") : TEXT("node"), Intent); Verification->SetStringField(TEXT("requestBlueprintId"), BlueprintId); Verification->SetStringField(TEXT("requestGraphId"), GraphId); Verification->SetStringField(TEXT("requestAgentKey"), AgentKey); Verification->SetStringField(TEXT("requestIntent"), Intent); }
-    else if (Operation == TEXT("blueprint.pin_default_set")) { const TSharedPtr<FJsonObject>* Value = nullptr; FString Type; double Number = 0; Args->TryGetObjectField(TEXT("value"), Value); if (Value && (*Value)->TryGetStringField(TEXT("type"), Type) && (*Value)->TryGetNumberField(TEXT("value"), Number)) { Verification->SetStringField(TEXT("requestValueType"), Type); Verification->SetNumberField(TEXT("requestValue"), Number); } Verification->SetStringField(TEXT("requestBlueprintId"), BlueprintId); Verification->SetStringField(TEXT("requestPinId"), PinId); }
-    else if (Operation == TEXT("blueprint.pin_connect")) { Verification->SetStringField(TEXT("requestBlueprintId"), BlueprintId); Verification->SetStringField(TEXT("requestSourcePinId"), SourcePinId); Verification->SetStringField(TEXT("requestTargetPinId"), TargetPinId); }
+    auto Bind = [&](const TCHAR* RequestField, const TCHAR* ReceiptField) { if (Args.IsValid()) if (const TSharedPtr<FJsonValue>* Value = Args->Values.Find(RequestField)) Verification->SetField(ReceiptField, *Value); };
+    if (Operation == TEXT("blueprint.create")) { Bind(TEXT("path"), TEXT("requestPath")); Bind(TEXT("parentClass"), TEXT("requestParentClass")); }
+    else if (Operation == TEXT("blueprint.interface_create")) { Bind(TEXT("path"), TEXT("requestPath")); Bind(TEXT("function"), TEXT("requestFunction")); }
+    else if (Operation == TEXT("blueprint.interface_ensure")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("interfaceId"), TEXT("requestInterfaceId")); }
+    else if (Operation == TEXT("blueprint.scs_component_ensure")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("name"), TEXT("requestName")); Bind(TEXT("class"), TEXT("requestClass")); if (Args->HasField(TEXT("parent"))) Bind(TEXT("parent"), TEXT("requestParent")); else Verification->SetField(TEXT("requestParent"), MakeShared<FJsonValueNull>()); }
+    else if (Operation == TEXT("blueprint.scs_component_update") || Operation == TEXT("blueprint.scs_component_remove")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("variableGuid"), TEXT("requestVariableGuid")); Bind(TEXT("location"), TEXT("requestLocation")); Bind(TEXT("rotation"), TEXT("requestRotation")); Bind(TEXT("scale"), TEXT("requestScale")); Bind(TEXT("collisionEnabled"), TEXT("requestCollisionEnabled")); Bind(TEXT("collisionProfile"), TEXT("requestCollisionProfile")); Bind(TEXT("generateOverlapEvents"), TEXT("requestGenerateOverlapEvents")); Bind(TEXT("simulatePhysics"), TEXT("requestSimulatePhysics")); Bind(TEXT("gravityEnabled"), TEXT("requestGravityEnabled")); Bind(TEXT("massOverride"), TEXT("requestMassOverride")); Bind(TEXT("boxExtent"), TEXT("requestBoxExtent")); Bind(TEXT("sphereRadius"), TEXT("requestSphereRadius")); Bind(TEXT("force"), TEXT("requestForce")); Bind(TEXT("dryRun"), TEXT("requestDryRun")); }
+    else if (Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("graphId"), TEXT("requestGraphId")); Bind(TEXT("agentKey"), TEXT("requestAgentKey")); Bind(Operation == TEXT("blueprint.event_ensure") ? TEXT("event") : TEXT("node"), TEXT("requestIntent")); Bind(TEXT("variableGuid"), TEXT("requestVariableGuid")); Bind(TEXT("interfaceId"), TEXT("requestInterfaceId")); }
+    else if (Operation == TEXT("blueprint.pin_default_set")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("pinId"), TEXT("requestPinId")); const TSharedPtr<FJsonObject>* Value = nullptr; FString Type; double Number = 0; Args->TryGetObjectField(TEXT("value"), Value); if (Value && (*Value)->TryGetStringField(TEXT("type"), Type) && (*Value)->TryGetNumberField(TEXT("value"), Number)) { Verification->SetStringField(TEXT("requestValueType"), Type); Verification->SetNumberField(TEXT("requestValue"), Number); } }
+    else if (Operation == TEXT("blueprint.pin_connect")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("sourcePinId"), TEXT("requestSourcePinId")); Bind(TEXT("targetPinId"), TEXT("requestTargetPinId")); }
     const TSharedRef<FJsonObject> Receipt = MakeShared<FJsonObject>(); Receipt->SetStringField(TEXT("operationId"), Id); Receipt->SetStringField(TEXT("operation"), Operation); Receipt->SetStringField(TEXT("state"), State); Receipt->SetStringField(TEXT("projectId"), ProjectId); Receipt->SetNumberField(TEXT("editorPid"), FPlatformProcess::GetCurrentProcessId()); Receipt->SetStringField(TEXT("target"), Target); Receipt->SetBoolField(TEXT("changed"), Changed); Receipt->SetStringField(TEXT("transaction"), Metadata ? Metadata->TransactionBehavior : TEXT("atomic")); Receipt->SetStringField(TEXT("reversibility"), Metadata ? Metadata->Reversibility : TEXT("source-control")); Receipt->SetArrayField(TEXT("dirtyPackages"), DirtyPackages); Receipt->SetArrayField(TEXT("savedPackages"), {}); Receipt->SetStringField(TEXT("revision"), Observed); Receipt->SetStringField(TEXT("persistence"), DirtyPackages.IsEmpty() ? TEXT("unchanged") : TEXT("dirty")); Receipt->SetObjectField(TEXT("verification"), Verification);
     if (!MagiAxiValidateOutput(TEXT("operation.view"), Receipt)) { const FString Fallback = ErrorResponse(Id, TEXT("outcome_unknown"), TEXT("failed atomic receipt did not satisfy operation.view schema")); SetReceipt(Id, Operation, Fallback, TEXT("outcome_unknown")); return Fallback; }
     const TSharedRef<FJsonObject> Error = MakeShared<FJsonObject>(); Error->SetStringField(TEXT("type"), State == TEXT("outcome_unknown") ? TEXT("outcome_unknown") : TEXT("operation_failed")); Error->SetStringField(TEXT("message"), Message); Error->SetBoolField(TEXT("retryable"), Verified); Error->SetNumberField(TEXT("dirtyPackageCount"), DirtyPackages.Num()); Error->SetArrayField(TEXT("dirtyPackages"), DirtyPackages);
     const TSharedRef<FJsonObject> Response = MakeShared<FJsonObject>(); Response->SetNumberField(TEXT("protocol"), ProtocolVersion); Response->SetStringField(TEXT("id"), Id); Response->SetStringField(TEXT("status"), TEXT("error")); Response->SetObjectField(TEXT("error"), Error); Response->SetObjectField(TEXT("receipt"), Receipt); const FString Wire = Serialize(Response); SetReceipt(Id, Operation, Wire, State); return Wire;
+}
+
+USCS_Node* P12FindSCSNode(UBlueprint& Blueprint, const FString& VariableGuid)
+{
+    FGuid Wanted;
+    if (!FGuid::Parse(VariableGuid, Wanted) || CanonicalGuid(Wanted) != VariableGuid || !Blueprint.SimpleConstructionScript) return nullptr;
+    const TArray<USCS_Node*>& Nodes = Blueprint.SimpleConstructionScript->GetAllNodes();
+    for (USCS_Node* Node : Nodes) if (Node && CanonicalGuid(Node->VariableGuid) == VariableGuid) return Node;
+    return nullptr;
+}
+
+TArray<TSharedPtr<FJsonValue>> P12Vector(const FVector& Value)
+{
+    return {MakeShared<FJsonValueNumber>(Value.X), MakeShared<FJsonValueNumber>(Value.Y), MakeShared<FJsonValueNumber>(Value.Z)};
+}
+
+FString P12ParentGuid(UBlueprint& Blueprint, USCS_Node& Node)
+{
+    USCS_Node* Parent = Blueprint.SimpleConstructionScript ? Blueprint.SimpleConstructionScript->FindParentNode(&Node) : nullptr;
+    return Parent ? CanonicalGuid(Parent->VariableGuid) : FString();
+}
+
+TSharedRef<FJsonObject> P12SCSResult(UBlueprint& Blueprint, const FString& VariableGuid, bool Changed, TOptional<bool> DryRun = {})
+{
+    const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetStringField(TEXT("blueprintId"), Blueprint.GetPathName());
+    Result->SetStringField(TEXT("variableGuid"), VariableGuid.ToLower());
+    Result->SetBoolField(TEXT("changed"), Changed);
+    if (DryRun.IsSet()) Result->SetBoolField(TEXT("dryRun"), DryRun.GetValue());
+    Result->SetArrayField(TEXT("dirtyPackages"), Blueprint.GetOutermost() && Blueprint.GetOutermost()->IsDirty() ? TArray<TSharedPtr<FJsonValue>>{MakeShared<FJsonValueString>(Blueprint.GetOutermost()->GetName())} : TArray<TSharedPtr<FJsonValue>>{});
+    Result->SetStringField(TEXT("revision"), BlueprintContentRevision(Blueprint));
+    return Result;
+}
+
+TSharedRef<FJsonObject> P12SCSItem(UBlueprint& Blueprint, USCS_Node& Node)
+{
+    const TSharedRef<FJsonObject> Item = MakeShared<FJsonObject>();
+    Item->SetStringField(TEXT("variableGuid"), CanonicalGuid(Node.VariableGuid)); Item->SetStringField(TEXT("name"), Node.GetVariableName().ToString()); Item->SetStringField(TEXT("class"), Node.ComponentClass ? Node.ComponentClass->GetPathName() : FString());
+    const FString Parent = P12ParentGuid(Blueprint, Node); if (Parent.IsEmpty()) Item->SetField(TEXT("parent"), MakeShared<FJsonValueNull>()); else Item->SetStringField(TEXT("parent"), Parent);
+    const USceneComponent* Scene = Cast<USceneComponent>(Node.ComponentTemplate);
+    const FVector Location = Scene ? Scene->GetRelativeLocation() : FVector::ZeroVector; const FRotator Rotation = Scene ? Scene->GetRelativeRotation() : FRotator::ZeroRotator; const FVector Scale = Scene ? Scene->GetRelativeScale3D() : FVector::OneVector;
+    Item->SetArrayField(TEXT("location"), P12Vector(Location)); Item->SetArrayField(TEXT("rotation"), P12Vector(FVector(Rotation.Roll, Rotation.Pitch, Rotation.Yaw))); Item->SetArrayField(TEXT("scale"), P12Vector(Scale));
+    const UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Node.ComponentTemplate);
+    if (Primitive)
+    {
+        Item->SetStringField(TEXT("collisionEnabled"), UEnum::GetValueAsString(Primitive->GetCollisionEnabled()).Replace(TEXT("ECollisionEnabled::"), TEXT(""))); Item->SetStringField(TEXT("collisionProfile"), Primitive->GetCollisionProfileName().ToString()); Item->SetStringField(TEXT("objectType"), UEnum::GetValueAsString(Primitive->GetCollisionObjectType()).Replace(TEXT("ECollisionChannel::"), TEXT(""))); Item->SetBoolField(TEXT("generateOverlapEvents"), Primitive->GetGenerateOverlapEvents()); Item->SetBoolField(TEXT("simulatePhysics"), Primitive->BodyInstance.bSimulatePhysics); Item->SetBoolField(TEXT("gravityEnabled"), Primitive->BodyInstance.bEnableGravity); if (Primitive->BodyInstance.bOverrideMass) Item->SetNumberField(TEXT("massOverride"), Primitive->BodyInstance.GetMassOverride()); else Item->SetField(TEXT("massOverride"), MakeShared<FJsonValueNull>());
+    }
+    else for (const TCHAR* Field : {TEXT("collisionEnabled"), TEXT("collisionProfile"), TEXT("objectType"), TEXT("generateOverlapEvents"), TEXT("simulatePhysics"), TEXT("gravityEnabled"), TEXT("massOverride")}) Item->SetField(Field, MakeShared<FJsonValueNull>());
+    if (const UBoxComponent* Box = Cast<UBoxComponent>(Node.ComponentTemplate)) Item->SetArrayField(TEXT("boxExtent"), P12Vector(Box->GetUnscaledBoxExtent())); else Item->SetField(TEXT("boxExtent"), MakeShared<FJsonValueNull>());
+    if (const USphereComponent* Sphere = Cast<USphereComponent>(Node.ComponentTemplate)) Item->SetNumberField(TEXT("sphereRadius"), Sphere->GetUnscaledSphereRadius()); else Item->SetField(TEXT("sphereRadius"), MakeShared<FJsonValueNull>());
+    return Item;
+}
+
+struct FP12SCSState
+{
+    FVector Location = FVector::ZeroVector; FRotator Rotation = FRotator::ZeroRotator; FVector Scale = FVector::OneVector; ECollisionEnabled::Type Collision = ECollisionEnabled::NoCollision; FName CollisionProfile = NAME_None; bool Overlap = false; bool Simulate = false; bool Gravity = false; bool OverrideMass = false; float Mass = 0.0f; FVector BoxExtent = FVector::ZeroVector; float SphereRadius = 0.0f;
+};
+
+FP12SCSState P12CaptureSCSState(USCS_Node& Node)
+{
+    FP12SCSState State;
+    if (const USceneComponent* Scene = Cast<USceneComponent>(Node.ComponentTemplate)) { State.Location = Scene->GetRelativeLocation(); State.Rotation = Scene->GetRelativeRotation(); State.Scale = Scene->GetRelativeScale3D(); }
+    if (const UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Node.ComponentTemplate)) { State.Collision = Primitive->GetCollisionEnabled(); State.CollisionProfile = Primitive->GetCollisionProfileName(); State.Overlap = Primitive->GetGenerateOverlapEvents(); State.Simulate = Primitive->BodyInstance.bSimulatePhysics; State.Gravity = Primitive->BodyInstance.bEnableGravity; State.OverrideMass = Primitive->BodyInstance.bOverrideMass; State.Mass = Primitive->BodyInstance.GetMassOverride(); }
+    if (const UBoxComponent* Box = Cast<UBoxComponent>(Node.ComponentTemplate)) State.BoxExtent = Box->GetUnscaledBoxExtent();
+    if (const USphereComponent* Sphere = Cast<USphereComponent>(Node.ComponentTemplate)) State.SphereRadius = Sphere->GetUnscaledSphereRadius();
+    return State;
+}
+
+void P12RestoreSCSState(USCS_Node& Node, const FP12SCSState& State)
+{
+    if (USceneComponent* Scene = Cast<USceneComponent>(Node.ComponentTemplate)) { Scene->SetRelativeLocation(State.Location); Scene->SetRelativeRotation(State.Rotation); Scene->SetRelativeScale3D(State.Scale); }
+    if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Node.ComponentTemplate)) { Primitive->SetCollisionProfileName(State.CollisionProfile); Primitive->SetCollisionEnabled(State.Collision); Primitive->SetGenerateOverlapEvents(State.Overlap); Primitive->SetSimulatePhysics(State.Simulate); Primitive->SetEnableGravity(State.Gravity); Primitive->BodyInstance.SetMassOverride(FMath::Max(State.Mass, 0.001f)); Primitive->BodyInstance.bOverrideMass = State.OverrideMass; }
+    if (UBoxComponent* Box = Cast<UBoxComponent>(Node.ComponentTemplate)) Box->SetBoxExtent(State.BoxExtent, false);
+    if (USphereComponent* Sphere = Cast<USphereComponent>(Node.ComponentTemplate)) Sphere->SetSphereRadius(State.SphereRadius, false);
+}
+
+bool P12SCSRequestMatches(USCS_Node& Node, const TSharedPtr<FJsonObject>& Args)
+{
+    const USceneComponent* Scene = Cast<USceneComponent>(Node.ComponentTemplate); const UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Node.ComponentTemplate); const UBoxComponent* Box = Cast<UBoxComponent>(Node.ComponentTemplate); const USphereComponent* Sphere = Cast<USphereComponent>(Node.ComponentTemplate);
+    const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
+    if (Args->TryGetArrayField(TEXT("location"), Values) && (!Scene || !Scene->GetRelativeLocation().Equals(FVector((*Values)[0]->AsNumber(), (*Values)[1]->AsNumber(), (*Values)[2]->AsNumber()), 0.0001))) return false;
+    if (Args->TryGetArrayField(TEXT("rotation"), Values) && (!Scene || !Scene->GetRelativeRotation().Equals(FRotator((*Values)[1]->AsNumber(), (*Values)[2]->AsNumber(), (*Values)[0]->AsNumber()), 0.0001))) return false;
+    if (Args->TryGetArrayField(TEXT("scale"), Values) && (!Scene || !Scene->GetRelativeScale3D().Equals(FVector((*Values)[0]->AsNumber(), (*Values)[1]->AsNumber(), (*Values)[2]->AsNumber()), 0.0001))) return false;
+    FString Collision; if (Args->TryGetStringField(TEXT("collisionEnabled"), Collision)) { const FString Actual = Primitive ? UEnum::GetValueAsString(Primitive->GetCollisionEnabled()).Replace(TEXT("ECollisionEnabled::"), TEXT("")) : FString(); if (Actual != Collision) return false; } FString CollisionProfile; if (Args->TryGetStringField(TEXT("collisionProfile"), CollisionProfile) && (!Primitive || Primitive->GetCollisionProfileName() != FName(*CollisionProfile))) return false;
+    bool Value = false; if (Args->TryGetBoolField(TEXT("generateOverlapEvents"), Value) && (!Primitive || Primitive->GetGenerateOverlapEvents() != Value)) return false; if (Args->TryGetBoolField(TEXT("simulatePhysics"), Value) && (!Primitive || Primitive->BodyInstance.bSimulatePhysics != Value)) return false; if (Args->TryGetBoolField(TEXT("gravityEnabled"), Value) && (!Primitive || Primitive->BodyInstance.bEnableGravity != Value)) return false;
+    double Number = 0; if (Args->TryGetNumberField(TEXT("massOverride"), Number) && (!Primitive || !Primitive->BodyInstance.bOverrideMass || !FMath::IsNearlyEqual(Primitive->BodyInstance.GetMassOverride(), Number, 0.0001))) return false;
+    if (Args->TryGetArrayField(TEXT("boxExtent"), Values) && (!Box || !Box->GetUnscaledBoxExtent().Equals(FVector((*Values)[0]->AsNumber(), (*Values)[1]->AsNumber(), (*Values)[2]->AsNumber()), 0.0001))) return false;
+    if (Args->TryGetNumberField(TEXT("sphereRadius"), Number) && (!Sphere || !FMath::IsNearlyEqual(Sphere->GetUnscaledSphereRadius(), Number, 0.0001))) return false;
+    return true;
+}
+
+bool P12RestoreBlueprintState(UBlueprint& Blueprint, const FString& BeforeRevision, bool WasDirty, EBlueprintStatus BeforeStatus)
+{
+    Blueprint.Status = BeforeStatus; if (Blueprint.GetOutermost()) Blueprint.GetOutermost()->SetDirtyFlag(WasDirty);
+    return BlueprintContentRevision(Blueprint) == BeforeRevision && Blueprint.Status == BeforeStatus && (!Blueprint.GetOutermost() || Blueprint.GetOutermost()->IsDirty() == WasDirty);
 }
 
 FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation, const TSharedPtr<FJsonObject>& Args, const FString& ExpectedRevision)
@@ -417,8 +599,8 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
         FString Path, ParentClass;
         Args->TryGetStringField(TEXT("path"), Path);
         Args->TryGetStringField(TEXT("parentClass"), ParentClass);
-        if (ParentClass != TEXT("/Script/Engine.StaticMeshActor") || !Path.StartsWith(TEXT("/Game/")) || !FPackageName::IsValidLongPackageName(Path) || Path.Contains(TEXT(".")))
-            return ErrorResponse(Id, TEXT("invalid_input"), TEXT("path must be a /Game long package path and parentClass must be /Script/Engine.StaticMeshActor"));
+        if ((ParentClass != TEXT("/Script/Engine.StaticMeshActor") && ParentClass != TEXT("/Script/Engine.Actor")) || !Path.StartsWith(TEXT("/Game/")) || !FPackageName::IsValidLongPackageName(Path) || Path.Contains(TEXT(".")))
+            return ErrorResponse(Id, TEXT("invalid_input"), TEXT("path must be a /Game long package path and parentClass must be /Script/Engine.StaticMeshActor or /Script/Engine.Actor"));
         const FString Name = FPackageName::GetLongPackageAssetName(Path);
         if (Name.IsEmpty()) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("Blueprint path requires asset name"));
         const FString BlueprintId = Path + TEXT(".") + Name;
@@ -450,7 +632,7 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
         {
             UObject* Existing = StaticLoadObject(UObject::StaticClass(), nullptr, *BlueprintId, nullptr, LOAD_NoWarn);
             UBlueprint* Blueprint = Cast<UBlueprint>(Existing);
-            if (!Blueprint || Blueprint->ParentClass != AStaticMeshActor::StaticClass()) return ErrorResponse(Id, TEXT("conflict"), TEXT("asset path exists with incompatible Blueprint intent"));
+            if (!Blueprint || (ParentClass == TEXT("/Script/Engine.StaticMeshActor") && Blueprint->ParentClass != AStaticMeshActor::StaticClass()) || (ParentClass == TEXT("/Script/Engine.Actor") && Blueprint->ParentClass != AActor::StaticClass())) return ErrorResponse(Id, TEXT("conflict"), TEXT("asset path exists with incompatible Blueprint intent"));
             const TSharedRef<FJsonObject> Result = P11MutationResult(*Blueprint, FString(), FString(), FString(), FString(), FString(), false);
             Result->SetStringField(TEXT("parentClass"), Blueprint->ParentClass->GetPathName());
             Result->SetStringField(TEXT("generatedClass"), Blueprint->GeneratedClass ? Blueprint->GeneratedClass->GetPathName() : BlueprintId + TEXT("_C"));
@@ -459,7 +641,8 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
         UPackage* Package = CreatePackage(*Path);
         if (!Package || Package->GetName() != Path || FindObject<UObject>(Package, *Name)) return ErrorResponse(Id, TEXT("conflict"), TEXT("Blueprint package or object already exists"));
         FScopedTransaction Transaction(NSLOCTEXT("MagiUnrealAXI", "P11CreateBlueprint", "Magi AXI Create Blueprint"));
-        UBlueprint* Blueprint = FKismetEditorUtilities::CreateBlueprint(AStaticMeshActor::StaticClass(), Package, FName(*Name), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), TEXT("MagiUnrealAXI"));
+        UClass* Parent = ParentClass == TEXT("/Script/Engine.Actor") ? AActor::StaticClass() : AStaticMeshActor::StaticClass();
+        UBlueprint* Blueprint = FKismetEditorUtilities::CreateBlueprint(Parent, Package, FName(*Name), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), TEXT("MagiUnrealAXI"));
         bool AssetRegistered = false;
         if (!Blueprint) { Transaction.Cancel(); P11DiscardCreatedBlueprint(*Package, nullptr, false); return FailedCreate(TEXT("Blueprint creation failed")); }
         auto CreateFailure = [&](const TCHAR* Message) -> FString
@@ -468,9 +651,12 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
             P11DiscardCreatedBlueprint(*Package, Blueprint, AssetRegistered);
             return FailedCreate(Message);
         };
-        AStaticMeshActor* Defaults = Blueprint->GeneratedClass ? Cast<AStaticMeshActor>(Blueprint->GeneratedClass->GetDefaultObject()) : nullptr;
-        if (!Defaults || !Defaults->GetStaticMeshComponent()) return CreateFailure(TEXT("created Blueprint StaticMeshActor defaults are unavailable"));
-        Defaults->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
+        if (ParentClass == TEXT("/Script/Engine.StaticMeshActor"))
+        {
+            AStaticMeshActor* Defaults = Blueprint->GeneratedClass ? Cast<AStaticMeshActor>(Blueprint->GeneratedClass->GetDefaultObject()) : nullptr;
+            if (!Defaults || !Defaults->GetStaticMeshComponent()) return CreateFailure(TEXT("created Blueprint StaticMeshActor defaults are unavailable"));
+            Defaults->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
+        }
         FAssetRegistryModule::AssetCreated(Blueprint);
         AssetRegistered = true;
         Package->MarkPackageDirty();
@@ -488,11 +674,62 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
         return Response;
     }
 
+    if (Operation == TEXT("blueprint.interface_create"))
+    {
+        FString Path, Function; Args->TryGetStringField(TEXT("path"), Path); Args->TryGetStringField(TEXT("function"), Function);
+        if (Function != TEXT("Interact") || !Path.StartsWith(TEXT("/Game/")) || !FPackageName::IsValidLongPackageName(Path) || Path.Contains(TEXT("."))) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("interface path or zero-argument Interact function is invalid"));
+        const FString Name = FPackageName::GetLongPackageAssetName(Path); const FString InterfaceId = Path + TEXT(".") + Name; const FString AbsentRevision = Sha256(InterfaceId + TEXT("\nabsent"));
+        if (FindPackage(nullptr, *Path) || FPackageName::DoesPackageExist(Path))
+        {
+            UBlueprint* Existing = P11LoadBlueprint(InterfaceId); UFunction* Interact = nullptr;
+            if (!Existing || !P12InterfaceContract(*Existing, Interact)) return ErrorResponse(Id, TEXT("conflict"), TEXT("asset path exists with incompatible Blueprint Interface intent"));
+            const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("id"), InterfaceId); Result->SetStringField(TEXT("function"), Function); Result->SetBoolField(TEXT("changed"), false); Result->SetArrayField(TEXT("dirtyPackages"), P11DirtyPackages(*Existing, false)); Result->SetArrayField(TEXT("savedPackages"), {}); Result->SetStringField(TEXT("revision"), BlueprintContentRevision(*Existing)); return SuccessResponse(Id, Result, Operation, Args);
+        }
+        UPackage* Package = CreatePackage(*Path); if (!Package || FindObject<UObject>(Package, *Name)) return ErrorResponse(Id, TEXT("conflict"), TEXT("interface package or object already exists"));
+        FScopedTransaction Transaction(NSLOCTEXT("MagiUnrealAXI", "P12CreateInterface", "Magi AXI Create Blueprint Interface"));
+        UBlueprint* Interface = FKismetEditorUtilities::CreateBlueprint(UInterface::StaticClass(), Package, FName(*Name), BPTYPE_Interface, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), TEXT("MagiUnrealAXI")); bool AssetRegistered = false;
+        auto Failed = [&](const TCHAR* Message)
+        {
+            Transaction.Cancel(); P11DiscardCreatedBlueprint(*Package, Interface, AssetRegistered);
+            const bool Absent = !FPackageName::DoesPackageExist(Path) && !FindPackage(nullptr, *Path) && !FindObject<UObject>(nullptr, *InterfaceId) && !FAssetRegistryModule::GetRegistry().GetAssetByObjectPath(FSoftObjectPath(InterfaceId)).IsValid();
+            const FString Observed = Absent ? AbsentRevision : (P11LoadBlueprint(InterfaceId) ? BlueprintContentRevision(*P11LoadBlueprint(InterfaceId)) : Sha256(InterfaceId + TEXT("\npresent")));
+            return P11FailedAtomicResponse(Id, Operation, Args, InterfaceId, AbsentRevision, Observed, Absent, {}, Absent ? Message : TEXT("Blueprint Interface creation rollback verification failed"));
+        };
+        if (!Interface) return Failed(TEXT("Blueprint Interface creation failed"));
+        UEdGraph* Graph = FBlueprintEditorUtils::CreateNewGraph(Interface, FName(*Function), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass()); if (!Graph) return Failed(TEXT("Interact function graph creation failed"));
+        FBlueprintEditorUtils::AddFunctionGraph(Interface, Graph, true, static_cast<UClass*>(nullptr)); FKismetEditorUtilities::CompileBlueprint(Interface);
+        FAssetRegistryModule::AssetCreated(Interface); AssetRegistered = true; Package->MarkPackageDirty();
+        UFunction* Interact = nullptr; if (Interface->Status == BS_Error || Interface->GetPathName() != InterfaceId || !P12InterfaceContract(*Interface, Interact) || BlueprintContentRevision(*Interface).Len() != 64) return Failed(TEXT("Blueprint Interface signature readback failed"));
+        const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("id"), InterfaceId); Result->SetStringField(TEXT("function"), Function); Result->SetBoolField(TEXT("changed"), true); Result->SetArrayField(TEXT("dirtyPackages"), {MakeShared<FJsonValueString>(Path)}); Result->SetArrayField(TEXT("savedPackages"), {}); Result->SetStringField(TEXT("revision"), BlueprintContentRevision(*Interface));
+        const FString Response = P11AtomicResponse(Id, SuccessResponse(Id, Result, Operation, Args)); return ResponseStatusIsOk(Response) ? Response : Failed(TEXT("Blueprint Interface creation postcondition failed"));
+    }
+    if (Operation == TEXT("blueprint.interface_view"))
+    {
+        FString InterfaceId; Args->TryGetStringField(TEXT("id"), InterfaceId); UBlueprint* Interface = P11LoadBlueprint(InterfaceId); UFunction* Interact = nullptr;
+        if (!Interface) return ErrorResponse(Id, TEXT("not_found"), TEXT("Blueprint Interface was not found")); if (!P12InterfaceContract(*Interface, Interact)) return ErrorResponse(Id, TEXT("conflict"), TEXT("Blueprint Interface does not have exact zero-argument Interact signature"));
+        const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("id"), Interface->GetPathName()); Result->SetStringField(TEXT("function"), TEXT("Interact")); Result->SetStringField(TEXT("revision"), BlueprintContentRevision(*Interface)); return SuccessResponse(Id, Result, Operation, Args);
+    }
+    if (Operation == TEXT("blueprint.interface_ensure"))
+    {
+        FString BlueprintId, InterfaceId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("interfaceId"), InterfaceId);
+        UBlueprint* Blueprint = P11LoadBlueprint(BlueprintId); UFunction* Interact = nullptr; UClass* InterfaceClass = P12InterfaceClass(InterfaceId, Interact);
+        if (!Blueprint || !InterfaceClass || !Interact) return ErrorResponse(Id, TEXT("not_found"), TEXT("Blueprint or exact Interact Interface was not found"));
+        FString RevisionErrorType, RevisionError; if (!P11ExpectedRevision(*Blueprint, ExpectedRevision, RevisionErrorType, RevisionError)) return ErrorResponse(Id, *RevisionErrorType, *RevisionError);
+        auto Result = [&](bool Changed) { const TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>(); Value->SetStringField(TEXT("blueprintId"), BlueprintId); Value->SetStringField(TEXT("interfaceId"), InterfaceId); Value->SetBoolField(TEXT("changed"), Changed); Value->SetArrayField(TEXT("dirtyPackages"), P11DirtyPackages(*Blueprint, Changed)); Value->SetArrayField(TEXT("savedPackages"), {}); Value->SetStringField(TEXT("revision"), BlueprintContentRevision(*Blueprint)); return Value; };
+        for (const FBPInterfaceDescription& Existing : Blueprint->ImplementedInterfaces) if (Existing.Interface == InterfaceClass) return SuccessResponse(Id, Result(false), Operation, Args);
+        const bool WasDirty = Blueprint->GetOutermost() && Blueprint->GetOutermost()->IsDirty(); const EBlueprintStatus BeforeStatus = Blueprint->Status; const FString BeforeRevision = BlueprintContentRevision(*Blueprint);
+        FScopedTransaction Transaction(NSLOCTEXT("MagiUnrealAXI", "P12EnsureInterface", "Magi AXI Ensure Blueprint Interface")); Blueprint->Modify();
+        auto Rollback = [&](const TCHAR* Message) { FBlueprintEditorUtils::RemoveInterface(Blueprint, InterfaceClass->GetClassPathName(), false); FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint); Transaction.Cancel(); const bool Verified = P12RestoreBlueprintState(*Blueprint, BeforeRevision, WasDirty, BeforeStatus); const FString Observed = BlueprintContentRevision(*Blueprint); return P11FailedAtomicResponse(Id, Operation, Args, BlueprintId, BeforeRevision, Observed, Verified, P11DirtyPackages(*Blueprint, false), Verified ? Message : TEXT("Blueprint Interface implementation rollback verification failed")); };
+        if (!FBlueprintEditorUtils::ImplementNewInterface(Blueprint, InterfaceClass->GetClassPathName())) return Rollback(TEXT("Blueprint Interface implementation failed"));
+        bool Implemented = false; for (const FBPInterfaceDescription& Existing : Blueprint->ImplementedInterfaces) if (Existing.Interface == InterfaceClass) { Implemented = true; break; }
+        if (!Implemented || BlueprintContentRevision(*Blueprint) == BeforeRevision) return Rollback(TEXT("Blueprint Interface implementation readback failed"));
+        const FString Response = P11AtomicResponse(Id, SuccessResponse(Id, Result(true), Operation, Args)); return ResponseStatusIsOk(Response) ? Response : Rollback(TEXT("Blueprint Interface implementation postcondition failed"));
+    }
     FString BlueprintId;
     Args->TryGetStringField(TEXT("blueprintId"), BlueprintId);
     UBlueprint* Blueprint = P11LoadBlueprint(BlueprintId);
     if (!Blueprint) return ErrorResponse(Id, TEXT("not_found"), TEXT("Blueprint was not found by exact object path"));
-    if (Blueprint->ParentClass != AStaticMeshActor::StaticClass()) return ErrorResponse(Id, TEXT("conflict"), TEXT("P1.1 authoring requires exact StaticMeshActor parent"));
+    if (Blueprint->ParentClass != AStaticMeshActor::StaticClass() && Blueprint->ParentClass != AActor::StaticClass()) return ErrorResponse(Id, TEXT("conflict"), TEXT("Blueprint parent class is outside P1 allowlist"));
 
     if (Operation == TEXT("blueprint.graph_view"))
     {
@@ -502,7 +739,111 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
     }
 
     FString ErrorType, Error;
+    if (Operation == TEXT("blueprint.scs_view"))
+    {
+        const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("blueprintId"), Blueprint->GetPathName());
+        TArray<TSharedPtr<FJsonValue>> Components;
+        if (Blueprint->SimpleConstructionScript)
+        {
+            TArray<USCS_Node*> Nodes = Blueprint->SimpleConstructionScript->GetAllNodes();
+            Nodes.RemoveAll([](const USCS_Node* Node) { return !Node || !Node->ComponentClass || !Cast<USceneComponent>(Node->ComponentTemplate); });
+            Nodes.Sort([](const USCS_Node& Left, const USCS_Node& Right) { return CanonicalGuid(Left.VariableGuid) < CanonicalGuid(Right.VariableGuid); });
+            for (USCS_Node* Node : Nodes) Components.Add(MakeShared<FJsonValueObject>(P12SCSItem(*Blueprint, *Node)));
+        }
+        Result->SetArrayField(TEXT("components"), Components); Result->SetStringField(TEXT("revision"), BlueprintContentRevision(*Blueprint));
+        return SuccessResponse(Id, Result, Operation, Args);
+    }
+    if (Operation == TEXT("blueprint.scs_component_ensure") || Operation == TEXT("blueprint.scs_component_update") || Operation == TEXT("blueprint.scs_component_remove"))
+    {
+        FString VariableGuid; Args->TryGetStringField(TEXT("variableGuid"), VariableGuid);
+        if (Operation != TEXT("blueprint.scs_component_ensure")) { FGuid Parsed; if (!FGuid::Parse(VariableGuid, Parsed) || CanonicalGuid(Parsed) != VariableGuid) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("SCS variableGuid must be canonical GUID")); }
+        if (Operation == TEXT("blueprint.scs_component_ensure"))
+        {
+            FString Name, Kind, ParentGuid; Args->TryGetStringField(TEXT("name"), Name); Args->TryGetStringField(TEXT("class"), Kind); Args->TryGetStringField(TEXT("parent"), ParentGuid);
+            const TMap<FString, FString> Classes{{TEXT("SceneComponent"),TEXT("/Script/Engine.SceneComponent")},{TEXT("PointLightComponent"),TEXT("/Script/Engine.PointLightComponent")},{TEXT("StaticMeshComponent"),TEXT("/Script/Engine.StaticMeshComponent")},{TEXT("BoxComponent"),TEXT("/Script/Engine.BoxComponent")},{TEXT("SphereComponent"),TEXT("/Script/Engine.SphereComponent")}};
+            const FString* ClassPath = Classes.Find(Kind); UClass* Class = ClassPath ? LoadObject<UClass>(nullptr, **ClassPath) : nullptr;
+            if (Name.IsEmpty() || !Class || !Class->IsChildOf(USceneComponent::StaticClass()) || !Blueprint->SimpleConstructionScript) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("SCS component class or name is not allowlisted"));
+            if (!P11ExpectedRevision(*Blueprint, ExpectedRevision, ErrorType, Error)) return ErrorResponse(Id, *ErrorType, *Error);
+            USCS_Node* ParentNode = ParentGuid.IsEmpty() ? nullptr : P12FindSCSNode(*Blueprint, ParentGuid);
+            if (!ParentGuid.IsEmpty() && (!ParentNode || CanonicalGuid(ParentNode->VariableGuid) != ParentGuid)) return ErrorResponse(Id, TEXT("not_found"), TEXT("SCS parent VariableGuid was not found"));
+            for (USCS_Node* Existing : Blueprint->SimpleConstructionScript->GetAllNodes()) if (Existing && Existing->GetVariableName() == FName(*Name))
+            {
+                if (!Existing->ComponentClass || Existing->ComponentClass->GetPathName() != *ClassPath || P12ParentGuid(*Blueprint, *Existing) != ParentGuid) return ErrorResponse(Id, TEXT("conflict"), TEXT("SCS natural key exists with incompatible class or parent"));
+                return SuccessResponse(Id, P12SCSResult(*Blueprint, CanonicalGuid(Existing->VariableGuid), false), Operation, Args);
+            }
+            const bool WasDirty = Blueprint->GetOutermost() && Blueprint->GetOutermost()->IsDirty(); const EBlueprintStatus BeforeStatus = Blueprint->Status; const FString BeforeRevision = BlueprintContentRevision(*Blueprint);
+            FScopedTransaction Transaction(NSLOCTEXT("MagiUnrealAXI", "P12EnsureSCS", "Magi AXI Ensure SCS Component")); Blueprint->Modify(); Blueprint->SimpleConstructionScript->Modify();
+            USCS_Node* NewNode = Blueprint->SimpleConstructionScript->CreateNode(Class, FName(*Name));
+            auto Rollback = [&](const TCHAR* Message)
+            {
+                if (NewNode) { Blueprint->SimpleConstructionScript->RemoveNode(NewNode); NewNode->MarkAsGarbage(); }
+                FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint); Transaction.Cancel();
+                const bool Verified = P12RestoreBlueprintState(*Blueprint, BeforeRevision, WasDirty, BeforeStatus); const FString Observed = BlueprintContentRevision(*Blueprint);
+                return P11FailedAtomicResponse(Id, Operation, Args, BlueprintId, BeforeRevision, Observed, Verified, P11DirtyPackages(*Blueprint, false), Verified ? Message : TEXT("SCS component ensure rollback verification failed"));
+            };
+            if (!NewNode) return Rollback(TEXT("SCS component creation failed"));
+            if (ParentNode) ParentNode->AddChildNode(NewNode); else Blueprint->SimpleConstructionScript->AddNode(NewNode);
+            FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+            const FString NewGuid = CanonicalGuid(NewNode->VariableGuid);
+            if (NewGuid.IsEmpty() || P12FindSCSNode(*Blueprint, NewGuid) != NewNode || P12ParentGuid(*Blueprint, *NewNode) != ParentGuid || BlueprintContentRevision(*Blueprint) == BeforeRevision) return Rollback(TEXT("SCS component ensure readback failed"));
+            const FString Response = P11AtomicResponse(Id, SuccessResponse(Id, P12SCSResult(*Blueprint, NewGuid, true), Operation, Args));
+            return ResponseStatusIsOk(Response) ? Response : Rollback(TEXT("SCS component ensure postcondition failed"));
+        }
+        USCS_Node* Node = P12FindSCSNode(*Blueprint, VariableGuid);
+        if (!Node || CanonicalGuid(Node->VariableGuid) != VariableGuid) return ErrorResponse(Id, TEXT("not_found"), TEXT("SCS component VariableGuid was not found"));
+        bool DryRun = false; Args->TryGetBoolField(TEXT("dryRun"), DryRun); bool Force = false; Args->TryGetBoolField(TEXT("force"), Force);
+        if (Operation == TEXT("blueprint.scs_component_remove"))
+        {
+            if (DryRun) return SuccessResponse(Id, P12SCSResult(*Blueprint, VariableGuid, false, true), Operation, Args);
+            if (!P11ExpectedRevision(*Blueprint, ExpectedRevision, ErrorType, Error)) return ErrorResponse(Id, *ErrorType, *Error);
+            if (!Force) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("SCS removal requires force"));
+            if (!Node->GetChildNodes().IsEmpty()) return ErrorResponse(Id, TEXT("conflict"), TEXT("SCS removal is limited to leaf components"));
+            USCS_Node* ParentNode = Blueprint->SimpleConstructionScript->FindParentNode(Node); const bool WasDirty = Blueprint->GetOutermost() && Blueprint->GetOutermost()->IsDirty(); const EBlueprintStatus BeforeStatus = Blueprint->Status; const FString BeforeRevision = BlueprintContentRevision(*Blueprint);
+            FScopedTransaction Transaction(NSLOCTEXT("MagiUnrealAXI", "P12RemoveSCS", "Magi AXI Remove SCS Component")); Blueprint->Modify(); Blueprint->SimpleConstructionScript->Modify(); Node->Modify(); Blueprint->SimpleConstructionScript->RemoveNode(Node); FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+            auto Rollback = [&](const TCHAR* Message)
+            {
+                if (ParentNode) ParentNode->AddChildNode(Node); else Blueprint->SimpleConstructionScript->AddNode(Node);
+                FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint); Transaction.Cancel();
+                const bool Verified = P12FindSCSNode(*Blueprint, VariableGuid) == Node && P12RestoreBlueprintState(*Blueprint, BeforeRevision, WasDirty, BeforeStatus); const FString Observed = BlueprintContentRevision(*Blueprint);
+                return P11FailedAtomicResponse(Id, Operation, Args, BlueprintId, BeforeRevision, Observed, Verified, P11DirtyPackages(*Blueprint, false), Verified ? Message : TEXT("SCS component removal rollback verification failed"));
+            };
+            if (P12FindSCSNode(*Blueprint, VariableGuid) || BlueprintContentRevision(*Blueprint) == BeforeRevision) return Rollback(TEXT("SCS component removal readback failed"));
+            const FString Response = P11AtomicResponse(Id, SuccessResponse(Id, P12SCSResult(*Blueprint, VariableGuid, true, false), Operation, Args));
+            return ResponseStatusIsOk(Response) ? Response : Rollback(TEXT("SCS component removal postcondition failed"));
+        }
+        if (!P11ExpectedRevision(*Blueprint, ExpectedRevision, ErrorType, Error)) return ErrorResponse(Id, *ErrorType, *Error);
+        USceneComponent* Scene = Cast<USceneComponent>(Node->ComponentTemplate); UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Node->ComponentTemplate); UBoxComponent* Box = Cast<UBoxComponent>(Node->ComponentTemplate); USphereComponent* Sphere = Cast<USphereComponent>(Node->ComponentTemplate);
+        const bool WantsPrimitive = Args->HasField(TEXT("collisionEnabled")) || Args->HasField(TEXT("collisionProfile")) || Args->HasField(TEXT("generateOverlapEvents")) || Args->HasField(TEXT("simulatePhysics")) || Args->HasField(TEXT("gravityEnabled")) || Args->HasField(TEXT("massOverride"));
+        if (!Scene || (WantsPrimitive && !Primitive) || (Args->HasField(TEXT("boxExtent")) && !Box) || (Args->HasField(TEXT("sphereRadius")) && !Sphere)) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("requested SCS field is incompatible with component class"));
+        const bool HasSemanticUpdate = Args->HasField(TEXT("location")) || Args->HasField(TEXT("rotation")) || Args->HasField(TEXT("scale")) || Args->HasField(TEXT("collisionEnabled")) || Args->HasField(TEXT("collisionProfile")) || Args->HasField(TEXT("generateOverlapEvents")) || Args->HasField(TEXT("simulatePhysics")) || Args->HasField(TEXT("gravityEnabled")) || Args->HasField(TEXT("massOverride")) || Args->HasField(TEXT("boxExtent")) || Args->HasField(TEXT("sphereRadius"));
+        if (!HasSemanticUpdate) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("SCS update requires at least one semantic field"));
+        if (P12SCSRequestMatches(*Node, Args)) return SuccessResponse(Id, P12SCSResult(*Blueprint, VariableGuid, false), Operation, Args);
+        const bool WasDirty = Blueprint->GetOutermost() && Blueprint->GetOutermost()->IsDirty(); const EBlueprintStatus BeforeStatus = Blueprint->Status; const FString BeforeRevision = BlueprintContentRevision(*Blueprint); const FP12SCSState Before = P12CaptureSCSState(*Node);
+        FScopedTransaction Transaction(NSLOCTEXT("MagiUnrealAXI", "P12UpdateSCS", "Magi AXI Update SCS Component")); Blueprint->Modify(); Node->Modify(); if (Node->ComponentTemplate) Node->ComponentTemplate->Modify();
+        const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
+        if (Args->TryGetArrayField(TEXT("location"), Values)) Scene->SetRelativeLocation(FVector((*Values)[0]->AsNumber(), (*Values)[1]->AsNumber(), (*Values)[2]->AsNumber()));
+        if (Args->TryGetArrayField(TEXT("rotation"), Values)) Scene->SetRelativeRotation(FRotator((*Values)[1]->AsNumber(), (*Values)[2]->AsNumber(), (*Values)[0]->AsNumber()));
+        if (Args->TryGetArrayField(TEXT("scale"), Values)) Scene->SetRelativeScale3D(FVector((*Values)[0]->AsNumber(), (*Values)[1]->AsNumber(), (*Values)[2]->AsNumber()));
+        FString Collision; if (Args->TryGetStringField(TEXT("collisionEnabled"), Collision)) { const TMap<FString, ECollisionEnabled::Type> Modes{{TEXT("NoCollision"), ECollisionEnabled::NoCollision}, {TEXT("QueryOnly"), ECollisionEnabled::QueryOnly}, {TEXT("PhysicsOnly"), ECollisionEnabled::PhysicsOnly}, {TEXT("QueryAndPhysics"), ECollisionEnabled::QueryAndPhysics}}; Primitive->SetCollisionEnabled(Modes[Collision]); } FString CollisionProfile; if (Args->TryGetStringField(TEXT("collisionProfile"), CollisionProfile)) Primitive->SetCollisionProfileName(FName(*CollisionProfile));
+        bool Value = false; if (Args->TryGetBoolField(TEXT("generateOverlapEvents"), Value)) Primitive->SetGenerateOverlapEvents(Value); if (Args->TryGetBoolField(TEXT("simulatePhysics"), Value)) Primitive->SetSimulatePhysics(Value); if (Args->TryGetBoolField(TEXT("gravityEnabled"), Value)) Primitive->SetEnableGravity(Value);
+        double Number = 0; if (Args->TryGetNumberField(TEXT("massOverride"), Number)) Primitive->BodyInstance.SetMassOverride(Number);
+        if (Args->TryGetArrayField(TEXT("boxExtent"), Values)) Box->SetBoxExtent(FVector((*Values)[0]->AsNumber(), (*Values)[1]->AsNumber(), (*Values)[2]->AsNumber()), false);
+        if (Args->TryGetNumberField(TEXT("sphereRadius"), Number)) Sphere->SetSphereRadius(Number, false);
+        FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+        auto Rollback = [&](const TCHAR* Message)
+        {
+            P12RestoreSCSState(*Node, Before); FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint); Transaction.Cancel();
+            const bool Verified = P12SCSRequestMatches(*Node, MakeShared<FJsonObject>()) && P12RestoreBlueprintState(*Blueprint, BeforeRevision, WasDirty, BeforeStatus); const FString Observed = BlueprintContentRevision(*Blueprint);
+            return P11FailedAtomicResponse(Id, Operation, Args, BlueprintId, BeforeRevision, Observed, Verified, P11DirtyPackages(*Blueprint, false), Verified ? Message : TEXT("SCS component update rollback verification failed"));
+        };
+        if (!P12SCSRequestMatches(*Node, Args) || BlueprintContentRevision(*Blueprint) == BeforeRevision) return Rollback(TEXT("SCS component update readback failed"));
+        const FString Response = P11AtomicResponse(Id, SuccessResponse(Id, P12SCSResult(*Blueprint, VariableGuid, true), Operation, Args));
+        return ResponseStatusIsOk(Response) ? Response : Rollback(TEXT("SCS component update postcondition failed"));
+
+    }
     if (!P11ExpectedRevision(*Blueprint, ExpectedRevision, ErrorType, Error)) return ErrorResponse(Id, *ErrorType, *Error);
+
+
     UPackage* BlueprintPackage = Blueprint->GetOutermost();
     const bool WasPackageDirty = BlueprintPackage && BlueprintPackage->IsDirty();
     const EBlueprintStatus BeforeBlueprintStatus = Blueprint->Status;
@@ -529,13 +870,37 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
         Args->TryGetStringField(Operation == TEXT("blueprint.event_ensure") ? TEXT("event") : TEXT("node"), Intent);
         UEdGraph* Graph = P11FindGraph(*Blueprint, GraphId);
         if (!Graph || BlueprintGraphKind(*Blueprint, *Graph) != TEXT("ubergraph")) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("graphId must identify Blueprint ubergraph"));
+        FString RequestVariableGuid, RequestInterfaceId;
+        Args->TryGetStringField(TEXT("variableGuid"), RequestVariableGuid);
+        Args->TryGetStringField(TEXT("interfaceId"), RequestInterfaceId);
+        USCS_Node* BoundSCSNode = nullptr;
+        UFunction* InteractFunction = nullptr;
+        UClass* InteractInterfaceClass = nullptr;
+        if (Intent == TEXT("component.begin_overlap"))
+        {
+            BoundSCSNode = P12FindSCSNode(*Blueprint, RequestVariableGuid);
+            if (!BoundSCSNode || CanonicalGuid(BoundSCSNode->VariableGuid) != RequestVariableGuid || !BoundSCSNode->ComponentClass || !BoundSCSNode->ComponentClass->IsChildOf(UPrimitiveComponent::StaticClass()))
+                return ErrorResponse(Id, TEXT("invalid_input"), TEXT("component.begin_overlap requires a canonical primitive SCS VariableGuid"));
+        }
+        else if (Intent == TEXT("interface.interact") || Intent == TEXT("interface.message_interact"))
+        {
+            InteractInterfaceClass = P12InterfaceClass(RequestInterfaceId, InteractFunction);
+            if (!InteractInterfaceClass || !InteractFunction) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("interface intent requires an exact zero-argument Interact Blueprint Interface"));
+            if (Intent == TEXT("interface.interact"))
+            {
+                bool Implemented = false;
+                for (const FBPInterfaceDescription& Interface : Blueprint->ImplementedInterfaces) if (Interface.Interface == InteractInterfaceClass) { Implemented = true; break; }
+                if (!Implemented) return ErrorResponse(Id, TEXT("conflict"), TEXT("Blueprint must implement interface before Interact handler authoring"));
+            }
+        }
+        else if (!RequestVariableGuid.IsEmpty() || !RequestInterfaceId.IsEmpty()) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("identity fields do not apply to requested graph intent"));
         const FGuid WantedGuid = P11DeterministicGuid(*Blueprint, *Graph, AgentKey);
         if (!WantedGuid.IsValid()) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("natural-key GUID derivation failed"));
         for (UEdGraph* CandidateGraph : Blueprint->UbergraphPages)
             for (UEdGraphNode* Existing : CandidateGraph ? CandidateGraph->Nodes : TArray<TObjectPtr<UEdGraphNode>>{})
                 if (Existing && Existing->NodeGuid == WantedGuid)
                 {
-                    if (CandidateGraph != Graph || P11NodeIntent(*Existing) != Intent || (!P11NodeOwner(*Blueprint, *Existing).IsEmpty() && P11NodeOwner(*Blueprint, *Existing) != AgentKey)) return ErrorResponse(Id, TEXT("conflict"), TEXT("agentKey already exists with different graph, intent, or durable owner"));
+                    if (CandidateGraph != Graph || !P12NodeMatchesRequest(*Blueprint, *Existing, Intent, Args) || (!P11NodeOwner(*Blueprint, *Existing).IsEmpty() && P11NodeOwner(*Blueprint, *Existing) != AgentKey)) return ErrorResponse(Id, TEXT("conflict"), TEXT("agentKey already exists with different graph, intent, identity, or durable owner"));
                     if (P11NodeOwner(*Blueprint, *Existing).IsEmpty())
                     {
                         FScopedTransaction OwnershipTransaction(NSLOCTEXT("MagiUnrealAXI", "P11AdoptNode", "Magi AXI Record Blueprint Node Owner"));
@@ -557,7 +922,7 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
                 }
         if (Operation == TEXT("blueprint.event_ensure"))
             for (UEdGraphNode* Existing : Graph->Nodes)
-                if (Existing && P11NodeIntent(*Existing) == Intent)
+                if (Existing && P12NodeMatchesRequest(*Blueprint, *Existing, Intent, Args))
                 {
                     for (const UEdGraphPin* Pin : Existing->Pins)
                         if (Pin && !Pin->LinkedTo.IsEmpty()) return ErrorResponse(Id, TEXT("conflict"), TEXT("allowlisted singleton event already has authored links under different natural key"));
@@ -604,6 +969,33 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
             Event->NodePosX = -700; Event->NodePosY = 220;
             NewNode = Event;
         }
+        else if (Operation == TEXT("blueprint.event_ensure") && Intent == TEXT("component.begin_overlap"))
+        {
+            FObjectProperty* ComponentProperty = Blueprint->SkeletonGeneratedClass && BoundSCSNode
+                ? FindFProperty<FObjectProperty>(Blueprint->SkeletonGeneratedClass, BoundSCSNode->GetVariableName()) : nullptr;
+            FMulticastDelegateProperty* DelegateProperty = BoundSCSNode && BoundSCSNode->ComponentClass
+                ? FindFProperty<FMulticastDelegateProperty>(BoundSCSNode->ComponentClass, GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, OnComponentBeginOverlap)) : nullptr;
+            if (!ComponentProperty || !DelegateProperty) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("compile Blueprint after SCS authoring before adding component overlap event"));
+            UK2Node_ComponentBoundEvent* Event = NewObject<UK2Node_ComponentBoundEvent>(Graph, NAME_None, RF_Transactional);
+            Event->InitializeComponentBoundEventParams(ComponentProperty, DelegateProperty);
+            Event->NodePosX = -700; Event->NodePosY = 520;
+            NewNode = Event;
+        }
+        else if (Operation == TEXT("blueprint.event_ensure") && Intent == TEXT("interface.interact"))
+        {
+            UK2Node_Event* Event = NewObject<UK2Node_Event>(Graph, NAME_None, RF_Transactional);
+            Event->EventReference.SetFromField<UFunction>(InteractFunction, false);
+            Event->bOverrideFunction = true;
+            Event->NodePosX = -700; Event->NodePosY = 760;
+            NewNode = Event;
+        }
+        else if (Operation == TEXT("blueprint.node_ensure") && Intent == TEXT("interface.message_interact"))
+        {
+            UK2Node_Message* Message = NewObject<UK2Node_Message>(Graph, NAME_None, RF_Transactional);
+            Message->FunctionReference.SetFromField<UFunction>(InteractFunction, false);
+            Message->NodePosX = -260; Message->NodePosY = 520;
+            NewNode = Message;
+        }
         else if (Operation == TEXT("blueprint.node_ensure"))
         {
             UFunction* Function = nullptr; int32 X = 0; int32 Y = 0;
@@ -632,7 +1024,7 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
             Transaction.Cancel();
             FString After; const bool Verified = VerifyRollback(After); return P11FailedAtomicResponse(Id, Operation, Args, Blueprint->GetPathName(), ExpectedRevision, After, Verified, P11DirtyPackages(*Blueprint, BlueprintPackage && BlueprintPackage->IsDirty()), Verified ? TEXT("Blueprint node readback failed") : TEXT("Blueprint node rollback verification failed"));
         };
-        if (NodeId.IsEmpty() || P11NodeIntent(*NewNode) != Intent || P11NodeOwner(*Blueprint, *NewNode) != AgentKey || BlueprintContentRevision(*Blueprint) == ExpectedRevision)
+        if (NodeId.IsEmpty() || !P12NodeMatchesRequest(*Blueprint, *NewNode, Intent, Args) || P11NodeOwner(*Blueprint, *NewNode) != AgentKey || BlueprintContentRevision(*Blueprint) == ExpectedRevision)
             return RollbackNode(ErrorResponse(Id, TEXT("operation_failed"), TEXT("Blueprint node readback failed")));
         const FString Response = P11AtomicResponse(Id, SuccessResponse(Id, P11MutationResult(*Blueprint, GraphId, NodeId, FString(), FString(), FString(), true), Operation, Args));
         return ResponseStatusIsOk(Response) ? Response : RollbackNode(Response);
@@ -847,9 +1239,8 @@ bool FMagiUnrealAXIP11BlueprintConstructionKernel::RunTest(const FString&)
     const FString StableRevision = BlueprintContentRevision(*Blueprint);
     const TSharedRef<FJsonObject> RepeatArgs = Object({{TEXT("blueprintId"), BlueprintId}, {TEXT("graphId"), GraphId}, {TEXT("agentKey"), TEXT("p11.offset")}, {TEXT("node"), TEXT("actor.add_world_offset")}});
     const TSharedPtr<FJsonObject> Repeat = ResultObject(HandleP11BlueprintOperation(TEXT("p11-repeat"), TEXT("blueprint.node_ensure"), RepeatArgs, StableRevision));
-    TestTrue(TEXT("natural-key repeat is safe no-op"), Repeat && !Repeat->GetBoolField(TEXT("changed")) && Repeat->GetStringField(TEXT("revision")) == StableRevision);
     const TSharedRef<FJsonObject> StaleArgs = Object({{TEXT("blueprintId"), BlueprintId}, {TEXT("graphId"), GraphId}, {TEXT("agentKey"), TEXT("p11.stale")}, {TEXT("node"), TEXT("math.make_vector")}});
-    TestEqual(TEXT("stale revision returns conflict"), ErrorType(HandleP11BlueprintOperation(TEXT("p11-stale"), TEXT("blueprint.node_ensure"), StaleArgs, TEXT("0"))), FString(TEXT("conflict")));
+    TestEqual(TEXT("stale revision returns conflict"), ErrorType(HandleP11BlueprintOperation(TEXT("p11-stale"), TEXT("blueprint.node_ensure"), StaleArgs, TEXT("0000000000000000000000000000000000000000000000000000000000000000"))), FString(TEXT("conflict")));
 
     auto NodeByIntent = [&](const FString& Intent) -> UEdGraphNode*
     {

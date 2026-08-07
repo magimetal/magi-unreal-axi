@@ -156,29 +156,7 @@ pub fn validate_input(id: &str, args: Value) -> Result<Value, AppError> {
             "magi-unreal-axi capability search <query>",
         ));
     }
-    if !id.starts_with("asset.create_input_")
-        && !matches!(
-            id,
-            "asset.save"
-                | "blueprint.compile"
-                | "blueprint.view"
-                | "component.add"
-                | "component.list"
-                | "component.remove"
-                | "component.update"
-                | "component.view"
-                | "level.set_game_mode"
-                | "level.settings"
-                | "play.input"
-                | "play.observe"
-                | "play.screenshot"
-                | "play.start"
-                | "play.status"
-                | "play.stop"
-        )
-    {
-        validate_generated_input(id, &args).map_err(|message| input_error(id, message))?;
-    }
+    validate_generated_input(id, &args).map_err(|message| input_error(id, message))?;
     let object = args
         .as_object()
         .ok_or_else(|| input_error(id, "input must be a JSON object"))?;
@@ -297,24 +275,71 @@ pub fn validate_input(id: &str, args: Value) -> Result<Value, AppError> {
                 id,
                 object,
                 &["blueprintId", "graphId", "agentKey", "event"],
-                &["blueprintId", "graphId", "agentKey", "event"],
+                &[
+                    "blueprintId",
+                    "graphId",
+                    "agentKey",
+                    "event",
+                    "variableGuid",
+                    "interfaceId",
+                ],
             )?;
             bounded_string(id, object, "blueprintId", 512)?;
             bounded_string(id, object, "graphId", 1024)?;
             bounded_string(id, object, "agentKey", 128)?;
             bounded_string(id, object, "event", 32)?;
+            match object["event"].as_str() {
+                Some("component.begin_overlap") => {
+                    if !object
+                        .get("variableGuid")
+                        .and_then(Value::as_str)
+                        .is_some_and(canonical_guid)
+                        || object.contains_key("interfaceId")
+                    {
+                        return Err(input_error(
+                            id,
+                            "component.begin_overlap requires one canonical variableGuid",
+                        ));
+                    }
+                }
+                Some("interface.interact") => {
+                    if !object.contains_key("interfaceId") || object.contains_key("variableGuid") {
+                        return Err(input_error(
+                            id,
+                            "interface.interact requires one interfaceId",
+                        ));
+                    }
+                }
+                Some("actor.begin_play" | "input.key_e") => {
+                    if object.contains_key("variableGuid") || object.contains_key("interfaceId") {
+                        return Err(input_error(
+                            id,
+                            "event identity fields do not apply to this intent",
+                        ));
+                    }
+                }
+                _ => return Err(input_error(id, "event intent is not allowlisted")),
+            }
         }
         "blueprint.node_ensure" => {
             require_keys(
                 id,
                 object,
                 &["blueprintId", "graphId", "agentKey", "node"],
-                &["blueprintId", "graphId", "agentKey", "node"],
+                &["blueprintId", "graphId", "agentKey", "node", "interfaceId"],
             )?;
             bounded_string(id, object, "blueprintId", 512)?;
             bounded_string(id, object, "graphId", 1024)?;
             bounded_string(id, object, "agentKey", 128)?;
             bounded_string(id, object, "node", 64)?;
+            if (object["node"] == "interface.message_interact")
+                != object.contains_key("interfaceId")
+            {
+                return Err(input_error(
+                    id,
+                    "interface.message_interact requires one interfaceId",
+                ));
+            }
         }
         "blueprint.pin_default_set" => {
             require_keys(
@@ -409,7 +434,111 @@ pub fn validate_input(id: &str, args: Value) -> Result<Value, AppError> {
                 bounded_string(id, object, "path", 512)?;
             }
         }
-        _ => return Err(input_error(id, "capability is not executable")),
+        "blueprint.interface_create" => {
+            require_keys(id, object, &["path", "function"], &["path", "function"])?;
+            bounded_string(id, object, "path", 512)?;
+        }
+        "blueprint.interface_view" => {
+            require_keys(id, object, &["id"], &["id"])?;
+            bounded_string(id, object, "id", 512)?;
+        }
+        "blueprint.interface_ensure" => {
+            require_keys(
+                id,
+                object,
+                &["blueprintId", "interfaceId"],
+                &["blueprintId", "interfaceId"],
+            )?;
+            bounded_string(id, object, "blueprintId", 512)?;
+            bounded_string(id, object, "interfaceId", 512)?;
+        }
+        "blueprint.scs_view" => {
+            require_keys(id, object, &["blueprintId"], &["blueprintId"])?;
+            bounded_string(id, object, "blueprintId", 512)?;
+        }
+        "blueprint.scs_component_ensure" => {
+            require_keys(
+                id,
+                object,
+                &["blueprintId", "name", "class"],
+                &["blueprintId", "name", "class", "parent"],
+            )?;
+            bounded_string(id, object, "blueprintId", 512)?;
+            bounded_string(id, object, "name", 128)?;
+            if object
+                .get("parent")
+                .and_then(Value::as_str)
+                .is_some_and(|value| !canonical_guid(value))
+            {
+                return Err(input_error(
+                    id,
+                    "parent must be a canonical lowercase VariableGuid",
+                ));
+            }
+        }
+        "blueprint.scs_component_update" => {
+            if !object
+                .get("variableGuid")
+                .and_then(Value::as_str)
+                .is_some_and(canonical_guid)
+            {
+                return Err(input_error(
+                    id,
+                    "variableGuid must be canonical lowercase GUID",
+                ));
+            }
+            if ![
+                "location",
+                "rotation",
+                "scale",
+                "collisionEnabled",
+                "collisionProfile",
+                "generateOverlapEvents",
+                "simulatePhysics",
+                "gravityEnabled",
+                "massOverride",
+                "boxExtent",
+                "sphereRadius",
+            ]
+            .iter()
+            .any(|field| object.contains_key(*field))
+            {
+                return Err(input_error(
+                    id,
+                    "at least one SCS component field is required",
+                ));
+            }
+        }
+        "blueprint.scs_component_remove" => {
+            if !object
+                .get("variableGuid")
+                .and_then(Value::as_str)
+                .is_some_and(canonical_guid)
+            {
+                return Err(input_error(
+                    id,
+                    "variableGuid must be canonical lowercase GUID",
+                ));
+            }
+        }
+        "play.component_observe" => {
+            if !object
+                .get("variableGuid")
+                .and_then(Value::as_str)
+                .is_some_and(canonical_guid)
+            {
+                return Err(input_error(
+                    id,
+                    "variableGuid must be canonical lowercase GUID",
+                ));
+            }
+        }
+        _ => {
+            return Err(input_error(
+                id,
+                "capability input contract is not executable",
+            ));
+        }
     }
     Ok(Value::Object(object.clone()))
 }
@@ -578,10 +707,18 @@ pub fn validate_output_for_request(
         | "blueprint.node_ensure"
         | "blueprint.pin_default_set"
         | "blueprint.pin_connect"
+        | "blueprint.interface_create"
+        | "blueprint.interface_view"
+        | "blueprint.interface_ensure"
+        | "blueprint.scs_view"
+        | "blueprint.scs_component_ensure"
+        | "blueprint.scs_component_update"
+        | "blueprint.scs_component_remove"
         | "play.start"
         | "play.status"
         | "play.input"
         | "play.observe"
+        | "play.component_observe"
         | "play.screenshot"
         | "play.stop" => {
             require_output_string(id, object, "revision")?;

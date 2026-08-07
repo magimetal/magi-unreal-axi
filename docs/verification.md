@@ -24,12 +24,14 @@ cargo run --locked --bin xtask -- release check
 ./tests/unreal/certify-m7-live.sh
 ./tests/unreal/certify-p1.0.sh
 ./tests/unreal/certify-p1.0-live.sh
+./tests/unreal/certify-p1.1.sh
+./tests/unreal/certify-p1.2.sh
 ./tests/unreal/certify-m8-live.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
 ```
 
-Rust gate: 43 library tests, 5 xtask tests, and 44 real-binary integration tests = 92 tests (`cargo test --all-targets --all-features --locked`, verified locally). Catalog check validates 40 records, generated static Rust/C++ schemas and registries, mutation safety metadata, semantic receipt bindings, and hash `6213c83a5ad2a61336ec08bd4bfebb9564e434f7f12a9bf2b9bc951f0fc14922`.
+Rust gate: 44 library tests, 5 xtask tests, and 44 real-binary integration tests = 93 tests (`cargo test --all-targets --all-features --locked`, verified locally). Catalog check validates 48 records, generated static Rust/C++ schemas and registries, mutation safety metadata, semantic receipt bindings, and hash `fc2c7109093b848359b6307908ede3e5939389c301929394f916a0e0e00c2d60`.
 
-P1.0 native/live certification and M8 exact-artifact regression remain historical passes. P1 remains active; P1.1 integrated native/live certification passes; later phases remain not started.
+P1.0/P1.1 native/live certification and M8 exact-artifact regression remain historical passes. P1 remains active; P1.2 integrated native/live certification passes exact 22/22 Unreal automation, interface/two-Blueprint/nested-SCS/overlap/interaction/two-PIE reset, and Blueprint-only compile/cook/package gates. P1.3–P1.6 remain not started.
 
 ## Evidence paths
 
@@ -49,6 +51,7 @@ P1.0 native/live certification and M8 exact-artifact regression remain historica
 - P1.0 native: `~/Library/Caches/magi-unreal-axi/p1.0/native/evidence.zLZ1or`
 - P1.0 live: `~/Library/Caches/magi-unreal-axi/p1.0/live/evidence.FRJY3A`
 - P1.1 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.1/native/evidence.CUX9X7`
+- P1.2 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.2/native/evidence.iY67AH`
 
 ## P1.0 certification
 
@@ -57,6 +60,10 @@ Dedicated native certification packages the plugin, builds the source fixture, r
 Dedicated live certification proves native availability while editor is live, offline `unknown/editor_offline`, non-atomic dirty failed-compile receipt semantics, exact live/offline `operation view` recovery, restart-preserved invalid structure/revision, and retained-evidence token absence. Refreshed M8 certification binds archive SHA-256 `4be0341503bf63cc8ea7ed928f4cd3864764ad16a4608b08c59f626243c16424` and exact 16-test inventory to clean-install lifecycle evidence.
 
 P1.0 and P1.1 acceptance are complete. P1.1 certifies six bounded Blueprint authoring operations through 19/19 Unreal automation, compile/build, Blueprint-only cook/package, restart/idempotency/invalid matrices, PIE behavior, source provenance, and token scans.
+
+## P1.2 certification
+
+P1.2 adds exactly eight capabilities: `blueprint.interface_create`, `blueprint.interface_view`, `blueprint.interface_ensure`, `blueprint.scs_view`, `blueprint.scs_component_ensure`, `blueprint.scs_component_update`, `blueprint.scs_component_remove`, and `play.component_observe`. Native and live gates prove Blueprint-only `CompileAllBlueprints`, cook/package, registry/generated classes, IoStore, inventory, receipt, and token checks. Evidence: `~/Library/Caches/magi-unreal-axi/p1.2/native/evidence.iY67AH`.
 
 ## M3–M5 regression status
 
@@ -96,7 +103,7 @@ Cook copies a bounded, symlink-safe inventory from canonical project `Saved/Cook
 
 Evidence: `~/Library/Caches/magi-unreal-axi/m7/live/evidence.Ekd7HQ`.
 
-M7 acceptance is complete. UE 5.8.1/macOS arm64 support is certified through M8.
+M7 acceptance is complete. UE 5.8.1/macOS arm64 support is certified through P1.2.
 
 ## M8 certification
 

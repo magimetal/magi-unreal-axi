@@ -402,6 +402,1212 @@
     }
   },
   {
+    "operation": "blueprint.interface_create",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blueprint.interface_create",
+    "case": "root-not-closed",
+    "result": {
+      "id": "x",
+      "function": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.interface_view",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blueprint.interface_view",
+    "case": "root-not-closed",
+    "result": {
+      "id": "x",
+      "function": "x",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.interface_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blueprint.interface_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "interfaceId": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "components": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "numeric-below-minimum@components.0.location.0",
+    "result": {
+      "blueprintId": "x",
+      "components": [
+        {
+          "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "x",
+          "class": "x",
+          "parent": null,
+          "location": [
+            -100001.0,
+            -100000.0,
+            -100000.0
+          ],
+          "rotation": [
+            -360.0,
+            -360.0,
+            -360.0
+          ],
+          "scale": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "collisionEnabled": null,
+          "collisionProfile": null,
+          "objectType": null,
+          "generateOverlapEvents": null,
+          "simulatePhysics": null,
+          "gravityEnabled": null,
+          "massOverride": null,
+          "boxExtent": null,
+          "sphereRadius": null
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "numeric-above-maximum@components.0.location.0",
+    "result": {
+      "blueprintId": "x",
+      "components": [
+        {
+          "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "x",
+          "class": "x",
+          "parent": null,
+          "location": [
+            100001.0,
+            -100000.0,
+            -100000.0
+          ],
+          "rotation": [
+            -360.0,
+            -360.0,
+            -360.0
+          ],
+          "scale": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "collisionEnabled": null,
+          "collisionProfile": null,
+          "objectType": null,
+          "generateOverlapEvents": null,
+          "simulatePhysics": null,
+          "gravityEnabled": null,
+          "massOverride": null,
+          "boxExtent": null,
+          "sphereRadius": null
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "numeric-below-minimum@components.0.rotation.0",
+    "result": {
+      "blueprintId": "x",
+      "components": [
+        {
+          "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "x",
+          "class": "x",
+          "parent": null,
+          "location": [
+            -100000.0,
+            -100000.0,
+            -100000.0
+          ],
+          "rotation": [
+            -361.0,
+            -360.0,
+            -360.0
+          ],
+          "scale": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "collisionEnabled": null,
+          "collisionProfile": null,
+          "objectType": null,
+          "generateOverlapEvents": null,
+          "simulatePhysics": null,
+          "gravityEnabled": null,
+          "massOverride": null,
+          "boxExtent": null,
+          "sphereRadius": null
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "numeric-above-maximum@components.0.rotation.0",
+    "result": {
+      "blueprintId": "x",
+      "components": [
+        {
+          "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "x",
+          "class": "x",
+          "parent": null,
+          "location": [
+            -100000.0,
+            -100000.0,
+            -100000.0
+          ],
+          "rotation": [
+            361.0,
+            -360.0,
+            -360.0
+          ],
+          "scale": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "collisionEnabled": null,
+          "collisionProfile": null,
+          "objectType": null,
+          "generateOverlapEvents": null,
+          "simulatePhysics": null,
+          "gravityEnabled": null,
+          "massOverride": null,
+          "boxExtent": null,
+          "sphereRadius": null
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "numeric-below-minimum@components.0.scale.0",
+    "result": {
+      "blueprintId": "x",
+      "components": [
+        {
+          "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "x",
+          "class": "x",
+          "parent": null,
+          "location": [
+            -100000.0,
+            -100000.0,
+            -100000.0
+          ],
+          "rotation": [
+            -360.0,
+            -360.0,
+            -360.0
+          ],
+          "scale": [
+            -1.0,
+            0.0,
+            0.0
+          ],
+          "collisionEnabled": null,
+          "collisionProfile": null,
+          "objectType": null,
+          "generateOverlapEvents": null,
+          "simulatePhysics": null,
+          "gravityEnabled": null,
+          "massOverride": null,
+          "boxExtent": null,
+          "sphereRadius": null
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "numeric-above-maximum@components.0.scale.0",
+    "result": {
+      "blueprintId": "x",
+      "components": [
+        {
+          "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "x",
+          "class": "x",
+          "parent": null,
+          "location": [
+            -100000.0,
+            -100000.0,
+            -100000.0
+          ],
+          "rotation": [
+            -360.0,
+            -360.0,
+            -360.0
+          ],
+          "scale": [
+            1001.0,
+            0.0,
+            0.0
+          ],
+          "collisionEnabled": null,
+          "collisionProfile": null,
+          "objectType": null,
+          "generateOverlapEvents": null,
+          "simulatePhysics": null,
+          "gravityEnabled": null,
+          "massOverride": null,
+          "boxExtent": null,
+          "sphereRadius": null
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "numeric-below-minimum@components.0.massOverride",
+    "result": {
+      "blueprintId": "x",
+      "components": [
+        {
+          "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "x",
+          "class": "x",
+          "parent": null,
+          "location": [
+            -100000.0,
+            -100000.0,
+            -100000.0
+          ],
+          "rotation": [
+            -360.0,
+            -360.0,
+            -360.0
+          ],
+          "scale": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "collisionEnabled": null,
+          "collisionProfile": null,
+          "objectType": null,
+          "generateOverlapEvents": null,
+          "simulatePhysics": null,
+          "gravityEnabled": null,
+          "massOverride": -1.0,
+          "boxExtent": null,
+          "sphereRadius": null
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "numeric-above-maximum@components.0.massOverride",
+    "result": {
+      "blueprintId": "x",
+      "components": [
+        {
+          "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "x",
+          "class": "x",
+          "parent": null,
+          "location": [
+            -100000.0,
+            -100000.0,
+            -100000.0
+          ],
+          "rotation": [
+            -360.0,
+            -360.0,
+            -360.0
+          ],
+          "scale": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "collisionEnabled": null,
+          "collisionProfile": null,
+          "objectType": null,
+          "generateOverlapEvents": null,
+          "simulatePhysics": null,
+          "gravityEnabled": null,
+          "massOverride": 100001.0,
+          "boxExtent": null,
+          "sphereRadius": null
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "numeric-below-minimum@components.0.boxExtent.0",
+    "result": {
+      "blueprintId": "x",
+      "components": [
+        {
+          "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "x",
+          "class": "x",
+          "parent": null,
+          "location": [
+            -100000.0,
+            -100000.0,
+            -100000.0
+          ],
+          "rotation": [
+            -360.0,
+            -360.0,
+            -360.0
+          ],
+          "scale": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "collisionEnabled": null,
+          "collisionProfile": null,
+          "objectType": null,
+          "generateOverlapEvents": null,
+          "simulatePhysics": null,
+          "gravityEnabled": null,
+          "massOverride": null,
+          "boxExtent": [
+            -1.0
+          ],
+          "sphereRadius": null
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "numeric-above-maximum@components.0.boxExtent.0",
+    "result": {
+      "blueprintId": "x",
+      "components": [
+        {
+          "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "x",
+          "class": "x",
+          "parent": null,
+          "location": [
+            -100000.0,
+            -100000.0,
+            -100000.0
+          ],
+          "rotation": [
+            -360.0,
+            -360.0,
+            -360.0
+          ],
+          "scale": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "collisionEnabled": null,
+          "collisionProfile": null,
+          "objectType": null,
+          "generateOverlapEvents": null,
+          "simulatePhysics": null,
+          "gravityEnabled": null,
+          "massOverride": null,
+          "boxExtent": [
+            100001.0
+          ],
+          "sphereRadius": null
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "numeric-below-minimum@components.0.sphereRadius",
+    "result": {
+      "blueprintId": "x",
+      "components": [
+        {
+          "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "x",
+          "class": "x",
+          "parent": null,
+          "location": [
+            -100000.0,
+            -100000.0,
+            -100000.0
+          ],
+          "rotation": [
+            -360.0,
+            -360.0,
+            -360.0
+          ],
+          "scale": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "collisionEnabled": null,
+          "collisionProfile": null,
+          "objectType": null,
+          "generateOverlapEvents": null,
+          "simulatePhysics": null,
+          "gravityEnabled": null,
+          "massOverride": null,
+          "boxExtent": null,
+          "sphereRadius": -1.0
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "numeric-above-maximum@components.0.sphereRadius",
+    "result": {
+      "blueprintId": "x",
+      "components": [
+        {
+          "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "x",
+          "class": "x",
+          "parent": null,
+          "location": [
+            -100000.0,
+            -100000.0,
+            -100000.0
+          ],
+          "rotation": [
+            -360.0,
+            -360.0,
+            -360.0
+          ],
+          "scale": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "collisionEnabled": null,
+          "collisionProfile": null,
+          "objectType": null,
+          "generateOverlapEvents": null,
+          "simulatePhysics": null,
+          "gravityEnabled": null,
+          "massOverride": null,
+          "boxExtent": null,
+          "sphereRadius": 100001.0
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blueprint.scs_component_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "variableGuid": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "changed": false,
+      "dirtyPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_remove",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blueprint.scs_component_remove",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "variableGuid": "x",
+      "changed": false,
+      "dryRun": false,
+      "dirtyPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "root-not-closed",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-below-minimum@actorLocation.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": [
+        -1000000001.0
+      ],
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-above-maximum@actorLocation.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": [
+        1000000001.0
+      ],
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-below-minimum@location.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": [
+        -1000000001.0
+      ],
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-above-maximum@location.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": [
+        1000000001.0
+      ],
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-below-minimum@rotation.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": [
+        -361.0
+      ],
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-above-maximum@rotation.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": [
+        361.0
+      ],
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-below-minimum@scale.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": null,
+      "scale": [
+        -1.0
+      ],
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-above-maximum@scale.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": null,
+      "scale": [
+        1000000001.0
+      ],
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-below-minimum@massOverride",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": -1.0,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-above-maximum@massOverride",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": 1000001.0,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-below-minimum@linearVelocity.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": [
+        -1000000001.0
+      ],
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-above-maximum@linearVelocity.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": [
+        1000000001.0
+      ],
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-below-minimum@angularVelocity.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": [
+        -1000000001.0
+      ],
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-above-maximum@angularVelocity.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": [
+        1000000001.0
+      ],
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-below-minimum@overlapCount",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": -1,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-above-maximum@overlapCount",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": 1001,
+      "overlappingActorIds": [],
+      "interactionDisplacement": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-below-minimum@interactionDisplacement.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": [
+        -1000000001.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "numeric-above-maximum@interactionDisplacement.0",
+    "result": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "resolved": false,
+      "reason": null,
+      "componentName": null,
+      "componentClass": null,
+      "actorLocation": null,
+      "location": null,
+      "rotation": null,
+      "scale": null,
+      "collisionEnabled": null,
+      "collisionProfile": null,
+      "objectType": null,
+      "generateOverlapEvents": null,
+      "simulatePhysics": null,
+      "gravityEnabled": null,
+      "massOverride": null,
+      "linearVelocity": null,
+      "angularVelocity": null,
+      "overlapCount": null,
+      "overlappingActorIds": [],
+      "interactionDisplacement": [
+        1000000001.0
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
     "operation": "blueprint.compile",
     "case": "missing-required",
     "result": {}
@@ -2184,6 +3390,338 @@
         "target": "x",
         "matched": false,
         "requestValue": 1000001.0
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-below-minimum@verification.requestLocation.0",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestLocation": [
+          -100001.0,
+          -100000.0,
+          -100000.0
+        ]
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-above-maximum@verification.requestLocation.0",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestLocation": [
+          100001.0,
+          -100000.0,
+          -100000.0
+        ]
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-below-minimum@verification.requestRotation.0",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestRotation": [
+          -361.0,
+          -360.0,
+          -360.0
+        ]
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-above-maximum@verification.requestRotation.0",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestRotation": [
+          361.0,
+          -360.0,
+          -360.0
+        ]
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-below-minimum@verification.requestScale.0",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestScale": [
+          -1.0,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-above-maximum@verification.requestScale.0",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestScale": [
+          1001.0,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-below-minimum@verification.requestMassOverride",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestMassOverride": -0.999
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-above-maximum@verification.requestMassOverride",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestMassOverride": 100001.0
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-below-minimum@verification.requestBoxExtent.0",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestBoxExtent": [
+          -0.999,
+          0.001,
+          0.001
+        ]
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-above-maximum@verification.requestBoxExtent.0",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestBoxExtent": [
+          100001.0,
+          0.001,
+          0.001
+        ]
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-below-minimum@verification.requestSphereRadius",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestSphereRadius": -0.999
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-above-maximum@verification.requestSphereRadius",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestSphereRadius": 100001.0
       }
     }
   },

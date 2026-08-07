@@ -1,6 +1,6 @@
 # Capability catalog
 
-Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -- capabilities check` validates strict records, sorted unique IDs, closed bounded schemas, mutation safety metadata, receipt-compatible operation metadata, and generated Rust/C++ parity. Current catalog contains 40 records with SHA-256 `6213c83a5ad2a61336ec08bd4bfebb9564e434f7f12a9bf2b9bc951f0fc14922`. Runtime handshake rejects mismatch before operation transmission.
+Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -- capabilities check` validates strict records, sorted unique IDs, closed bounded schemas, mutation safety metadata, receipt-compatible operation metadata, and generated Rust/C++ parity. Current catalog contains 48 records with SHA-256 `fc2c7109093b848359b6307908ede3e5939389c301929394f916a0e0e00c2d60`. Runtime handshake rejects mismatch before operation transmission.
 
 ## M6 surface
 
@@ -10,7 +10,7 @@ Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -
 - level settings: `level.settings`, `level.set_game_mode`
 - play: `play.start`, `play.status`, `play.observe`, `play.input`, `play.screenshot`, `play.stop`
 
-M6 added no Blueprint authoring; bounded authoring enters through P1.1 below.
+M6 added no Blueprint authoring; bounded authoring enters through P1.1 and P1.2 below.
 
 ## Contracts
 
@@ -35,6 +35,10 @@ Public identity contracts: graph identity is Blueprint object path + persisted g
 ## P1.1 bounded Blueprint authoring
 
 P1.1 exposes exactly `blueprint.create`, `blueprint.graph_view`, `blueprint.event_ensure`, `blueprint.node_ensure`, `blueprint.pin_default_set`, and `blueprint.pin_connect`. Parent, event, function, typed default, and connection allowlists are closed. Mutations after create require `expectedRevision`; natural-key ownership survives restart; no-ops preserve revision; invalid or conflicting intent preserves pre-operation content and dirty/status state. Receipts bind exact request semantics and operation-specific graph/node/pin readback. Integrated native/live certification passes 19/19 Unreal automation plus compile, build, cook/package, restart, invalid/no-op, PIE, source-provenance, and token gates.
+
+## P1.2 reusable interaction gameplay
+
+P1.2 adds exactly `blueprint.interface_create`, `blueprint.interface_view`, `blueprint.interface_ensure`, `blueprint.scs_view`, `blueprint.scs_component_ensure`, `blueprint.scs_component_update`, `blueprint.scs_component_remove`, and `play.component_observe`. Certified fixture proves one interface, two Actor Blueprints, nested SCS hierarchy, collision/overlap interaction, component observation, deterministic reset across two PIE sessions, and Blueprint-only CompileAllBlueprints/cook/package output. Integrated native/live certification passes exact 22/22 Unreal automation with registry/generated-class, IoStore, inventory, receipt, and token gates.
 
 ## Examples
 

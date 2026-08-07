@@ -619,6 +619,9 @@ fn set_schema_path(value: &mut Value, schema: &Value, path: &[String], replaceme
         set_schema_path(value, variant, &path[1..], replacement);
     } else if let Ok(index) = path[0].parse::<usize>() {
         let item_schema = &schema["items"];
+        if !value.is_array() {
+            *value = Value::Array(Vec::new());
+        }
         let array = value.as_array_mut().unwrap();
         while array.len() <= index {
             array.push(minimal_value(item_schema));
@@ -626,6 +629,9 @@ fn set_schema_path(value: &mut Value, schema: &Value, path: &[String], replaceme
         set_schema_path(&mut array[index], item_schema, &path[1..], replacement);
     } else {
         let child_schema = &schema["properties"][&path[0]];
+        if !value.is_object() {
+            *value = Value::Object(Map::new());
+        }
         let object = value.as_object_mut().unwrap();
         let child = object
             .entry(path[0].clone())
@@ -1479,7 +1485,7 @@ mod tests {
 
     #[test]
     fn catalog_runtime_metadata_is_strict() {
-        assert_eq!(validate_catalog(&catalog()).unwrap(), 40);
+        assert_eq!(validate_catalog(&catalog()).unwrap(), 48);
         for (field, value) in [
             ("idempotency", json!("retry-everything")),
             ("saveBehavior", json!("automatic")),
@@ -1504,7 +1510,7 @@ mod tests {
             .iter()
             .filter(|record| record["mutates"] == true)
             .count();
-        assert_eq!(mutations, 23);
+        assert_eq!(mutations, 28);
         assert!(validate_catalog(&catalog).is_ok());
 
         let mut missing_target = catalog.clone();

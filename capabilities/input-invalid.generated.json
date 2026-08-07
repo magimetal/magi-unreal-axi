@@ -237,6 +237,220 @@
     }
   },
   {
+    "operation": "blueprint.interface_create",
+    "case": "input-root-not-closed",
+    "args": {
+      "path": "x",
+      "function": "Interact",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.interface_view",
+    "case": "input-root-not-closed",
+    "args": {
+      "id": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.interface_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "interfaceId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.scs_view",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "name": "x",
+      "class": "SceneComponent",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "numeric-below-minimum@location.0",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "location": [
+        -100001.0,
+        -100000.0,
+        -100000.0
+      ]
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "numeric-above-maximum@location.0",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "location": [
+        100001.0,
+        -100000.0,
+        -100000.0
+      ]
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "numeric-below-minimum@rotation.0",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "rotation": [
+        -361.0,
+        -360.0,
+        -360.0
+      ]
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "numeric-above-maximum@rotation.0",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "rotation": [
+        361.0,
+        -360.0,
+        -360.0
+      ]
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "numeric-below-minimum@scale.0",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "scale": [
+        -1.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "numeric-above-maximum@scale.0",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "scale": [
+        1001.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "numeric-below-minimum@massOverride",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "massOverride": -0.999
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "numeric-above-maximum@massOverride",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "massOverride": 100001.0
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "numeric-below-minimum@boxExtent.0",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "boxExtent": [
+        -0.999,
+        0.001,
+        0.001
+      ]
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "numeric-above-maximum@boxExtent.0",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "boxExtent": [
+        100001.0,
+        0.001,
+        0.001
+      ]
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "numeric-below-minimum@sphereRadius",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "sphereRadius": -0.999
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_update",
+    "case": "numeric-above-maximum@sphereRadius",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "sphereRadius": 100001.0
+    }
+  },
+  {
+    "operation": "blueprint.scs_component_remove",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "variableGuid": "x",
+      "force": false,
+      "dryRun": false,
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.component_observe",
+    "case": "input-root-not-closed",
+    "args": {
+      "sessionId": "x",
+      "actorId": "x",
+      "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
     "operation": "blueprint.compile",
     "case": "input-root-not-closed",
     "args": {
