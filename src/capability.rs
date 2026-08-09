@@ -430,8 +430,17 @@ pub fn validate_input(id: &str, args: Value) -> Result<Value, AppError> {
         "play.screenshot" => {
             require_keys(id, object, &["sessionId"], &["sessionId", "path"])?;
             bounded_string(id, object, "sessionId", 128)?;
-            if object.contains_key("path") {
+            if let Some(path) = object.get("path").and_then(Value::as_str) {
                 bounded_string(id, object, "path", 512)?;
+                if path.contains(['/', '\\'])
+                    || !path.ends_with(".png")
+                    || path.chars().any(char::is_control)
+                {
+                    return Err(input_error(
+                        id,
+                        "screenshot path must be a control-free PNG filename",
+                    ));
+                }
             }
         }
         "blueprint.interface_create" => {
@@ -533,6 +542,264 @@ pub fn validate_input(id: &str, args: Value) -> Result<Value, AppError> {
                 ));
             }
         }
+        "widget.create" => {
+            require_keys(
+                id,
+                object,
+                &["path", "rootName", "rootClass"],
+                &["path", "rootName", "rootClass"],
+            )?;
+            let path = object["path"]
+                .as_str()
+                .ok_or_else(|| input_error(id, "path must be a string"))?;
+            if !valid_package_path(path) {
+                return Err(input_error(
+                    id,
+                    "path must be a canonical /Game package path",
+                ));
+            }
+            if !object["rootName"].as_str().is_some_and(valid_widget_name) {
+                return Err(input_error(id, "rootName is invalid"));
+            }
+            if object["rootClass"] != "VerticalBox" {
+                return Err(input_error(id, "rootClass must be VerticalBox"));
+            }
+        }
+        "widget.tree_view" => {
+            require_keys(id, object, &["blueprintId"], &["blueprintId"])?;
+            if !object["blueprintId"].as_str().is_some_and(valid_object_id) {
+                return Err(input_error(id, "blueprintId is invalid"));
+            }
+        }
+        "widget.child_ensure" => {
+            require_keys(
+                id,
+                object,
+                &["blueprintId", "parentWidgetId", "name", "class"],
+                &["blueprintId", "parentWidgetId", "name", "class"],
+            )?;
+            let blueprint = object["blueprintId"]
+                .as_str()
+                .ok_or_else(|| input_error(id, "blueprintId must be a string"))?;
+            let parent = object["parentWidgetId"]
+                .as_str()
+                .ok_or_else(|| input_error(id, "parentWidgetId must be a string"))?;
+            if !valid_object_id(blueprint) || !valid_widget_id(blueprint, parent) {
+                return Err(input_error(id, "widget identity is invalid"));
+            }
+            if !object["name"].as_str().is_some_and(valid_widget_name)
+                || object["class"] != "TextBlock"
+            {
+                return Err(input_error(id, "name or class is invalid"));
+            }
+        }
+        "widget.property_set" => {
+            require_keys(
+                id,
+                object,
+                &["blueprintId", "widgetId", "property"],
+                &[
+                    "blueprintId",
+                    "widgetId",
+                    "property",
+                    "text",
+                    "visibility",
+                    "enabled",
+                ],
+            )?;
+            let blueprint = object["blueprintId"]
+                .as_str()
+                .ok_or_else(|| input_error(id, "blueprintId must be a string"))?;
+            let widget = object["widgetId"]
+                .as_str()
+                .ok_or_else(|| input_error(id, "widgetId must be a string"))?;
+            let property = object["property"]
+                .as_str()
+                .ok_or_else(|| input_error(id, "property must be a string"))?;
+            if !valid_object_id(blueprint) || !valid_widget_id(blueprint, widget) {
+                return Err(input_error(id, "widget identity is invalid"));
+            }
+            let fields = ["text", "visibility", "enabled"];
+            if fields
+                .iter()
+                .filter(|field| object.contains_key(**field))
+                .count()
+                != 1
+                || !object.contains_key(property)
+                || !fields.contains(&property)
+            {
+                return Err(input_error(
+                    id,
+                    "exactly matching property payload is required",
+                ));
+            }
+            match property {
+                "text" => {
+                    if object["text"]
+                        .as_str()
+                        .is_none_or(|value| value.chars().count() > 256)
+                    {
+                        return Err(input_error(id, "text exceeds 256 characters"));
+                    }
+                }
+                "visibility" => {
+                    if !matches!(
+                        object["visibility"].as_str(),
+                        Some("Visible" | "Hidden" | "Collapsed")
+                    ) {
+                        return Err(input_error(id, "visibility is invalid"));
+                    }
+                }
+                "enabled" => {
+                    if !object["enabled"].is_boolean() {
+                        return Err(input_error(id, "enabled must be boolean"));
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+        "widget.event_ensure" => {
+            require_keys(
+                id,
+                object,
+                &["blueprintId", "agentKey", "event", "actions"],
+                &["blueprintId", "agentKey", "event", "actions"],
+            )?;
+            let blueprint = object["blueprintId"]
+                .as_str()
+                .ok_or_else(|| input_error(id, "blueprintId must be a string"))?;
+            if !valid_object_id(blueprint)
+                || !object["agentKey"].as_str().is_some_and(valid_agent_key)
+                || object["event"] != "activate"
+            {
+                return Err(input_error(id, "event identity is invalid"));
+            }
+            let actions = object["actions"]
+                .as_array()
+                .ok_or_else(|| input_error(id, "actions must be an array"))?;
+            if !(1..=3).contains(&actions.len()) {
+                return Err(input_error(id, "actions must contain 1 to 3 items"));
+            }
+            let mut previous: Option<(u8, &str)> = None;
+            let mut seen = HashSet::new();
+            for action in actions {
+                let action = action
+                    .as_object()
+                    .ok_or_else(|| input_error(id, "action must be an object"))?;
+                let kind = action["kind"]
+                    .as_str()
+                    .ok_or_else(|| input_error(id, "action kind is required"))?;
+                let target = action["targetWidgetId"]
+                    .as_str()
+                    .ok_or_else(|| input_error(id, "targetWidgetId is required"))?;
+                let rank = match kind {
+                    "text.set" => 0,
+                    "enabled.set" => 1,
+                    "visibility.set" => 2,
+                    _ => return Err(input_error(id, "action kind is invalid")),
+                };
+                if !valid_widget_id(blueprint, target) || !seen.insert((kind, target)) {
+                    return Err(input_error(id, "action target is invalid or duplicated"));
+                }
+                let payload = match kind {
+                    "text.set" => {
+                        action.get("text").is_some_and(|value| {
+                            value
+                                .as_str()
+                                .is_some_and(|text| text.chars().count() <= 256)
+                        }) && !action.contains_key("enabled")
+                            && !action.contains_key("visibility")
+                    }
+                    "enabled.set" => {
+                        action.get("enabled").is_some_and(Value::is_boolean)
+                            && !action.contains_key("text")
+                            && !action.contains_key("visibility")
+                    }
+                    "visibility.set" => {
+                        action
+                            .get("visibility")
+                            .and_then(Value::as_str)
+                            .is_some_and(|value| {
+                                matches!(value, "Visible" | "Hidden" | "Collapsed")
+                            })
+                            && !action.contains_key("text")
+                            && !action.contains_key("enabled")
+                    }
+                    _ => false,
+                };
+                if !payload || previous.is_some_and(|prior| (rank, target) <= prior) {
+                    return Err(input_error(
+                        id,
+                        "action payload or canonical ordering is invalid",
+                    ));
+                }
+                previous = Some((rank, target));
+            }
+        }
+        "widget.viewport_ensure" => {
+            require_keys(
+                id,
+                object,
+                &[
+                    "hostBlueprintId",
+                    "widgetBlueprintId",
+                    "agentKey",
+                    "inputKey",
+                    "zOrder",
+                ],
+                &[
+                    "hostBlueprintId",
+                    "widgetBlueprintId",
+                    "agentKey",
+                    "inputKey",
+                    "zOrder",
+                ],
+            )?;
+            if !object["hostBlueprintId"]
+                .as_str()
+                .is_some_and(valid_object_id)
+                || !object["widgetBlueprintId"]
+                    .as_str()
+                    .is_some_and(valid_object_id)
+                || !object["agentKey"].as_str().is_some_and(valid_agent_key)
+                || object["inputKey"] != "E"
+                || object["zOrder"] != 0
+            {
+                return Err(input_error(id, "viewport input is invalid"));
+            }
+        }
+        "play.ui_observe" => {
+            require_keys(
+                id,
+                object,
+                &["sessionId", "widgetBlueprintId", "widgetIds"],
+                &["sessionId", "widgetBlueprintId", "widgetIds"],
+            )?;
+            let blueprint = object["widgetBlueprintId"]
+                .as_str()
+                .ok_or_else(|| input_error(id, "widgetBlueprintId must be a string"))?;
+            if !valid_object_id(blueprint) {
+                return Err(input_error(id, "widgetBlueprintId is invalid"));
+            }
+            let ids = object["widgetIds"]
+                .as_array()
+                .ok_or_else(|| input_error(id, "widgetIds must be an array"))?;
+            let mut previous = None;
+            for value in ids {
+                let widget = value
+                    .as_str()
+                    .ok_or_else(|| input_error(id, "widgetIds must contain strings"))?;
+                if !valid_widget_id(blueprint, widget)
+                    || previous.is_some_and(|prior| prior >= widget)
+                {
+                    return Err(input_error(
+                        id,
+                        "widgetIds must be exact, unique, and ordered",
+                    ));
+                }
+                previous = Some(widget);
+            }
+        }
         _ => {
             return Err(input_error(
                 id,
@@ -565,12 +832,18 @@ pub fn validate_output_for_request(
     result: Value,
 ) -> Result<Value, AppError> {
     validate_generated_output(id, &result).map_err(|message| output_error(id, message))?;
-
     validate_canonical_revisions(id, &result)?;
     let object = result
         .as_object()
         .ok_or_else(|| output_error(id, "result must be an object"))?;
     match id {
+        "widget.create"
+        | "widget.tree_view"
+        | "widget.child_ensure"
+        | "widget.property_set"
+        | "widget.event_ensure"
+        | "widget.viewport_ensure"
+        | "play.ui_observe" => validate_widget_output(id, request, object)?,
         "editor.status" => {
             require_output_string(id, object, "state")?;
             require_output_string(id, object, "projectId")?;
@@ -774,6 +1047,372 @@ fn validate_list_input(id: &str, object: &Map<String, Value>) -> Result<(), AppE
     }
     Ok(())
 }
+fn validate_widget_output(
+    id: &str,
+    request: &Value,
+    object: &Map<String, Value>,
+) -> Result<(), AppError> {
+    let empty_request = Map::new();
+    let request = request.as_object().unwrap_or(&empty_request);
+    let string = |field: &str| require_output_string(id, object, field);
+    let exact = |fields: &[&str]| {
+        object
+            .keys()
+            .find(|key| !fields.contains(&key.as_str()))
+            .map_or(Ok(()), |key| {
+                Err(output_error(id, format!("unknown output field `{key}`")))
+            })
+    };
+    let revision = || {
+        let value = string("revision")?;
+        if !canonical_revision(value) {
+            return Err(output_error(id, "revision is not canonical"));
+        }
+        Ok(())
+    };
+    let arrays = || {
+        for field in ["dirtyPackages", "savedPackages"] {
+            if !object.get(field).is_some_and(Value::is_array) {
+                return Err(output_error(id, format!("result.{field} must be an array")));
+            }
+        }
+        Ok(())
+    };
+    let blueprint = match id {
+        "widget.create" => {
+            exact(&[
+                "blueprintId",
+                "generatedClass",
+                "rootWidgetId",
+                "rootName",
+                "rootClass",
+                "changed",
+                "dirtyPackages",
+                "savedPackages",
+                "revision",
+            ])?;
+            let path = request
+                .get("path")
+                .and_then(Value::as_str)
+                .ok_or_else(|| output_error(id, "request.path is missing"))?;
+            let short = path
+                .rsplit('/')
+                .next()
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| output_error(id, "request.path is invalid"))?;
+            let blueprint = format!("{path}.{short}");
+            if string("blueprintId")? != blueprint
+                || string("generatedClass")? != format!("{blueprint}_C")
+                || string("rootWidgetId")?
+                    != format!(
+                        "{blueprint}#widget:{}",
+                        request["rootName"].as_str().unwrap_or("")
+                    )
+                || string("rootName")? != request["rootName"].as_str().unwrap_or("")
+                || string("rootClass")? != "VerticalBox"
+                || !object.get("changed").is_some_and(Value::is_boolean)
+            {
+                return Err(output_error(id, "create output does not match request"));
+            }
+            arrays()?;
+            revision()?;
+            return Ok(());
+        }
+        "widget.child_ensure" => {
+            exact(&[
+                "blueprintId",
+                "widgetId",
+                "parentWidgetId",
+                "name",
+                "class",
+                "changed",
+                "dirtyPackages",
+                "savedPackages",
+                "revision",
+            ])?;
+            let blueprint = request
+                .get("blueprintId")
+                .and_then(Value::as_str)
+                .ok_or_else(|| output_error(id, "request.blueprintId is missing"))?;
+            let name = request.get("name").and_then(Value::as_str).unwrap_or("");
+            for (field, expected) in [
+                ("blueprintId", blueprint),
+                (
+                    "parentWidgetId",
+                    request["parentWidgetId"].as_str().unwrap_or(""),
+                ),
+                ("name", name),
+                ("class", "TextBlock"),
+            ] {
+                if string(field)? != expected {
+                    return Err(output_error(id, "child output does not match request"));
+                }
+            }
+            if string("widgetId")? != format!("{blueprint}#widget:{name}")
+                || !object.get("changed").is_some_and(Value::is_boolean)
+            {
+                return Err(output_error(id, "child identity is invalid"));
+            }
+            arrays()?;
+            revision()?;
+            return Ok(());
+        }
+        "widget.property_set" => {
+            exact(&[
+                "blueprintId",
+                "widgetId",
+                "property",
+                "text",
+                "visibility",
+                "enabled",
+                "changed",
+                "dirtyPackages",
+                "savedPackages",
+                "revision",
+            ])?;
+            for field in ["blueprintId", "widgetId", "property"] {
+                if string(field)? != request.get(field).and_then(Value::as_str).unwrap_or("") {
+                    return Err(output_error(id, "property output does not match request"));
+                }
+            }
+            let property = string("property")?;
+            if !object.contains_key(property)
+                || ["text", "visibility", "enabled"]
+                    .iter()
+                    .any(|field| *field != property && object.contains_key(*field))
+            {
+                return Err(output_error(id, "property payload is not exact"));
+            }
+            if !object.get("changed").is_some_and(Value::is_boolean) {
+                return Err(output_error(id, "result.changed must be boolean"));
+            }
+            arrays()?;
+            revision()?;
+            return Ok(());
+        }
+        "widget.event_ensure" => {
+            exact(&[
+                "blueprintId",
+                "eventId",
+                "agentKey",
+                "event",
+                "actions",
+                "changed",
+                "dirtyPackages",
+                "savedPackages",
+                "revision",
+            ])?;
+            for field in ["blueprintId", "agentKey", "event"] {
+                if string(field)? != request.get(field).and_then(Value::as_str).unwrap_or("") {
+                    return Err(output_error(id, "event output does not match request"));
+                }
+            }
+            let blueprint = string("blueprintId")?;
+            let agent = string("agentKey")?;
+            if string("eventId")? != format!("{blueprint}#event:{agent}")
+                || object.get("actions") != request.get("actions")
+                || !object.get("changed").is_some_and(Value::is_boolean)
+            {
+                return Err(output_error(id, "event identity or actions mismatch"));
+            }
+            arrays()?;
+            revision()?;
+            return Ok(());
+        }
+        "widget.viewport_ensure" => {
+            exact(&[
+                "hostBlueprintId",
+                "widgetBlueprintId",
+                "viewportId",
+                "graphId",
+                "inputKey",
+                "zOrder",
+                "widgetRevision",
+                "changed",
+                "dirtyPackages",
+                "savedPackages",
+                "revision",
+            ])?;
+            let host = request
+                .get("hostBlueprintId")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let agent = request
+                .get("agentKey")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            if string("hostBlueprintId")? != host
+                || string("widgetBlueprintId")?
+                    != request["widgetBlueprintId"].as_str().unwrap_or("")
+                || string("inputKey")? != "E"
+                || object["zOrder"] != 0
+                || string("viewportId")? != format!("{host}#viewport:{agent}")
+                || string("graphId")?.is_empty()
+                || !canonical_revision(string("widgetRevision")?)
+                || !object.get("changed").is_some_and(Value::is_boolean)
+            {
+                return Err(output_error(id, "viewport output does not match request"));
+            }
+            arrays()?;
+            revision()?;
+            return Ok(());
+        }
+        "widget.tree_view" => request
+            .get("blueprintId")
+            .and_then(Value::as_str)
+            .ok_or_else(|| output_error(id, "request.blueprintId is missing"))?,
+        "play.ui_observe" => {
+            exact(&[
+                "sessionId",
+                "widgetBlueprintId",
+                "instanceId",
+                "inViewport",
+                "widgets",
+                "revision",
+            ])?;
+            if string("sessionId")? != request["sessionId"].as_str().unwrap_or("")
+                || string("widgetBlueprintId")?
+                    != request["widgetBlueprintId"].as_str().unwrap_or("")
+                || string("instanceId")?.is_empty()
+                || !object.get("inViewport").is_some_and(Value::is_boolean)
+            {
+                return Err(output_error(id, "observe identity is invalid"));
+            }
+            let ids = request["widgetIds"]
+                .as_array()
+                .ok_or_else(|| output_error(id, "request.widgetIds is missing"))?;
+            let widgets = object["widgets"]
+                .as_array()
+                .ok_or_else(|| output_error(id, "result.widgets must be an array"))?;
+            if ids.len() != widgets.len() {
+                return Err(output_error(id, "observe widget count mismatch"));
+            }
+            for (wanted, row) in ids.iter().zip(widgets) {
+                let row = row
+                    .as_object()
+                    .ok_or_else(|| output_error(id, "observe widget must be object"))?;
+                let name = row["name"].as_str().unwrap_or("");
+                if row.get("widgetId") != Some(wanted)
+                    || row.get("widgetId")
+                        != Some(&json!(format!(
+                            "{}#widget:{name}",
+                            request["widgetBlueprintId"].as_str().unwrap_or("")
+                        )))
+                    || row["class"] == "VerticalBox" && !row["text"].is_null()
+                    || row["class"] == "TextBlock" && !row["text"].is_string()
+                {
+                    return Err(output_error(id, "observe widget identity or text invalid"));
+                }
+            }
+            revision()?;
+            return Ok(());
+        }
+        _ => unreachable!(),
+    };
+    exact(&[
+        "blueprintId",
+        "generatedClass",
+        "rootWidgetId",
+        "count",
+        "total",
+        "scope",
+        "widgets",
+        "events",
+        "revision",
+    ])?;
+    if string("blueprintId")? != blueprint
+        || string("generatedClass")? != format!("{blueprint}_C")
+        || string("scope")? != blueprint
+        || string("rootWidgetId")?
+            != object["widgets"]
+                .as_array()
+                .and_then(|v| v.first())
+                .and_then(|v| v["widgetId"].as_str())
+                .unwrap_or("")
+    {
+        return Err(output_error(id, "tree identity mismatch"));
+    }
+    let widgets = object["widgets"]
+        .as_array()
+        .ok_or_else(|| output_error(id, "result.widgets must be array"))?;
+    if object["count"] != json!(widgets.len())
+        || object["total"] != json!(widgets.len())
+        || widgets.is_empty()
+    {
+        return Err(output_error(id, "tree count mismatch"));
+    }
+    let mut names = HashSet::new();
+    let mut ids = HashSet::new();
+    let mut child_indices = HashSet::new();
+    let mut prior_child_name: Option<&str> = None;
+    for (row_index, widget) in widgets.iter().enumerate() {
+        let widget = widget
+            .as_object()
+            .ok_or_else(|| output_error(id, "widget must be object"))?;
+        let name = widget["name"].as_str().unwrap_or("");
+        let wid = widget["widgetId"].as_str().unwrap_or("");
+        if !names.insert(name) || !ids.insert(wid) || wid != format!("{blueprint}#widget:{name}") {
+            return Err(output_error(id, "tree widget identity invalid"));
+        }
+        if row_index == 0 {
+            if widget["class"] != "VerticalBox"
+                || !widget["parentWidgetId"].is_null()
+                || widget["index"] != 0
+                || !widget["text"].is_null()
+            {
+                return Err(output_error(id, "tree root invalid"));
+            }
+        } else {
+            let index = widget["index"]
+                .as_u64()
+                .ok_or_else(|| output_error(id, "child index must be integer"))?;
+            if widget["class"] != "TextBlock"
+                || widget["parentWidgetId"] != widgets[0]["widgetId"]
+                || !child_indices.insert(index)
+                || index >= (widgets.len() - 1) as u64
+                || !widget["text"].is_string()
+                || prior_child_name.is_some_and(|prior| prior >= name)
+            {
+                return Err(output_error(id, "tree child invalid"));
+            }
+            prior_child_name = Some(name);
+        }
+    }
+    if child_indices.len() != widgets.len() - 1
+        || !(0..(widgets.len() - 1) as u64).all(|index| child_indices.contains(&index))
+    {
+        return Err(output_error(
+            id,
+            "child indices must be contiguous physical slots",
+        ));
+    }
+    let events = object["events"]
+        .as_array()
+        .ok_or_else(|| output_error(id, "result.events must be array"))?;
+    let mut prior = None;
+    for event in events {
+        let event = event
+            .as_object()
+            .ok_or_else(|| output_error(id, "event must be object"))?;
+        let event_id = event["eventId"].as_str().unwrap_or("");
+        if prior.is_some_and(|p| p >= event_id)
+            || !event_id.starts_with(&format!("{blueprint}#event:"))
+        {
+            return Err(output_error(id, "events not ordered or derived"));
+        }
+        prior = Some(event_id);
+        for action in event["actions"]
+            .as_array()
+            .ok_or_else(|| output_error(id, "event actions must be array"))?
+        {
+            if !ids.contains(action["targetWidgetId"].as_str().unwrap_or("")) {
+                return Err(output_error(id, "event target missing from tree"));
+            }
+        }
+    }
+    revision()
+}
+
 fn validate_list_output(id: &str, object: &Map<String, Value>) -> Result<(), AppError> {
     let count = require_output_u64(id, object, "count")?;
     let total = require_output_u64(id, object, "total")?;
@@ -1315,6 +1954,61 @@ fn bounded_integer(
     Ok(())
 }
 
+fn valid_widget_name(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 64
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1..]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
+}
+
+fn valid_agent_key(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-'))
+}
+
+fn valid_object_id(value: &str) -> bool {
+    let Some((package, object)) = value.rsplit_once('.') else {
+        return false;
+    };
+    let Some(path) = package.strip_prefix("/Game/") else {
+        return false;
+    };
+    !path.is_empty()
+        && !path.contains('.')
+        && !path.contains("//")
+        && !path
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..")
+        && object == path.rsplit('/').next().unwrap_or("")
+        && object
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+}
+
+fn valid_package_path(value: &str) -> bool {
+    let Some(path) = value.strip_prefix("/Game/") else {
+        return false;
+    };
+    !path.is_empty()
+        && !path.contains('.')
+        && !path.contains("//")
+        && !path
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..")
+}
+
+fn valid_widget_id(blueprint: &str, widget: &str) -> bool {
+    widget
+        .strip_prefix(&format!("{blueprint}#widget:"))
+        .is_some_and(valid_widget_name)
+}
+
 fn require_output_string<'a>(
     id: &str,
     object: &'a Map<String, Value>,
@@ -1700,6 +2394,22 @@ mod tests {
     fn invalid_fields_fail_before_transport() {
         let error = validate_input("actor.list", json!({"fields":["label","label"]})).unwrap_err();
         assert_eq!(error.reason, "invalid_capability_input");
+    }
+
+    #[test]
+    fn screenshot_filename_controls_fail_before_transport() {
+        for path in [
+            "claimed.png\0suffix.png",
+            "claimed\u{85}.png",
+            "claimed\u{9f}.png",
+        ] {
+            let error = validate_input(
+                "play.screenshot",
+                json!({"sessionId":"m6-pie-1","path":path}),
+            )
+            .unwrap_err();
+            assert_eq!(error.reason, "invalid_capability_input");
+        }
     }
 
     #[test]

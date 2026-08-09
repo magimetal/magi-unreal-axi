@@ -1485,7 +1485,7 @@ mod tests {
 
     #[test]
     fn catalog_runtime_metadata_is_strict() {
-        assert_eq!(validate_catalog(&catalog()).unwrap(), 48);
+        assert_eq!(validate_catalog(&catalog()).unwrap(), 55);
         for (field, value) in [
             ("idempotency", json!("retry-everything")),
             ("saveBehavior", json!("automatic")),
@@ -1510,7 +1510,7 @@ mod tests {
             .iter()
             .filter(|record| record["mutates"] == true)
             .count();
-        assert_eq!(mutations, 28);
+        assert_eq!(mutations, 33);
         assert!(validate_catalog(&catalog).is_ok());
 
         let mut missing_target = catalog.clone();

@@ -43,6 +43,18 @@ const PAYLOAD: &[(&str, &[u8])] = &[
         "Source/MagiUnrealAXI/Private/MagiUnrealAXI.cpp",
         include_bytes!("../plugin/MagiUnrealAXI/Source/MagiUnrealAXI/Private/MagiUnrealAXI.cpp"),
     ),
+    (
+        "Source/MagiUnrealAXI/Private/MagiBlueprintAuthoring.inl",
+        include_bytes!(
+            "../plugin/MagiUnrealAXI/Source/MagiUnrealAXI/Private/MagiBlueprintAuthoring.inl"
+        ),
+    ),
+    (
+        "Source/MagiUnrealAXI/Private/MagiWidgetAuthoring.inl",
+        include_bytes!(
+            "../plugin/MagiUnrealAXI/Source/MagiUnrealAXI/Private/MagiWidgetAuthoring.inl"
+        ),
+    ),
 ];
 
 #[derive(Debug, Deserialize, Serialize)]

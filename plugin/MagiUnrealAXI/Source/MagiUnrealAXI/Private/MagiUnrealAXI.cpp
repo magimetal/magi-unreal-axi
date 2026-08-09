@@ -12,6 +12,16 @@
 #include "InputMappingContext.h"
 #include "InputKeyEventArgs.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
+#include "Blueprint/WidgetTree.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Blueprint/UserWidget.h"
+#include "WidgetBlueprint.h"
+#include "Blueprint/WidgetBlueprintGeneratedClass.h"
+#include "Components/VerticalBox.h"
+#include "Components/TextBlock.h"
+#include "Components/VerticalBoxSlot.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+
 #include "Engine/Blueprint.h"
 #include "Engine/SCS_Node.h"
 #include "UObject/Interface.h"
@@ -27,6 +37,9 @@
 #include "EdGraphSchema_K2.h"
 #include "EdGraph/EdGraphNode.h"
 #include "K2Node_CallFunction.h"
+#include "K2Node_VariableGet.h"
+#include "K2Node_VariableSet.h"
+#include "Nodes/K2Node_CreateWidget.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Logging/TokenizedMessage.h"
 #include "Components/InputComponent.h"
@@ -66,6 +79,8 @@
 #include "Misc/Paths.h"
 #include "ImageUtils.h"
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
+#include "Widgets/SViewport.h"
 #include "InputCoreTypes.h"
 #include "Serialization/JsonWriter.h"
 #include "Editor/UnrealEdEngine.h"
@@ -246,6 +261,9 @@ struct FLedgerRecord
 };
 FCriticalSection LedgerMutex;
 TArray<FLedgerRecord> Ledger;
+FString PendingScreenshotTarget;
+FString PendingScreenshotRevision;
+bool PendingScreenshotVerification = false;
 constexpr int32 MaxLedgerRecords = 1024;
 constexpr double LedgerTtlSeconds = 24.0 * 60.0 * 60.0;
 bool IsMutationOperation(const FString& Operation)
@@ -427,6 +445,16 @@ FString Sha256(const FString& Text)
         Result.AppendChar(Hex[Byte >> 4]);
         Result.AppendChar(Hex[Byte & 0x0f]);
     }
+    return Result;
+}
+FString Sha256Bytes(const uint8* Bytes, const int64 Length)
+{
+    if (!Bytes || Length < 0 || Length > MAX_uint32) return FString();
+    uint8 Signature[CC_SHA256_DIGEST_LENGTH]{};
+    CC_SHA256(Bytes, static_cast<CC_LONG>(Length), Signature);
+    FString Result;
+    static constexpr TCHAR Hex[] = TEXT("0123456789abcdef");
+    for (const uint8 Byte : Signature) { Result.AppendChar(Hex[Byte >> 4]); Result.AppendChar(Hex[Byte & 0x0f]); }
     return Result;
 }
 
@@ -920,7 +948,6 @@ TSharedRef<FJsonObject> BuildReceiptMetadata(const FString& Id, const FString& O
     else Receipt->SetStringField(TEXT("persistence"), TEXT("unchanged"));
     Verification->SetStringField(TEXT("readback"), Metadata ? Metadata->Readback : TEXT(""));
     if (Metadata && Metadata->Destructive) Verification->SetBoolField(TEXT("exists"), !Changed);
-    Verification->SetStringField(TEXT("target"), Target);
     Receipt->SetObjectField(TEXT("verification"), Verification);
     return Receipt;
 }
@@ -928,7 +955,18 @@ TSharedRef<FJsonObject> BuildReceiptMetadata(const FString& Id, const FString& O
 
 
 FString LevelSettingsRevision(const UWorld& World);
+bool IsP13WidgetOperation(const FString& Operation);
+FString HandleP13WidgetOperation(const FString& Id, const FString& Operation, const TSharedPtr<FJsonObject>& Args, const FString& ExpectedRevision);
+UWidgetBlueprint* P13LoadWidgetBlueprint(const FString& Id);
+bool P13WidgetTree(UWidgetBlueprint& Blueprint, TArray<UWidget*>& Widgets, FString& Error);
+FString P13WidgetClass(const UWidget& Widget);
+TSharedRef<FJsonObject> P13TreeResult(UWidgetBlueprint& Blueprint);
+
 bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJsonObject>& Result, const FString& Target, const TSharedRef<FJsonObject>& Verification, const TSharedPtr<FJsonObject>& Args = nullptr);
+UBlueprint* P11LoadBlueprint(const FString& Id);
+static bool P13ViewportReadback(UBlueprint& Blueprint, UEdGraph& Graph, const FString& AgentKey, UClass* WidgetClass, UEdGraphNode*& Begin, UEdGraphNode*& Input, UK2Node_CreateWidget*& Create, UK2Node_CallFunction*& Add, UK2Node_CallFunction*& Enable, UK2Node_CallFunction*& Activate);
+static FString P13WidgetId(const UWidgetBlueprint& Blueprint, const UWidget& Widget);
+static bool P13Visibility(const FString& Value, ESlateVisibility& Out);
 UActorComponent* FindComponentById(UWorld& World, const FString& Wanted, AActor*& OutActor);
 FString ComponentRevision(const AActor& Actor, const UActorComponent& Component);
 FString ObjectContentRevision(const UObject* Object);
@@ -947,17 +985,10 @@ bool P11AllowedConnection(const UEdGraphNode& SourceNode, const UEdGraphPin& Sou
 FString SuccessResponse(const FString& Id, const TSharedRef<FJsonObject>& Result, const FString& Operation = FString(), const TSharedPtr<FJsonObject>& Args = nullptr)
 {
     if (!Operation.IsEmpty() && !MagiAxiValidateOutput(Operation, Result)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("native output failed generated schema validation"));
-    const TSharedRef<FJsonObject> Response = MakeShared<FJsonObject>();
-    Response->SetNumberField(TEXT("protocol"), ProtocolVersion);
-    Response->SetStringField(TEXT("id"), Id);
-    Response->SetStringField(TEXT("status"), TEXT("ok"));
-    Response->SetObjectField(TEXT("result"), Result);
+    const TSharedRef<FJsonObject> Response = MakeShared<FJsonObject>(); Response->SetNumberField(TEXT("protocol"), ProtocolVersion); Response->SetStringField(TEXT("id"), Id); Response->SetStringField(TEXT("status"), TEXT("ok")); Response->SetObjectField(TEXT("result"), Result);
     if (IsMutationOperation(Operation))
     {
-        FString Target = MetadataTarget(Operation, Result);
-        const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(Operation);
-        const TSharedRef<FJsonObject> Verification = MakeShared<FJsonObject>();
-        Verification->SetStringField(TEXT("readback"), Metadata ? Metadata->Readback : TEXT(""));
+        const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(Operation); const TSharedRef<FJsonObject> Verification = MakeShared<FJsonObject>(); Verification->SetStringField(TEXT("readback"), Metadata ? Metadata->Readback : TEXT(""));
         if (!ValidateSaveBehavior(Operation, Result)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("native result violates catalog saveBehavior"));
         auto BindRequest = [&](const TCHAR* RequestField, const TCHAR* ReceiptField)
         {
@@ -975,50 +1006,50 @@ FString SuccessResponse(const FString& Id, const TSharedRef<FJsonObject>& Result
         else if (Args.IsValid() && Operation == TEXT("blueprint.interface_ensure"))
         {
             BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("interfaceId"), TEXT("requestInterfaceId"));
-            FString BlueprintId, InterfaceId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("interfaceId"), InterfaceId); Target = BlueprintId + TEXT("#") + InterfaceId;
         }
         else if (Args.IsValid() && Operation == TEXT("blueprint.scs_component_ensure"))
         {
             BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("name"), TEXT("requestName")); BindRequest(TEXT("class"), TEXT("requestClass"));
             if (Args->HasField(TEXT("parent"))) BindRequest(TEXT("parent"), TEXT("requestParent")); else Verification->SetField(TEXT("requestParent"), MakeShared<FJsonValueNull>());
-            FString BlueprintId, Name; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("name"), Name); Target = BlueprintId + TEXT("#scs-name:") + Name;
         }
         else if (Args.IsValid() && (Operation == TEXT("blueprint.scs_component_update") || Operation == TEXT("blueprint.scs_component_remove")))
         {
             BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("variableGuid"), TEXT("requestVariableGuid"));
             for (const TPair<const TCHAR*, const TCHAR*>& Field : {TPair<const TCHAR*, const TCHAR*>(TEXT("location"), TEXT("requestLocation")), {TEXT("rotation"), TEXT("requestRotation")}, {TEXT("scale"), TEXT("requestScale")}, {TEXT("collisionEnabled"), TEXT("requestCollisionEnabled")}, {TEXT("collisionProfile"), TEXT("requestCollisionProfile")}, {TEXT("generateOverlapEvents"), TEXT("requestGenerateOverlapEvents")}, {TEXT("simulatePhysics"), TEXT("requestSimulatePhysics")}, {TEXT("gravityEnabled"), TEXT("requestGravityEnabled")}, {TEXT("massOverride"), TEXT("requestMassOverride")}, {TEXT("boxExtent"), TEXT("requestBoxExtent")}, {TEXT("sphereRadius"), TEXT("requestSphereRadius")}, {TEXT("force"), TEXT("requestForce")}, {TEXT("dryRun"), TEXT("requestDryRun")}}) BindRequest(Field.Key, Field.Value);
-            FString BlueprintId, VariableGuid; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("variableGuid"), VariableGuid); Target = BlueprintId + TEXT("#scs:") + VariableGuid;
         }
         else if (Args.IsValid() && (Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure")))
         {
             BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("graphId"), TEXT("requestGraphId")); BindRequest(TEXT("agentKey"), TEXT("requestAgentKey")); BindRequest(Operation == TEXT("blueprint.event_ensure") ? TEXT("event") : TEXT("node"), TEXT("requestIntent")); BindRequest(TEXT("variableGuid"), TEXT("requestVariableGuid")); BindRequest(TEXT("interfaceId"), TEXT("requestInterfaceId"));
-            FString BlueprintId, GraphId, AgentKey; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("graphId"), GraphId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Target = BlueprintId + TEXT("#") + GraphId + TEXT("#") + AgentKey;
         }
         else if (Args.IsValid() && Operation == TEXT("blueprint.pin_default_set"))
         {
             BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("pinId"), TEXT("requestPinId"));
             const TSharedPtr<FJsonObject>* ValueObject = nullptr; FString ValueType; double Value = 0; if (Args->TryGetObjectField(TEXT("value"), ValueObject) && ValueObject && ValueObject->IsValid() && (*ValueObject)->TryGetStringField(TEXT("type"), ValueType) && (*ValueObject)->TryGetNumberField(TEXT("value"), Value)) { Verification->SetStringField(TEXT("requestValueType"), ValueType); Verification->SetNumberField(TEXT("requestValue"), Value); }
-            FString BlueprintId, PinId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("pinId"), PinId); Target = BlueprintId + TEXT("#") + PinId;
         }
         else if (Args.IsValid() && Operation == TEXT("blueprint.pin_connect"))
         {
             BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("sourcePinId"), TEXT("requestSourcePinId")); BindRequest(TEXT("targetPinId"), TEXT("requestTargetPinId"));
-            FString BlueprintId, SourcePinId, TargetPinId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("sourcePinId"), SourcePinId); Args->TryGetStringField(TEXT("targetPinId"), TargetPinId); Target = BlueprintId + TEXT("#") + SourcePinId + TEXT("#") + TargetPinId;
         }
+        else if (Args.IsValid() && Operation == TEXT("widget.create")) { BindRequest(TEXT("path"), TEXT("requestPath")); BindRequest(TEXT("rootName"), TEXT("requestRootName")); BindRequest(TEXT("rootClass"), TEXT("requestRootClass")); }
+        else if (Args.IsValid() && Operation == TEXT("widget.child_ensure")) { BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("parentWidgetId"), TEXT("requestParentWidgetId")); BindRequest(TEXT("name"), TEXT("requestName")); BindRequest(TEXT("class"), TEXT("requestClass")); }
+        else if (Args.IsValid() && Operation == TEXT("widget.property_set")) { BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("widgetId"), TEXT("requestWidgetId")); BindRequest(TEXT("property"), TEXT("requestProperty")); BindRequest(TEXT("text"), TEXT("requestText")); BindRequest(TEXT("visibility"), TEXT("requestVisibility")); BindRequest(TEXT("enabled"), TEXT("requestEnabled")); }
+        else if (Args.IsValid() && Operation == TEXT("widget.viewport_ensure")) { BindRequest(TEXT("hostBlueprintId"), TEXT("requestHostBlueprintId")); BindRequest(TEXT("widgetBlueprintId"), TEXT("requestWidgetBlueprintId")); BindRequest(TEXT("agentKey"), TEXT("requestAgentKey")); BindRequest(TEXT("inputKey"), TEXT("requestInputKey")); BindRequest(TEXT("zOrder"), TEXT("requestZOrder")); }
+        else if (Args.IsValid() && Operation == TEXT("widget.event_ensure")) { BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("agentKey"), TEXT("requestAgentKey")); BindRequest(TEXT("event"), TEXT("requestIntent")); BindRequest(TEXT("actions"), TEXT("requestActions")); }
+        else if (Args.IsValid() && Operation == TEXT("widget.tree_view")) BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId"));
+        FString Target = MetadataTarget(Operation, Result);
+        if (Args.IsValid() && Operation == TEXT("blueprint.interface_ensure")) { FString BlueprintId, InterfaceId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("interfaceId"), InterfaceId); Target = BlueprintId + TEXT("#") + InterfaceId; }
+        else if (Args.IsValid() && Operation == TEXT("blueprint.scs_component_ensure")) { FString BlueprintId, Name; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("name"), Name); Target = BlueprintId + TEXT("#scs-name:") + Name; }
+        else if (Args.IsValid() && (Operation == TEXT("blueprint.scs_component_update") || Operation == TEXT("blueprint.scs_component_remove"))) { FString BlueprintId, VariableGuid; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("variableGuid"), VariableGuid); Target = BlueprintId + TEXT("#scs:") + VariableGuid; }
+        else if (Args.IsValid() && (Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure"))) { FString BlueprintId, GraphId, AgentKey; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("graphId"), GraphId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Target = BlueprintId + TEXT("#") + GraphId + TEXT("#") + AgentKey; }
+        else if (Args.IsValid() && Operation == TEXT("blueprint.pin_default_set")) { FString BlueprintId, PinId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("pinId"), PinId); Target = BlueprintId + TEXT("#") + PinId; }
+        else if (Args.IsValid() && Operation == TEXT("widget.viewport_ensure")) { FString Host, Agent; Args->TryGetStringField(TEXT("hostBlueprintId"), Host); Args->TryGetStringField(TEXT("agentKey"), Agent); Target = Host + TEXT("#viewport:") + Agent; }
         else if (Args.IsValid() && Operation == TEXT("blueprint.pin_connect")) { FString BlueprintId, SourcePinId, TargetPinId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("sourcePinId"), SourcePinId); Args->TryGetStringField(TEXT("targetPinId"), TargetPinId); Target = BlueprintId + TEXT("#") + SourcePinId + TEXT("#") + TargetPinId; }
-        if (!VerifyMutationPostcondition(Operation, Result, Target, Verification, Args)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("mutation postcondition verification failed"));
         bool Matched = true;
-        if (Operation == TEXT("play.input"))
-        {
-            FString Key, Event, Session; bool Accepted = false;
-            Result->TryGetStringField(TEXT("key"), Key); Result->TryGetStringField(TEXT("event"), Event); Result->TryGetStringField(TEXT("sessionId"), Session); Result->TryGetBoolField(TEXT("accepted"), Accepted);
-            Target = Session + TEXT("#") + Key + TEXT("#") + Event; Matched = Accepted;
-        }
-        Verification->SetStringField(TEXT("target"), Target); Verification->SetBoolField(TEXT("matched"), Matched);
-        Response->SetObjectField(TEXT("receipt"), BuildReceiptMetadata(Id, Operation, Result, Verification, Target));
+        if (Operation == TEXT("play.input")) { FString Key, Event, Session; bool Accepted = false; Result->TryGetStringField(TEXT("key"), Key); Result->TryGetStringField(TEXT("event"), Event); Result->TryGetStringField(TEXT("sessionId"), Session); Result->TryGetBoolField(TEXT("accepted"), Accepted); Target = Session + TEXT("#") + Key + TEXT("#") + Event; Matched = Accepted; }
+        if (!VerifyMutationPostcondition(Operation, Result, Target, Verification, Args)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("mutation postcondition verification failed"));
+        Verification->SetStringField(TEXT("target"), Target); Verification->SetBoolField(TEXT("matched"), Matched); Response->SetObjectField(TEXT("receipt"), BuildReceiptMetadata(Id, Operation, Result, Verification, Target));
     }
-    const FString Wire = Serialize(Response);
-    return Wire;
+    return Serialize(Response);
 }
 
 FString ActorLevelId(const AActor& Actor)
@@ -1293,6 +1324,20 @@ FString BlueprintContentRevision(const UBlueprint& Blueprint)
         Metadata.Sort([](const FBPVariableMetaDataEntry& Left, const FBPVariableMetaDataEntry& Right) { return Left.DataKey == Right.DataKey ? Left.DataValue < Right.DataValue : Left.DataKey.LexicalLess(Right.DataKey); });
         for (const FBPVariableMetaDataEntry* Entry : Metadata) Revision = ExtendRevision(Revision, {TEXT("metadata"), Entry->DataKey.ToString(), Entry->DataValue});
     }
+    if (const UWidgetBlueprint* WidgetBlueprint = Cast<UWidgetBlueprint>(&Blueprint); WidgetBlueprint && WidgetBlueprint->WidgetTree)
+    {
+        TArray<const UWidget*> WidgetVariables;
+        if (WidgetBlueprint->WidgetTree->RootWidget) WidgetVariables.Add(WidgetBlueprint->WidgetTree->RootWidget);
+        if (const UPanelWidget* RootPanel = Cast<UPanelWidget>(WidgetBlueprint->WidgetTree->RootWidget)) for (int32 Index = 0; Index < RootPanel->GetChildrenCount(); ++Index) if (const UWidget* Child = RootPanel->GetChildAt(Index)) WidgetVariables.Add(Child);
+        WidgetVariables.Sort([](const UWidget& Left, const UWidget& Right) { return Left.GetName() < Right.GetName(); });
+        if (WidgetBlueprint->WidgetVariableNameToGuidMap.Num() != WidgetVariables.Num()) return FString();
+        for (const UWidget* Widget : WidgetVariables)
+        {
+            const FGuid* WidgetGuid = WidgetBlueprint->WidgetVariableNameToGuidMap.Find(Widget->GetFName());
+            if (!WidgetGuid || !WidgetGuid->IsValid()) return FString();
+            Revision = ExtendRevision(Revision, {TEXT("widgetVariable"), Widget->GetName(), WidgetGuid->ToString()});
+        }
+    }
     TArray<const FBPInterfaceDescription*> Interfaces;
     for (const FBPInterfaceDescription& Interface : Blueprint.ImplementedInterfaces)
     {
@@ -1320,6 +1365,29 @@ FString BlueprintContentRevision(const UBlueprint& Blueprint)
         {
             const USceneComponent* Scene = Cast<USceneComponent>(Node->ComponentTemplate); const UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Node->ComponentTemplate); const UBoxComponent* Box = Cast<UBoxComponent>(Node->ComponentTemplate); const USphereComponent* Sphere = Cast<USphereComponent>(Node->ComponentTemplate); const USCS_Node* Parent = Blueprint.SimpleConstructionScript->FindParentNode(Node);
             Revision = ExtendRevision(Revision, {TEXT("component"), BlueprintSCSIdentity(Blueprint, *Node), Node->GetVariableName().ToString(), Node->ComponentClass ? Node->ComponentClass->GetPathName() : FString(), Parent ? CanonicalGuid(Parent->VariableGuid) : FString(), Node->AttachToName.ToString(), Scene ? CanonicalTransform(Scene->GetRelativeTransform()) : FString(), Primitive ? FString::FromInt(static_cast<int32>(Primitive->GetCollisionEnabled())) : FString(), Primitive ? Primitive->GetCollisionProfileName().ToString() : FString(), Primitive ? FString::FromInt(static_cast<int32>(Primitive->GetCollisionObjectType())) : FString(), Primitive && Primitive->GetGenerateOverlapEvents() ? TEXT("overlap") : FString(), Primitive && Primitive->BodyInstance.bSimulatePhysics ? TEXT("simulate") : FString(), Primitive && Primitive->BodyInstance.bEnableGravity ? TEXT("gravity") : FString(), Primitive && Primitive->BodyInstance.bOverrideMass ? FString::SanitizeFloat(Primitive->BodyInstance.GetMassOverride()) : FString(), Box ? CanonicalTransform(FTransform(FQuat::Identity, Box->GetUnscaledBoxExtent())) : FString(), Sphere ? FString::SanitizeFloat(Sphere->GetUnscaledSphereRadius()) : FString()});
+        }
+    }
+    if (const UWidgetBlueprint* WidgetBlueprint = Cast<UWidgetBlueprint>(&Blueprint))
+    {
+        const UWidgetTree* Tree = WidgetBlueprint->WidgetTree;
+        const UVerticalBox* Root = Tree ? Cast<UVerticalBox>(Tree->RootWidget) : nullptr;
+        if (!Root || !Root->bIsVariable || Root->GetName().IsEmpty()) return FString();
+        TArray<const UTextBlock*> Children;
+        for (int32 Index = 0; Index < Root->GetChildrenCount(); ++Index)
+        {
+            const UWidget* Child = Root->GetChildAt(Index);
+            const UTextBlock* Text = Cast<UTextBlock>(Child);
+            if (!Text || !Text->bIsVariable || Text->GetName().IsEmpty()) return FString();
+            Children.Add(Text);
+        }
+        if (Children.Num() > 99) return FString();
+        TSet<FName> Names; Names.Add(Root->GetFName());
+        Revision = ExtendRevision(Revision, {TEXT("widget"), Root->GetName(), TEXT("VerticalBox"), TEXT(""), TEXT("0"), TEXT(""), LexToString(static_cast<int32>(Root->GetVisibility())), Root->GetIsEnabled() ? TEXT("enabled") : TEXT("disabled"), Root->bIsVariable ? TEXT("variable") : TEXT("notVariable")});
+        Children.Sort([](const UTextBlock& Left, const UTextBlock& Right) { return Left.GetName() < Right.GetName(); });
+        for (const UTextBlock* Child : Children)
+        {
+            if (Names.Contains(Child->GetFName())) return FString(); Names.Add(Child->GetFName());
+            Revision = ExtendRevision(Revision, {TEXT("widget"), Child->GetName(), TEXT("TextBlock"), Root->GetName(), LexToString(Root->GetChildIndex(const_cast<UTextBlock*>(Child))), Child->GetText().ToString(), LexToString(static_cast<int32>(Child->GetVisibility())), Child->GetIsEnabled() ? TEXT("enabled") : TEXT("disabled"), Child->bIsVariable ? TEXT("variable") : TEXT("notVariable")});
         }
     }
     return Revision;
@@ -1360,7 +1428,7 @@ bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJso
         bool Accepted = false; FString Before, After, Session, Event;
         Result->TryGetBoolField(TEXT("accepted"), Accepted); Result->TryGetStringField(TEXT("beforeRevision"), Before); Result->TryGetStringField(TEXT("afterRevision"), After); Result->TryGetStringField(TEXT("sessionId"), Session); Result->TryGetStringField(TEXT("event"), Event);
         const bool Changed = Before != After;
-        if (!Accepted || !IsCanonicalSha256Revision(Before) || !IsCanonicalSha256Revision(After) || After != Revision || Result->GetBoolField(TEXT("changed")) != Changed || (Event == TEXT("pressed") && !Changed) || (Event == TEXT("released") && Changed) || !PieWorld()) return false;
+        if (!Accepted || !IsCanonicalSha256Revision(Before) || !IsCanonicalSha256Revision(After) || After != Revision || Result->GetBoolField(TEXT("changed")) != Changed || (Event == TEXT("released") && Changed) || !PieWorld()) return false;
         const TSharedRef<FJsonObject> Observation = ObservePlayResult();
         if (Observation->GetStringField(TEXT("sessionId")) != Session || Observation->GetStringField(TEXT("revision")) != After) return false;
         Verification->SetBoolField(TEXT("accepted"), true); Verification->SetStringField(TEXT("beforeRevision"), Before); Verification->SetStringField(TEXT("afterRevision"), After);
@@ -1368,8 +1436,9 @@ bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJso
     }
     if (Operation == TEXT("play.screenshot"))
     {
-        TArray<uint8> Bytes;
-        return FFileHelper::LoadFileToArray(Bytes, *Target) && Bytes.Num() >= 8 && Bytes[0] == 0x89 && Bytes[1] == 'P' && Bytes[2] == 'N' && Bytes[3] == 'G';
+        if (!PendingScreenshotVerification || PendingScreenshotTarget != Target || PendingScreenshotRevision != Revision) return false;
+        Verification->SetStringField(TEXT("observedRevision"), PendingScreenshotRevision);
+        return true;
     }
     if (Operation == TEXT("play.start") || Operation == TEXT("play.stop"))
     {
@@ -1461,6 +1530,49 @@ bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJso
         if (Target != BlueprintId + TEXT("#scs:") + VariableGuid) return false;
         if (Operation == TEXT("blueprint.scs_component_update")) return Node && P12SCSRequestMatches(*Node, Args) && Verified();
         bool DryRun = false; Args->TryGetBoolField(TEXT("dryRun"), DryRun); return (DryRun ? Node != nullptr && !Result->GetBoolField(TEXT("changed")) : Node == nullptr && Result->GetBoolField(TEXT("changed"))) && Verified();
+    }
+    if (Operation == TEXT("widget.viewport_ensure"))
+    {
+        if (!Args.IsValid()) return false;
+        FString HostId, WidgetId, AgentKey, ResultHost, ResultWidget, ViewportId, ResultGraphId, InputKey, RequestInput; int32 ZOrder = -1, RequestZOrder = -1; double Z = -1, RequestZ = -1;
+        Args->TryGetStringField(TEXT("hostBlueprintId"), HostId); Args->TryGetStringField(TEXT("widgetBlueprintId"), WidgetId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Args->TryGetStringField(TEXT("inputKey"), RequestInput); Args->TryGetNumberField(TEXT("zOrder"), RequestZ);
+        UBlueprint* Host = P11LoadBlueprint(HostId); UWidgetBlueprint* Widget = P13LoadWidgetBlueprint(WidgetId); UEdGraph* Graph = Host && Host->UbergraphPages.Num() == 1 ? Host->UbergraphPages[0] : nullptr; UEdGraphNode* Begin = nullptr; UEdGraphNode* Input = nullptr; UK2Node_CreateWidget* Create = nullptr; UK2Node_CallFunction* Add = nullptr; UK2Node_CallFunction* Enable = nullptr; UK2Node_CallFunction* Activate = nullptr;
+        Result->TryGetStringField(TEXT("hostBlueprintId"), ResultHost); Result->TryGetStringField(TEXT("widgetBlueprintId"), ResultWidget); Result->TryGetStringField(TEXT("viewportId"), ViewportId); Result->TryGetStringField(TEXT("graphId"), ResultGraphId); Result->TryGetStringField(TEXT("inputKey"), InputKey); if (Result->TryGetNumberField(TEXT("zOrder"), Z)) ZOrder = static_cast<int32>(Z); if (RequestZ >= 0) RequestZOrder = static_cast<int32>(RequestZ);
+        return Host && Widget && Widget->GeneratedClass && Graph && ResultHost == HostId && ResultWidget == WidgetId && ViewportId == HostId + TEXT("#viewport:") + AgentKey && ResultGraphId == BlueprintGraphIdentity(*Host, *Graph) && InputKey == RequestInput && ZOrder == RequestZOrder && Result->GetStringField(TEXT("widgetRevision")) == BlueprintContentRevision(*Widget) && BlueprintContentRevision(*Host) == Revision && P13ViewportReadback(*Host, *Graph, AgentKey, Widget->GeneratedClass, Begin, Input, Create, Add, Enable, Activate) && Target == ViewportId && Verified();
+    }
+    if (Operation == TEXT("widget.create") || Operation == TEXT("widget.tree_view") || Operation == TEXT("widget.child_ensure") || Operation == TEXT("widget.property_set") || Operation == TEXT("widget.event_ensure"))
+    {
+        if (!Args.IsValid()) return false;
+        FString BlueprintId; Result->TryGetStringField(TEXT("blueprintId"), BlueprintId); UWidgetBlueprint* Blueprint = P13LoadWidgetBlueprint(BlueprintId); TArray<UWidget*> Widgets; FString TreeError;
+        if (Operation == TEXT("widget.create"))
+        {
+            FString Path, RootName, RootClass; Args->TryGetStringField(TEXT("path"), Path); Args->TryGetStringField(TEXT("rootName"), RootName); Args->TryGetStringField(TEXT("rootClass"), RootClass);
+            FString ResultRootName, ResultRootClass, ResultId, GeneratedClass, RootId; Result->TryGetStringField(TEXT("rootName"), ResultRootName); Result->TryGetStringField(TEXT("rootClass"), ResultRootClass); Result->TryGetStringField(TEXT("blueprintId"), ResultId); Result->TryGetStringField(TEXT("generatedClass"), GeneratedClass); Result->TryGetStringField(TEXT("rootWidgetId"), RootId);
+            return Blueprint && P13WidgetTree(*Blueprint, Widgets, TreeError) && !Widgets.IsEmpty() && BlueprintContentRevision(*Blueprint) == Revision && ResultId == Path + TEXT(".") + FPackageName::GetLongPackageAssetName(Path) && ResultRootName == RootName && ResultRootClass == RootClass && RootId == BlueprintId + TEXT("#widget:") + RootName && !GeneratedClass.IsEmpty() && Target == Path + TEXT(".") + FPackageName::GetLongPackageAssetName(Path) && Verified();
+        }
+        if (!Blueprint || !P13WidgetTree(*Blueprint, Widgets, TreeError) || BlueprintContentRevision(*Blueprint) != Revision || Target.IsEmpty()) return false;
+        if (Operation == TEXT("widget.tree_view")) return Target == BlueprintId && Verified();
+        if (Operation == TEXT("widget.event_ensure"))
+        {
+            FString AgentKey, EventId, Event; Args->TryGetStringField(TEXT("agentKey"), AgentKey); Result->TryGetStringField(TEXT("eventId"), EventId); Result->TryGetStringField(TEXT("event"), Event);
+            const TArray<TSharedPtr<FJsonValue>>* RequestActions = nullptr; const TArray<TSharedPtr<FJsonValue>>* ResultActions = nullptr; Args->TryGetArrayField(TEXT("actions"), RequestActions); Result->TryGetArrayField(TEXT("actions"), ResultActions);
+            if (Result->GetStringField(TEXT("agentKey")) != AgentKey || Event != TEXT("activate") || Event != Args->GetStringField(TEXT("event")) || EventId != BlueprintId + TEXT("#event:") + AgentKey || !RequestActions || !ResultActions || Target != MetadataTarget(Operation, Result)) return false;
+            const TSharedRef<FJsonObject> RequestWrapper = MakeShared<FJsonObject>(); RequestWrapper->SetArrayField(TEXT("actions"), *RequestActions); const TSharedRef<FJsonObject> ResultWrapper = MakeShared<FJsonObject>(); ResultWrapper->SetArrayField(TEXT("actions"), *ResultActions); if (Serialize(RequestWrapper) != Serialize(ResultWrapper)) return false;
+            const TSharedRef<FJsonObject> Tree = P13TreeResult(*Blueprint); const TArray<TSharedPtr<FJsonValue>>* Events = nullptr; if (!Tree->TryGetArrayField(TEXT("events"), Events) || !Events) return false;
+            for (const TSharedPtr<FJsonValue>& Value : *Events)
+            {
+                const TSharedPtr<FJsonObject>* Row = nullptr; if (!Value.IsValid() || !Value->TryGetObject(Row) || !Row || !Row->IsValid() || (*Row)->GetStringField(TEXT("eventId")) != EventId) continue;
+                const TArray<TSharedPtr<FJsonValue>>* TreeActions = nullptr; if (!(*Row)->TryGetArrayField(TEXT("actions"), TreeActions) || !TreeActions || (*Row)->GetStringField(TEXT("agentKey")) != AgentKey || (*Row)->GetStringField(TEXT("event")) != Event) return false;
+                const TSharedRef<FJsonObject> TreeWrapper = MakeShared<FJsonObject>(); TreeWrapper->SetArrayField(TEXT("actions"), *TreeActions); return Serialize(TreeWrapper) == Serialize(ResultWrapper) && Verified();
+            }
+            return false;
+        }
+        FString WidgetId; Result->TryGetStringField(TEXT("widgetId"), WidgetId);
+        if (Operation == TEXT("widget.child_ensure")) { FString Name, Class, Parent; Args->TryGetStringField(TEXT("name"), Name); Args->TryGetStringField(TEXT("class"), Class); Result->TryGetStringField(TEXT("name"), Name); Result->TryGetStringField(TEXT("class"), Class); Result->TryGetStringField(TEXT("parentWidgetId"), Parent); for (UWidget* Widget : Widgets) if (P13WidgetId(*Blueprint, *Widget) == WidgetId) return Widget->GetClass() == UTextBlock::StaticClass() && Target == MetadataTarget(Operation, Result) && Parent == P13WidgetId(*Blueprint, *Widgets[0]) && Result->GetStringField(TEXT("name")) == Args->GetStringField(TEXT("name")) && Result->GetStringField(TEXT("class")) == Args->GetStringField(TEXT("class")) && Verified(); return false; }
+        FString Property; Args->TryGetStringField(TEXT("property"), Property); if (WidgetId != Args->GetStringField(TEXT("widgetId")) || Result->GetStringField(TEXT("property")) != Property || Target != MetadataTarget(Operation, Result)) return false; UWidget* Widget = nullptr; for (UWidget* Candidate : Widgets) if (P13WidgetId(*Blueprint, *Candidate) == WidgetId) Widget = Candidate; if (!Widget) return false;
+        if (Property == TEXT("text")) { FString Value; return Args->TryGetStringField(TEXT("text"), Value) && Result->GetStringField(TEXT("text")) == Value && Cast<UTextBlock>(Widget) && Cast<UTextBlock>(Widget)->GetText().ToString() == Value && Verified(); }
+        if (Property == TEXT("visibility")) { FString Value; return Args->TryGetStringField(TEXT("visibility"), Value) && Result->GetStringField(TEXT("visibility")) == Value && ((Value == TEXT("Visible") && Widget->GetVisibility() == ESlateVisibility::Visible) || (Value == TEXT("Hidden") && Widget->GetVisibility() == ESlateVisibility::Hidden) || (Value == TEXT("Collapsed") && Widget->GetVisibility() == ESlateVisibility::Collapsed)) && Verified(); }
+        bool Value = false; return Args->TryGetBoolField(TEXT("enabled"), Value) && Result->GetBoolField(TEXT("enabled")) == Value && Widget->GetIsEnabled() == Value && Verified();
     }
     if (Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure"))
     {
@@ -1647,6 +1759,54 @@ bool ValidPlaySession(const TSharedPtr<FJsonObject>& Args, FString& Error)
     if (PlaySessionId.IsEmpty()) { Error = TEXT("no PIE session is active"); return false; }
     return true;
 }
+
+static TSharedRef<FJsonObject> P13UiObserveResult(const FString& SessionId, const FString& WidgetBlueprintId, const TArray<FString>& RequestedIds, UWorld& World, FString& ErrorType, FString& Error)
+{
+    UWidgetBlueprint* Blueprint = P13LoadWidgetBlueprint(WidgetBlueprintId);
+    if (!Blueprint) { ErrorType = TEXT("not_found"); Error = TEXT("widget Blueprint was not found"); return MakeShared<FJsonObject>(); }
+    UClass* GeneratedClass = Blueprint->GeneratedClass.Get();
+    if (!GeneratedClass || !GeneratedClass->IsChildOf(UUserWidget::StaticClass()) || !Cast<UWidgetBlueprintGeneratedClass>(GeneratedClass)) { ErrorType = TEXT("conflict"); Error = TEXT("widget Blueprint generated class is unavailable or mismatched"); return MakeShared<FJsonObject>(); }
+    TArray<UWidget*> AuthoredWidgets; FString TreeError;
+    if (!P13WidgetTree(*Blueprint, AuthoredWidgets, TreeError)) { ErrorType = TEXT("unsupported"); Error = *TreeError; return MakeShared<FJsonObject>(); }
+    TSet<FString> AllowedIds;
+    for (UWidget* Widget : AuthoredWidgets) AllowedIds.Add(P13WidgetId(*Blueprint, *Widget));
+    FString PreviousId;
+    for (const FString& WidgetId : RequestedIds)
+    {
+        if (!PreviousId.IsEmpty() && PreviousId >= WidgetId) { ErrorType = TEXT("invalid_input"); Error = TEXT("widgetIds must be exact, unique, and ordered"); return MakeShared<FJsonObject>(); }
+        if (!AllowedIds.Contains(WidgetId)) { ErrorType = TEXT("not_found"); Error = TEXT("requested widget ID was not found in Widget Blueprint"); return MakeShared<FJsonObject>(); }
+        PreviousId = WidgetId;
+    }
+    TArray<UUserWidget*> Instances;
+    UWidgetBlueprintLibrary::GetAllWidgetsOfClass(&World, Instances, TSubclassOf<UUserWidget>(GeneratedClass), false);
+    Instances.RemoveAll([GeneratedClass](const UUserWidget* Candidate) { return !IsValid(Candidate) || Candidate->GetClass() != GeneratedClass || Candidate->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject); });
+    Instances.Sort([](const UUserWidget& Left, const UUserWidget& Right) { return Left.GetPathName() < Right.GetPathName(); });
+    if (Instances.Num() == 0) { ErrorType = TEXT("not_found"); Error = TEXT("no exact generated-class widget instance was found in active PIE world"); return MakeShared<FJsonObject>(); }
+    if (Instances.Num() != 1) { ErrorType = TEXT("conflict"); Error = TEXT("multiple exact generated-class widget instances make selection ambiguous"); return MakeShared<FJsonObject>(); }
+    UUserWidget& Instance = *Instances[0];
+    TArray<TPair<FString, UWidget*>> Rows;
+    for (const FString& WidgetId : RequestedIds)
+    {
+        const FString Name = WidgetId.RightChop((WidgetBlueprintId + TEXT("#widget:")).Len());
+        UWidget* Widget = Instance.WidgetTree ? Instance.WidgetTree->FindWidget(FName(*Name)) : nullptr;
+        if (!Widget || (Widget->GetClass() != UVerticalBox::StaticClass() && Widget->GetClass() != UTextBlock::StaticClass()) || P13WidgetClass(*Widget).IsEmpty() || P13WidgetId(*Blueprint, *Widget) != WidgetId) { ErrorType = TEXT("not_found"); Error = TEXT("requested runtime widget was not found in fixed native model"); return MakeShared<FJsonObject>(); }
+        Rows.Emplace(WidgetId, Widget);
+    }
+    Rows.Sort([](const TPair<FString, UWidget*>& Left, const TPair<FString, UWidget*>& Right) { return Left.Key < Right.Key; });
+    if (Instance.GetPathName().Len() > 2048) { ErrorType = TEXT("unsupported"); Error = TEXT("runtime widget instance identity exceeds bounded output"); return MakeShared<FJsonObject>(); }
+    const bool InViewport = Instance.IsInViewport();
+    const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetStringField(TEXT("sessionId"), SessionId); Result->SetStringField(TEXT("widgetBlueprintId"), WidgetBlueprintId); Result->SetStringField(TEXT("instanceId"), Instance.GetPathName()); Result->SetBoolField(TEXT("inViewport"), InViewport);
+    TArray<TSharedPtr<FJsonValue>> Values; FString Revision = Sha256(CanonicalRow({SessionId, WidgetBlueprintId, Instance.GetPathName(), InViewport ? TEXT("inViewport") : TEXT("notInViewport")}));
+    for (const TPair<FString, UWidget*>& Pair : Rows)
+    {
+        UWidget* Widget = Pair.Value; const FString Class = P13WidgetClass(*Widget); const FString Visibility = Widget->GetVisibility() == ESlateVisibility::Hidden ? TEXT("Hidden") : Widget->GetVisibility() == ESlateVisibility::Collapsed ? TEXT("Collapsed") : Widget->GetVisibility() == ESlateVisibility::Visible ? TEXT("Visible") : FString(); if (Visibility.IsEmpty()) { ErrorType = TEXT("unsupported"); Error = TEXT("runtime widget visibility is outside fixed native model"); return MakeShared<FJsonObject>(); }
+        const UTextBlock* TextWidget = Cast<UTextBlock>(Widget); const FString Text = TextWidget ? TextWidget->GetText().ToString() : FString(); if (TextWidget && MagiAxiUnicodeScalarCount(Text) > 256) { ErrorType = TEXT("unsupported"); Error = TEXT("runtime TextBlock text exceeds bounded output"); return MakeShared<FJsonObject>(); }
+        const FString TextRevision = TextWidget ? Text : TEXT("<null>"); Revision = ExtendRevision(Revision, {Pair.Key, Widget->GetName(), Class, TextRevision, Visibility, Widget->GetIsEnabled() ? TEXT("enabled") : TEXT("disabled")});
+        const TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>(); Row->SetStringField(TEXT("widgetId"), Pair.Key); Row->SetStringField(TEXT("name"), Widget->GetName()); Row->SetStringField(TEXT("class"), Class); if (TextWidget) Row->SetStringField(TEXT("text"), Text); else Row->SetField(TEXT("text"), MakeShared<FJsonValueNull>()); Row->SetStringField(TEXT("visibility"), Visibility); Row->SetBoolField(TEXT("enabled"), Widget->GetIsEnabled()); Values.Add(MakeShared<FJsonValueObject>(Row));
+    }
+    Result->SetArrayField(TEXT("widgets"), Values); Result->SetStringField(TEXT("revision"), Revision); return Result;
+}
 TSharedRef<FJsonObject> PlayStatusResult()
 {
     UWorld* World = PieWorld();
@@ -1711,6 +1871,17 @@ FString ReadPlayResponse(const FString& Id, const FString& Operation, const TSha
         FGuid Wanted; if (!FGuid::Parse(VariableGuid, Wanted) || CanonicalGuid(Wanted) != VariableGuid) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("variableGuid must be canonical GUID"));
         return PlayResponse(Id, BuildComponentObservation(PlaySessionId, RequestedActorId, VariableGuid, PieWorld()), Operation);
     }
+    if (Operation == TEXT("play.ui_observe"))
+    {
+        FString WidgetBlueprintId; Args->TryGetStringField(TEXT("widgetBlueprintId"), WidgetBlueprintId);
+        const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
+        if (WidgetBlueprintId.IsEmpty() || !Args->TryGetArrayField(TEXT("widgetIds"), Values) || !Values || Values->Num() < 1 || Values->Num() > 16) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("widgetBlueprintId and one to sixteen widgetIds are required"));
+        TArray<FString> WidgetIds;
+        for (const TSharedPtr<FJsonValue>& Value : *Values) if (!Value.IsValid() || Value->Type != EJson::String || Value->AsString().IsEmpty()) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("widgetIds must contain non-empty strings")); else WidgetIds.Add(Value->AsString());
+        UWorld* World = PieWorld(); if (!World) return ErrorResponse(Id, TEXT("unsafe_editor_state"), TEXT("PIE world is not running"));
+        FString ObserveErrorType, ObserveError; const TSharedRef<FJsonObject> Result = P13UiObserveResult(PlaySessionId, WidgetBlueprintId, WidgetIds, *World, ObserveErrorType, ObserveError); if (!ObserveErrorType.IsEmpty()) return ErrorResponse(Id, *ObserveErrorType, *ObserveError);
+        return PlayResponse(Id, Result, Operation);
+    }
     if (Operation == TEXT("play.observe")) { if (!PieWorld()) return ErrorResponse(Id, TEXT("unsafe_editor_state"), TEXT("PIE world is not running")); return PlayResponse(Id, ObservePlayResult(), Operation); }
     if (Operation == TEXT("play.input"))
     {
@@ -1754,7 +1925,54 @@ FString ReadPlayResponse(const FString& Id, const FString& Operation, const TSha
         Controller->InputKey(FInputKeyEventArgs::CreateSimulated(Key, Event == TEXT("pressed") ? IE_Pressed : IE_Released, Amount, -1, InputDevice));
         const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("sessionId"), PlaySessionId); Result->SetStringField(TEXT("key"), KeyName); Result->SetStringField(TEXT("event"), Event); Result->SetBoolField(TEXT("accepted"), true); Result->SetBoolField(TEXT("changed"), false); Result->SetStringField(TEXT("beforeRevision"), BeforeRevision); Result->SetStringField(TEXT("afterRevision"), BeforeRevision); Result->SetStringField(TEXT("revision"), BeforeRevision); return PendingPlayInputResponse(Id, Result);
     }
-    if (Operation == TEXT("play.screenshot")) { if (!PieWorld()) return ErrorResponse(Id, TEXT("unsafe_editor_state"), TEXT("PIE world is not running")); FViewport* Viewport = GUnrealEd ? GUnrealEd->GetPIEViewport() : nullptr; if (!Viewport) return ErrorResponse(Id, TEXT("unsafe_editor_state"), TEXT("PIE viewport is unavailable")); FString Name; Args->TryGetStringField(TEXT("path"), Name); if (Name.IsEmpty()) Name = PlaySessionId + TEXT(".png"); FString Root = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("MagiUnrealAXI/Screenshots")); FString Path = FPaths::ConvertRelativePathToFull(Root / Name); FPaths::NormalizeFilename(Path); if (!Path.StartsWith(Root + TEXT("/")) || !Path.EndsWith(TEXT(".png"))) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("screenshot path must remain under Saved/MagiUnrealAXI/Screenshots and end in .png")); IFileManager::Get().MakeDirectory(*Root, true); char CanonicalRoot[PATH_MAX]{}, CanonicalParent[PATH_MAX]{}; const FTCHARToUTF8 NativeRoot(*Root); const FString Parent = FPaths::GetPath(Path); const FTCHARToUTF8 NativeParent(*Parent); if (!realpath(NativeRoot.Get(), CanonicalRoot) || !realpath(NativeParent.Get(), CanonicalParent)) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("screenshot path resolves outside screenshot directory")); const FString CanonicalRootPath = UTF8_TO_TCHAR(CanonicalRoot); const FString CanonicalParentPath = UTF8_TO_TCHAR(CanonicalParent); if (!(CanonicalParentPath == CanonicalRootPath || CanonicalParentPath.StartsWith(CanonicalRootPath + TEXT("/")))) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("screenshot path resolves outside screenshot directory")); struct stat Existing{}; const FTCHARToUTF8 NativePath(*Path); if (lstat(NativePath.Get(), &Existing) == 0 && S_ISLNK(Existing.st_mode)) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("screenshot path cannot be a symlink")); TArray<FColor> Pixels; FIntRect Rect(0, 0, Viewport->GetSizeXY().X, Viewport->GetSizeXY().Y); if (!Viewport->ReadPixels(Pixels, FReadSurfaceDataFlags(), Rect) || Pixels.IsEmpty()) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("PIE viewport readback failed")); TArray64<uint8> Png; FImageUtils::PNGCompressImageArray(Rect.Width(), Rect.Height(), Pixels, Png); if (!FFileHelper::SaveArrayToFile(Png, *Path) || Png.Num() < 8 || Png[0] != 0x89 || Png[1] != 'P' || Png[2] != 'N' || Png[3] != 'G' || !FPaths::FileExists(Path)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("PNG write or signature verification failed")); const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("sessionId"), PlaySessionId); Result->SetStringField(TEXT("path"), Path); Result->SetNumberField(TEXT("width"), Rect.Width()); Result->SetNumberField(TEXT("height"), Rect.Height()); Result->SetStringField(TEXT("format"), TEXT("png")); Result->SetBoolField(TEXT("changed"), true); Result->SetStringField(TEXT("revision"), Sha256(Path)); return PlayResponse(Id, Result, Operation); }
+    if (Operation == TEXT("play.screenshot"))
+    {
+        UWorld* World = PieWorld();
+        UGameViewportClient* GameViewport = World ? World->GetGameViewport() : nullptr;
+        const TSharedPtr<SViewport> ViewportWidget = GameViewport ? GameViewport->GetGameViewportWidget() : nullptr;
+        if (!World || !GameViewport || !ViewportWidget.IsValid() || !FSlateApplication::IsInitialized()) return ErrorResponse(Id, TEXT("unsafe_editor_state"), TEXT("PIE viewport is unavailable"));
+        FString Name; Args->TryGetStringField(TEXT("path"), Name); if (Name.IsEmpty()) Name = PlaySessionId + TEXT(".png");
+        if (Name != FPaths::GetCleanFilename(Name) || Name == TEXT(".") || Name == TEXT("..") || Name.Contains(TEXT("\\")) || !Name.EndsWith(TEXT(".png"))) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("screenshot path must be a PNG filename"));
+        for (const TCHAR Character : Name) if (Character < 0x20 || (Character >= 0x7f && Character <= 0x9f)) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("screenshot filename must not contain control characters"));
+        const FString ProjectDirectory = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
+        char CanonicalProject[PATH_MAX]{};
+        const FTCHARToUTF8 NativeProjectDirectory(*ProjectDirectory);
+        if (!realpath(NativeProjectDirectory.Get(), CanonicalProject)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("project directory cannot be canonicalized securely"));
+        const int ProjectFd = open(CanonicalProject, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        if (ProjectFd < 0) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("project directory cannot be opened securely"));
+        int RootFd = openat(ProjectFd, "Saved", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        if (RootFd < 0 && errno == ENOENT) { if (mkdirat(ProjectFd, "Saved", S_IRWXU) == 0) RootFd = openat(ProjectFd, "Saved", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC); }
+        close(ProjectFd);
+        if (RootFd < 0) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("Saved directory cannot be opened securely"));
+        int SecureMagiFd = openat(RootFd, "MagiUnrealAXI", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        if (SecureMagiFd < 0 && errno == ENOENT) { if (mkdirat(RootFd, "MagiUnrealAXI", S_IRWXU) == 0) SecureMagiFd = openat(RootFd, "MagiUnrealAXI", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC); }
+        close(RootFd);
+        if (SecureMagiFd < 0) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("MagiUnrealAXI directory cannot be opened securely"));
+        int SecureRootFd = openat(SecureMagiFd, "Screenshots", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        if (SecureRootFd < 0 && errno == ENOENT) { if (mkdirat(SecureMagiFd, "Screenshots", S_IRWXU) == 0) SecureRootFd = openat(SecureMagiFd, "Screenshots", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC); }
+        close(SecureMagiFd);
+        if (SecureRootFd < 0) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("Screenshots directory cannot be opened securely"));
+        const FString Path = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("MagiUnrealAXI/Screenshots") / Name);
+        TArray<FColor> Pixels; FIntVector Size;
+        if (!FSlateApplication::Get().TakeScreenshot(ViewportWidget.ToSharedRef(), Pixels, Size) || Pixels.IsEmpty() || Size.X < 1 || Size.X > 16384 || Size.Y < 1 || Size.Y > 16384) { close(SecureRootFd); return ErrorResponse(Id, TEXT("operation_failed"), TEXT("PIE viewport screenshot failed or dimensions are out of bounds")); }
+        TArray64<uint8> Png; FImageUtils::PNGCompressImageArray(Size.X, Size.Y, Pixels, Png);
+        const bool Signature = Png.Num() >= 24 && Png[0] == 0x89 && Png[1] == 'P' && Png[2] == 'N' && Png[3] == 'G' && Png[4] == 0x0D && Png[5] == 0x0A && Png[6] == 0x1A && Png[7] == 0x0A;
+        const bool Ihdr = Signature && Png[12] == 'I' && Png[13] == 'H' && Png[14] == 'D' && Png[15] == 'R' && Png[16] == uint8(Size.X >> 24) && Png[17] == uint8(Size.X >> 16) && Png[18] == uint8(Size.X >> 8) && Png[19] == uint8(Size.X) && Png[20] == uint8(Size.Y >> 24) && Png[21] == uint8(Size.Y >> 16) && Png[22] == uint8(Size.Y >> 8) && Png[23] == uint8(Size.Y);
+        const FString Revision = Sha256Bytes(Png.GetData(), Png.Num());
+        const FTCHARToUTF8 NativeName(*Name);
+        const int FileFd = Signature && Ihdr && !Revision.IsEmpty() ? openat(SecureRootFd, NativeName.Get(), O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, S_IRUSR | S_IWUSR) : -1;
+        bool Written = FileFd >= 0; int64 Offset = 0;
+        while (Written && Offset < Png.Num()) { const ssize_t Count = write(FileFd, Png.GetData() + Offset, static_cast<size_t>(Png.Num() - Offset)); if (Count <= 0) Written = false; else Offset += Count; }
+        TArray64<uint8> Readback;
+        if (Written) Written = fsync(FileFd) == 0 && lseek(FileFd, 0, SEEK_SET) == 0;
+        if (Written) { Readback.SetNumUninitialized(Png.Num()); int64 ReadOffset = 0; while (ReadOffset < Png.Num()) { const ssize_t Count = read(FileFd, Readback.GetData() + ReadOffset, static_cast<size_t>(Png.Num() - ReadOffset)); if (Count <= 0) { Written = false; break; } ReadOffset += Count; } Written = Written && ReadOffset == Png.Num() && FMemory::Memcmp(Readback.GetData(), Png.GetData(), Png.Num()) == 0 && Readback.Num() >= 24 && Readback[0] == 0x89 && Readback[1] == 'P' && Readback[2] == 'N' && Readback[3] == 'G' && Readback[4] == 0x0D && Readback[5] == 0x0A && Readback[6] == 0x1A && Readback[7] == 0x0A && Readback[12] == 'I' && Readback[13] == 'H' && Readback[14] == 'D' && Readback[15] == 'R' && Readback[16] == uint8(Size.X >> 24) && Readback[17] == uint8(Size.X >> 16) && Readback[18] == uint8(Size.X >> 8) && Readback[19] == uint8(Size.X) && Readback[20] == uint8(Size.Y >> 24) && Readback[21] == uint8(Size.Y >> 16) && Readback[22] == uint8(Size.Y >> 8) && Readback[23] == uint8(Size.Y) && Sha256Bytes(Readback.GetData(), Readback.Num()) == Revision; }
+        if (FileFd >= 0) close(FileFd);
+        if (FileFd >= 0 && !Written) unlinkat(SecureRootFd, NativeName.Get(), 0);
+        close(SecureRootFd);
+        if (!Written || Offset != Png.Num()) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("exclusive PNG write or same-descriptor readback failed"));
+        const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("sessionId"), PlaySessionId); Result->SetStringField(TEXT("path"), Path); Result->SetNumberField(TEXT("width"), Size.X); Result->SetNumberField(TEXT("height"), Size.Y); Result->SetStringField(TEXT("format"), TEXT("png")); Result->SetBoolField(TEXT("changed"), true); Result->SetStringField(TEXT("revision"), Revision); PendingScreenshotTarget = Path; PendingScreenshotRevision = Revision; PendingScreenshotVerification = true; const FString Response = PlayResponse(Id, Result, Operation); PendingScreenshotVerification = false; PendingScreenshotTarget.Empty(); PendingScreenshotRevision.Empty(); return Response;
+
+    }
     return ErrorResponse(Id, TEXT("unsupported"), TEXT("unsupported play operation"));
 }
 
@@ -1773,6 +1991,7 @@ TSharedRef<FJsonObject> BridgeDescribeResultOnGameThread()
     TArray<TSharedPtr<FJsonValue>> Availability;
     TArray<FString> NativeNames;
     #define MAGI_AXI_ADD_NATIVE_NAME(Name) NativeNames.Add(Name);
+
     MAGI_AXI_NATIVE_CAPABILITIES(MAGI_AXI_ADD_NATIVE_NAME)
     #undef MAGI_AXI_ADD_NATIVE_NAME
     NativeNames.Sort();
@@ -1793,7 +2012,7 @@ TSharedRef<FJsonObject> BridgeDescribeResultOnGameThread()
             const TSharedRef<FJsonObject> ReasonObject = MakeShared<FJsonObject>();
             ReasonObject->SetStringField(TEXT("code"), Code);
             ReasonObject->SetStringField(TEXT("subject"), Subject);
-            ReasonObject->SetStringField(TEXT("message"), Code == TEXT("missing_module") ? TEXT("Required module ") + Subject + TEXT(" is not loaded") : TEXT("Current editor state ") + Subject + TEXT(" is not allowed"));
+            ReasonObject->SetStringField(TEXT("message"), Code == TEXT("missing_module") ? TEXT("Required module ") + Subject + TEXT(" is not loaded") : Code == TEXT("implementation_pending") ? TEXT("Native implementation ") + Subject + TEXT(" is pending certification") : TEXT("Current editor state ") + Subject + TEXT(" is not allowed"));
             ReasonValues.Add(MakeShared<FJsonValueObject>(ReasonObject));
         }
         Entry->SetArrayField(TEXT("reasons"), ReasonValues);
@@ -1807,6 +2026,7 @@ FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, co
 bool TryEnqueueGameThreadRequest(const TSharedRef<FGameThreadRequest>& Request);
 bool DrainGameThreadQueue(float DeltaSeconds);
 #include "MagiBlueprintAuthoring.inl"
+#include "MagiWidgetAuthoring.inl"
 
 FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, const TSharedPtr<FJsonObject>& Args, const FString& ExpectedRevision)
 {
@@ -1852,6 +2072,7 @@ FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, co
         FString GateMessage;
         if (!MutationGate(GateMessage)) return ErrorResponse(Id, TEXT("unsafe_editor_state"), *GateMessage, true);
     }
+    if (IsP13WidgetOperation(Operation)) return HandleP13WidgetOperation(Id, Operation, Args, ExpectedRevision);
     if (IsP11BlueprintOperation(Operation)) return HandleP11BlueprintOperation(Id, Operation, Args, ExpectedRevision);
     UWorld* MutationWorld = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
     if (Operation == TEXT("level.create") || Operation == TEXT("level.open") || Operation == TEXT("level.save"))

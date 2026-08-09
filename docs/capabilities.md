@@ -1,6 +1,6 @@
 # Capability catalog
 
-Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -- capabilities check` validates strict records, sorted unique IDs, closed bounded schemas, mutation safety metadata, receipt-compatible operation metadata, and generated Rust/C++ parity. Current catalog contains 48 records with SHA-256 `fc2c7109093b848359b6307908ede3e5939389c301929394f916a0e0e00c2d60`. Runtime handshake rejects mismatch before operation transmission.
+Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -- capabilities check` validates strict records, sorted unique IDs, closed bounded schemas, mutation safety metadata, receipt-compatible operation metadata, and generated Rust/C++ parity. Current catalog contains 55 records with SHA-256 `7cd513c54122e73b4c0b5faaf8f3669f89819584822e10602017e9f41f19e05b`. Runtime handshake rejects mismatch before operation transmission.
 
 ## M6 surface
 
@@ -10,7 +10,7 @@ Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -
 - level settings: `level.settings`, `level.set_game_mode`
 - play: `play.start`, `play.status`, `play.observe`, `play.input`, `play.screenshot`, `play.stop`
 
-M6 added no Blueprint authoring; bounded authoring enters through P1.1 and P1.2 below.
+M6 added no Blueprint authoring; bounded authoring enters through P1.1, P1.2, and P1.3 below.
 
 ## Contracts
 
@@ -39,6 +39,10 @@ P1.1 exposes exactly `blueprint.create`, `blueprint.graph_view`, `blueprint.even
 ## P1.2 reusable interaction gameplay
 
 P1.2 adds exactly `blueprint.interface_create`, `blueprint.interface_view`, `blueprint.interface_ensure`, `blueprint.scs_view`, `blueprint.scs_component_ensure`, `blueprint.scs_component_update`, `blueprint.scs_component_remove`, and `play.component_observe`. Certified fixture proves one interface, two Actor Blueprints, nested SCS hierarchy, collision/overlap interaction, component observation, deterministic reset across two PIE sessions, and Blueprint-only CompileAllBlueprints/cook/package output. Integrated native/live certification passes exact 22/22 Unreal automation with registry/generated-class, IoStore, inventory, receipt, and token gates.
+
+## P1.3 widget-driven UI state
+
+P1.3 adds exactly `widget.create`, `widget.tree_view`, `widget.child_ensure`, `widget.property_set`, `widget.event_ensure`, `widget.viewport_ensure`, and `play.ui_observe`. Certified fixture proves fixed VerticalBox/TextBlock authoring, restart persistence and no-ops, `READY` → `ACTIVE`, two-PIE reset, stale-session rejection, confined content-hashed screenshots, and Blueprint-only CompileAllBlueprints/cook/package output. Integrated native/live certification passes exact 27/27 Unreal automation with the P1.2 22-test regression plus five P1.3 tests.
 
 ## Examples
 

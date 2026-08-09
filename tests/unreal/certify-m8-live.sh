@@ -3,8 +3,8 @@ set -euo pipefail
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
 version=$(awk -F'"' '/^version = "/ { print $2; exit }' "$repo_root/Cargo.toml")
-manifest="$repo_root/tests/unreal/p1.0-manifest.json"
-[[ -f "$manifest" ]] || { echo "P1.0 manifest missing" >&2; exit 1; }
+manifest="$repo_root/tests/unreal/p1.3-manifest.json"
+[[ -f "$manifest" ]] || { echo "P1.3 manifest missing" >&2; exit 1; }
 [[ -n $version ]] || { echo "Cargo package version missing" >&2; exit 1; }
 [[ $# == 1 && -f $1 ]] || { echo "usage: $0 ARTIFACT.tar.gz" >&2; exit 2; }
 artifact=$(cd "$(dirname "$1")" && pwd -P)/$(basename "$1")
@@ -128,7 +128,7 @@ index="$work/report/index.json"
 [[ -f "$index" ]] || { echo "automation report missing" >&2; exit 1; }
 jq -e --slurpfile manifest "$manifest" '.failed == 0 and .notRun == 0 and .inProcess == 0 and (.succeeded + .succeededWithWarnings) == ($manifest[0].automationTests | length) and (all(.tests[]; .state == "Success" and .errors == 0)) and ([.tests[].fullTestPath] | sort) == ($manifest[0].automationTests | sort)' "$index" >/dev/null
 cp "$index" "$evidence/automation-index.json"
-cp "$manifest" "$evidence/p1.0-manifest.json"
+cp "$manifest" "$evidence/p1.3-manifest.json"
 
 # Release binary owns editor lifecycle, read, mutation, explicit save, and restart persistence.
 axi --timeout 120 editor start >"$evidence/editor-start.json"
@@ -167,6 +167,6 @@ if grep -R -I -Fq -- "$token" "$evidence"; then
   exit 1
 fi
 
-printf 'target=UE 5.8.1 changelist 56057345 host=%s\nartifact=%s\nartifactSha256=%s\nsourceRevision=%s\nworkflowRun=%s\nhome=passed\nagents=claude-hook-codex-skill-opencode-skill-idempotent-context-under-400-bytes-isolated-home\nplugin=installed-matching-managed-uninstalled\neditor=health-read-mutation-save-stop-restart-persistence\nbuild=passed\nautomation=exact-p1.0-manifest-inventory-passed\ntokenScan=passed\ncleanInstall=checksum-allowlisted-archive-path-install-disposable-project-agent-config-isolation\n' "$(uname -m)" "$artifact" "$artifact_hash" "${GITHUB_SHA:-unavailable-no-git-metadata}" "${GITHUB_RUN_ID:-local}" | tee "$evidence/summary.txt"
+printf 'target=UE 5.8.1 changelist 56057345 host=%s\nartifact=%s\nartifactSha256=%s\nsourceRevision=%s\nworkflowRun=%s\nhome=passed\nagents=claude-hook-codex-skill-opencode-skill-idempotent-context-under-400-bytes-isolated-home\nplugin=installed-matching-managed-uninstalled\neditor=health-read-mutation-save-stop-restart-persistence\nbuild=passed\nautomation=exact-p1.3-27-test-manifest-inventory-passed\ntokenScan=passed\ncleanInstall=checksum-allowlisted-archive-path-install-disposable-project-agent-config-isolation\n' "$(uname -m)" "$artifact" "$artifact_hash" "${GITHUB_SHA:-unavailable-no-git-metadata}" "${GITHUB_RUN_ID:-local}" | tee "$evidence/summary.txt"
 printf '%s\n' "$evidence" >"$cache_root/latest"
 echo "M8 live certification: PASS (evidence retained at $evidence; agent config isolated from $real_home)"

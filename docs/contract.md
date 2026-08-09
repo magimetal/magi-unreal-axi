@@ -1,14 +1,14 @@
 # Contract evidence ledger
 
-Certified cell: UE 5.8.1, changelist `56057345`, macOS arm64. Support certification is complete through P1.2.
+Certified cell: UE 5.8.1, changelist `56057345`, macOS arm64. Support certification is complete through P1.3.
 
 ## Confirmed
 
 - Rust 2024 CLI emits TOON by default, strict JSON on request, structured exit 0/1/2 errors, recursive Unicode truncation, and bounded child output.
 - Plugin source is embedded in release binary. Setup and bridge lifecycle remain explicit, hash-managed, authenticated, loopback-only, project/session-bound, serial, and game-thread-dispatched.
-- Canonical catalog contains 48 records. Generated Rust/C++ hash is `fc2c7109093b848359b6307908ede3e5939389c301929394f916a0e0e00c2d60`; generation and every handshake enforce parity.
+- Canonical catalog contains 55 records. Generated Rust/C++ hash is `7cd513c54122e73b4c0b5faaf8f3669f89819584822e10602017e9f41f19e05b`; generation and every handshake enforce parity.
 - Catalog validation covers closed bounded schemas plus mutation idempotency, save behavior, allowed editor states, transaction behavior, reversibility, and required modules. Mutation receipts bind exact project/editor/operation/target identity and verify declared safety/persistence metadata with operation-specific readback.
-- P1.0 made generated catalog metadata authoritative for native mutation classification, preflight, receipt/readback routing, save-policy enforcement, tri-state capability availability, and startup fail-closed validation. P1.1 and P1.2 implement and certify bounded Blueprint authoring and reusable interaction operations.
+- P1.0 made generated catalog metadata authoritative for native mutation classification, preflight, receipt/readback routing, save-policy enforcement, tri-state capability availability, and startup fail-closed validation. P1.1–P1.3 implement and certify bounded Blueprint, SCS, interaction, and widget authoring/observation operations.
 - Failed Blueprint compile receipts are non-atomic and recoverable through live or offline `operation view`. Dirty invalid assets report changed objects, revisions, diagnostics, dirty packages, and no saved packages; already-invalid clean assets may truthfully report unchanged persistence.
 - M3 authenticates exact token/project/session/process/version, bounds frames/queue/deadlines, protects runtime files, removes discovery state, and does not disclose token.
 - M4 reads use stable canonical Unreal identities, deterministic projection-bound pagination, canonical revisions, and stale-cursor rejection.
@@ -18,9 +18,9 @@ Certified cell: UE 5.8.1, changelist `56057345`, macOS arm64. Support certificat
 - `play.input` response waits for next-tick `play.observe` readback and records accepted/before/after/changed evidence. PIE observation reports world/session/actor state. Stop is synchronous and verified stopped before success.
 - Screenshot output is confined to project screenshot directory, rejects path/symlink escape, validates rendered PNG signature/pixels, reports bounded dimensions, and never emits image bytes.
 - M7 release CLI proves exact side-effect-free pipeline previews, UBT pass/repeat normalization, deterministic automation listing, authoritative pass/zero-match reports, cook-only materialization from canonical `Saved/Cooked/Mac`, Blueprint-only packaged `.app` output, transactional managed destination replacement, structured build/cook/package failures, bounded logs, and durable local operation readback.
-- M8 proves preserving/idempotent Claude/Codex/OpenCode setup, compact Claude SessionStart context, representative agent jobs, checksum-bound allowlisted archive installation, ad-hoc codesign verification, current full 16/16 automation, save/restart persistence, and retained-evidence token non-disclosure. C++ source fixture is build/editor proof; Blueprint-only fixture is certified cook/package target.
+- M8 proves preserving/idempotent Claude/Codex/OpenCode setup, compact Claude SessionStart context, representative agent jobs, checksum-bound allowlisted archive installation, ad-hoc codesign verification, current full 27/27 automation, save/restart persistence, and retained-evidence token non-disclosure. C++ source fixture is build/editor proof; Blueprint-only fixture is certified cook/package target.
 - Agent setup uses selected `HOME` only for Claude settings/skill, Codex skill, and OpenCode skill installation. M8 clean-install certification isolates that configuration HOME, then restores actual macOS account HOME for Unreal lifecycle because Unreal resolves user settings/runtime paths through macOS account APIs.
-- Current Rust baseline is Rust 1.88 with 44 library tests, 5 xtask tests, and 44 real-binary integration tests = 93 tests.
+- Current Rust baseline is Rust 1.88 with 46 library tests, 5 xtask tests, and 44 real-binary integration tests = 95 tests.
 
 ## Evidence
 
@@ -34,18 +34,19 @@ Certified cell: UE 5.8.1, changelist `56057345`, macOS arm64. Support certificat
 - M6 native: `~/Library/Caches/magi-unreal-axi/m6/native/evidence.T25zpG`
 - M6 live: `~/Library/Caches/magi-unreal-axi/m6/live/evidence.m9J5dO`
 - M7 live: `~/Library/Caches/magi-unreal-axi/m7/live/evidence.Ekd7HQ`
-- M8 hardened exact-artifact clean install: `~/Library/Caches/magi-unreal-axi/m8/live/evidence.w517tz`
+- M8 hardened exact-artifact clean install: `~/Library/Caches/magi-unreal-axi/m8/live/evidence.8v8UFv`
 - M8 agent evaluation: `~/Library/Caches/magi-unreal-axi/m8/agent-evaluation/run.Gy9dcQ/evidence`
 - Post-fix 15/15 automation: `~/Library/Caches/magi-unreal-axi/read-fixture-fix.KGV2FR/evidence`
 - P1.0 native: `~/Library/Caches/magi-unreal-axi/p1.0/native/evidence.zLZ1or`
 - P1.0 live: `~/Library/Caches/magi-unreal-axi/p1.0/live/evidence.FRJY3A`
 - P1.1 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.1/native/evidence.CUX9X7`
 - P1.2 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.2/native/evidence.iY67AH` (outer gate evidence; live certification wrapped by native gate).
+- P1.3 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.3/native/evidence.1kyPg7` (27/27 automation, UI state loop, cook/package, IoStore, and Asset Registry).
 
 ## Remaining
 
 - M6–M8 have no acceptance unknowns for certified cell. Historical evaluated artifact hash remains distinct from release checksum in `SHA256SUMS`.
-- P1 remains active. P1.0–P1.2 are complete; P1.3–P1.6 remain not started.
+- P1 remains active. P1.0–P1.3 are complete; P1.4–P1.6 remain not started.
 
 ## N/A
 
@@ -77,5 +78,6 @@ cargo run --locked --bin xtask -- release check
 ./tests/unreal/certify-p1.0-live.sh
 ./tests/unreal/certify-p1.1.sh
 ./tests/unreal/certify-p1.2.sh
+./tests/unreal/certify-p1.3.sh
 ./tests/unreal/certify-m8-live.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
 ```

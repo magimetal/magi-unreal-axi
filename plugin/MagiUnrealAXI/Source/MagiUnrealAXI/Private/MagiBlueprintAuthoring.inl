@@ -463,10 +463,10 @@ FString P11AtomicResponse(const FString& Id, const FString& Response)
 FString P11FailedAtomicResponse(const FString& Id, const FString& Operation, const TSharedPtr<FJsonObject>& Args, const FString& RequestedTarget, const FString& BeforeRevision, const FString& ObservedRevision, const bool RollbackVerified, const TArray<TSharedPtr<FJsonValue>>& DirtyPackages, const TCHAR* Message)
 {
     const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(Operation);
-    FString Target = RequestedTarget, BlueprintId, GraphId, AgentKey, PinId, SourcePinId, TargetPinId, InterfaceId, Name, VariableGuid;
+    FString Target = RequestedTarget, BlueprintId, GraphId, AgentKey, PinId, SourcePinId, TargetPinId, InterfaceId, Name, VariableGuid, HostBlueprintId;
     if (Args.IsValid())
     {
-        Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("graphId"), GraphId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Args->TryGetStringField(TEXT("pinId"), PinId); Args->TryGetStringField(TEXT("sourcePinId"), SourcePinId); Args->TryGetStringField(TEXT("targetPinId"), TargetPinId); Args->TryGetStringField(TEXT("interfaceId"), InterfaceId); Args->TryGetStringField(TEXT("name"), Name); Args->TryGetStringField(TEXT("variableGuid"), VariableGuid);
+        Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("graphId"), GraphId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Args->TryGetStringField(TEXT("pinId"), PinId); Args->TryGetStringField(TEXT("sourcePinId"), SourcePinId); Args->TryGetStringField(TEXT("targetPinId"), TargetPinId); Args->TryGetStringField(TEXT("interfaceId"), InterfaceId); Args->TryGetStringField(TEXT("name"), Name); Args->TryGetStringField(TEXT("variableGuid"), VariableGuid); Args->TryGetStringField(TEXT("hostBlueprintId"), HostBlueprintId);
     }
     if (Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure")) Target = BlueprintId + TEXT("#") + GraphId + TEXT("#") + AgentKey;
     else if (Operation == TEXT("blueprint.pin_default_set")) Target = BlueprintId + TEXT("#") + PinId;
@@ -474,6 +474,12 @@ FString P11FailedAtomicResponse(const FString& Id, const FString& Operation, con
     else if (Operation == TEXT("blueprint.interface_ensure")) Target = BlueprintId + TEXT("#") + InterfaceId;
     else if (Operation == TEXT("blueprint.scs_component_ensure")) Target = BlueprintId + TEXT("#scs-name:") + Name;
     else if (Operation == TEXT("blueprint.scs_component_update") || Operation == TEXT("blueprint.scs_component_remove")) Target = BlueprintId + TEXT("#scs:") + VariableGuid;
+    else if (Operation == TEXT("widget.create")) { FString Path; if (Args.IsValid()) Args->TryGetStringField(TEXT("path"), Path); Target = Path + TEXT(".") + FPackageName::GetShortName(Path); }
+    else if (Operation == TEXT("widget.tree_view")) Target = BlueprintId;
+    else if (Operation == TEXT("widget.child_ensure")) Target = BlueprintId + TEXT("#") + BlueprintId + TEXT("#widget:") + Name;
+    else if (Operation == TEXT("widget.property_set")) { FString WidgetId, Property; if (Args.IsValid()) { Args->TryGetStringField(TEXT("widgetId"), WidgetId); Args->TryGetStringField(TEXT("property"), Property); } Target = BlueprintId + TEXT("#") + WidgetId + TEXT("#") + Property; }
+    else if (Operation == TEXT("widget.event_ensure")) Target = BlueprintId + TEXT("#") + BlueprintId + TEXT("#event:") + AgentKey;
+    else if (Operation == TEXT("widget.viewport_ensure")) Target = HostBlueprintId + TEXT("#viewport:") + AgentKey;
     const bool Verified = P11RollbackVerificationResult(RollbackVerified);
     const FString State = Verified ? TEXT("failed") : TEXT("outcome_unknown");
     const FString AbsentRevision = Sha256(Target + TEXT("\nabsent"));
@@ -488,6 +494,12 @@ FString P11FailedAtomicResponse(const FString& Id, const FString& Operation, con
     else if (Operation == TEXT("blueprint.scs_component_ensure")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("name"), TEXT("requestName")); Bind(TEXT("class"), TEXT("requestClass")); if (Args->HasField(TEXT("parent"))) Bind(TEXT("parent"), TEXT("requestParent")); else Verification->SetField(TEXT("requestParent"), MakeShared<FJsonValueNull>()); }
     else if (Operation == TEXT("blueprint.scs_component_update") || Operation == TEXT("blueprint.scs_component_remove")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("variableGuid"), TEXT("requestVariableGuid")); Bind(TEXT("location"), TEXT("requestLocation")); Bind(TEXT("rotation"), TEXT("requestRotation")); Bind(TEXT("scale"), TEXT("requestScale")); Bind(TEXT("collisionEnabled"), TEXT("requestCollisionEnabled")); Bind(TEXT("collisionProfile"), TEXT("requestCollisionProfile")); Bind(TEXT("generateOverlapEvents"), TEXT("requestGenerateOverlapEvents")); Bind(TEXT("simulatePhysics"), TEXT("requestSimulatePhysics")); Bind(TEXT("gravityEnabled"), TEXT("requestGravityEnabled")); Bind(TEXT("massOverride"), TEXT("requestMassOverride")); Bind(TEXT("boxExtent"), TEXT("requestBoxExtent")); Bind(TEXT("sphereRadius"), TEXT("requestSphereRadius")); Bind(TEXT("force"), TEXT("requestForce")); Bind(TEXT("dryRun"), TEXT("requestDryRun")); }
     else if (Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("graphId"), TEXT("requestGraphId")); Bind(TEXT("agentKey"), TEXT("requestAgentKey")); Bind(Operation == TEXT("blueprint.event_ensure") ? TEXT("event") : TEXT("node"), TEXT("requestIntent")); Bind(TEXT("variableGuid"), TEXT("requestVariableGuid")); Bind(TEXT("interfaceId"), TEXT("requestInterfaceId")); }
+    else if (Operation == TEXT("widget.create")) { Bind(TEXT("path"), TEXT("requestPath")); Bind(TEXT("rootName"), TEXT("requestRootName")); Bind(TEXT("rootClass"), TEXT("requestRootClass")); }
+    else if (Operation == TEXT("widget.tree_view")) Bind(TEXT("blueprintId"), TEXT("requestBlueprintId"));
+    else if (Operation == TEXT("widget.child_ensure")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("parentWidgetId"), TEXT("requestParentWidgetId")); Bind(TEXT("name"), TEXT("requestName")); Bind(TEXT("class"), TEXT("requestClass")); }
+    else if (Operation == TEXT("widget.property_set")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("widgetId"), TEXT("requestWidgetId")); Bind(TEXT("property"), TEXT("requestProperty")); Bind(TEXT("text"), TEXT("requestText")); Bind(TEXT("visibility"), TEXT("requestVisibility")); Bind(TEXT("enabled"), TEXT("requestEnabled")); }
+    else if (Operation == TEXT("widget.viewport_ensure")) { Bind(TEXT("hostBlueprintId"), TEXT("requestHostBlueprintId")); Bind(TEXT("widgetBlueprintId"), TEXT("requestWidgetBlueprintId")); Bind(TEXT("agentKey"), TEXT("requestAgentKey")); Bind(TEXT("inputKey"), TEXT("requestInputKey")); Bind(TEXT("zOrder"), TEXT("requestZOrder")); }
+    else if (Operation == TEXT("widget.event_ensure")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("agentKey"), TEXT("requestAgentKey")); Bind(TEXT("event"), TEXT("requestIntent")); Bind(TEXT("actions"), TEXT("requestActions")); }
     else if (Operation == TEXT("blueprint.pin_default_set")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("pinId"), TEXT("requestPinId")); const TSharedPtr<FJsonObject>* Value = nullptr; FString Type; double Number = 0; Args->TryGetObjectField(TEXT("value"), Value); if (Value && (*Value)->TryGetStringField(TEXT("type"), Type) && (*Value)->TryGetNumberField(TEXT("value"), Number)) { Verification->SetStringField(TEXT("requestValueType"), Type); Verification->SetNumberField(TEXT("requestValue"), Number); } }
     else if (Operation == TEXT("blueprint.pin_connect")) { Bind(TEXT("blueprintId"), TEXT("requestBlueprintId")); Bind(TEXT("sourcePinId"), TEXT("requestSourcePinId")); Bind(TEXT("targetPinId"), TEXT("requestTargetPinId")); }
     const TSharedRef<FJsonObject> Receipt = MakeShared<FJsonObject>(); Receipt->SetStringField(TEXT("operationId"), Id); Receipt->SetStringField(TEXT("operation"), Operation); Receipt->SetStringField(TEXT("state"), State); Receipt->SetStringField(TEXT("projectId"), ProjectId); Receipt->SetNumberField(TEXT("editorPid"), FPlatformProcess::GetCurrentProcessId()); Receipt->SetStringField(TEXT("target"), Target); Receipt->SetBoolField(TEXT("changed"), Changed); Receipt->SetStringField(TEXT("transaction"), Metadata ? Metadata->TransactionBehavior : TEXT("atomic")); Receipt->SetStringField(TEXT("reversibility"), Metadata ? Metadata->Reversibility : TEXT("source-control")); Receipt->SetArrayField(TEXT("dirtyPackages"), DirtyPackages); Receipt->SetArrayField(TEXT("savedPackages"), {}); Receipt->SetStringField(TEXT("revision"), Observed); Receipt->SetStringField(TEXT("persistence"), DirtyPackages.IsEmpty() ? TEXT("unchanged") : TEXT("dirty")); Receipt->SetObjectField(TEXT("verification"), Verification);
@@ -895,7 +907,7 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
         }
         else if (!RequestVariableGuid.IsEmpty() || !RequestInterfaceId.IsEmpty()) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("identity fields do not apply to requested graph intent"));
         const FGuid WantedGuid = P11DeterministicGuid(*Blueprint, *Graph, AgentKey);
-        if (!WantedGuid.IsValid()) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("natural-key GUID derivation failed"));
+        if (!WantedGuid.IsValid()) return ErrorResponse(Id, TEXT("unsupported"), TEXT("natural-key GUID derivation failed"));
         for (UEdGraph* CandidateGraph : Blueprint->UbergraphPages)
             for (UEdGraphNode* Existing : CandidateGraph ? CandidateGraph->Nodes : TArray<TObjectPtr<UEdGraphNode>>{})
                 if (Existing && Existing->NodeGuid == WantedGuid)
@@ -975,7 +987,7 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
                 ? FindFProperty<FObjectProperty>(Blueprint->SkeletonGeneratedClass, BoundSCSNode->GetVariableName()) : nullptr;
             FMulticastDelegateProperty* DelegateProperty = BoundSCSNode && BoundSCSNode->ComponentClass
                 ? FindFProperty<FMulticastDelegateProperty>(BoundSCSNode->ComponentClass, GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, OnComponentBeginOverlap)) : nullptr;
-            if (!ComponentProperty || !DelegateProperty) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("compile Blueprint after SCS authoring before adding component overlap event"));
+            if (!ComponentProperty || !DelegateProperty) return ErrorResponse(Id, TEXT("conflict"), TEXT("compile Blueprint after SCS authoring before adding component overlap event"));
             UK2Node_ComponentBoundEvent* Event = NewObject<UK2Node_ComponentBoundEvent>(Graph, NAME_None, RF_Transactional);
             Event->InitializeComponentBoundEventParams(ComponentProperty, DelegateProperty);
             Event->NodePosX = -700; Event->NodePosY = 520;

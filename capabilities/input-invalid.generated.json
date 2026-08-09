@@ -874,5 +874,106 @@
       "id": "x",
       "unknown": true
     }
+  },
+  {
+    "operation": "play.ui_observe",
+    "case": "input-root-not-closed",
+    "args": {
+      "sessionId": "x",
+      "widgetBlueprintId": "x",
+      "widgetIds": [
+        "x"
+      ],
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.create",
+    "case": "input-root-not-closed",
+    "args": {
+      "path": "x",
+      "rootName": "x",
+      "rootClass": "VerticalBox",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.tree_view",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.child_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "parentWidgetId": "x",
+      "name": "x",
+      "class": "TextBlock",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.property_set",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "widgetId": "x",
+      "property": "text",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.event_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "agentKey": "x",
+      "event": "activate",
+      "actions": [
+        {
+          "kind": "text.set",
+          "targetWidgetId": "x"
+        }
+      ],
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.viewport_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "hostBlueprintId": "x",
+      "widgetBlueprintId": "x",
+      "agentKey": "x",
+      "inputKey": "E",
+      "zOrder": 0,
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.viewport_ensure",
+    "case": "numeric-below-minimum@zOrder",
+    "args": {
+      "hostBlueprintId": "x",
+      "widgetBlueprintId": "x",
+      "agentKey": "x",
+      "inputKey": "E",
+      "zOrder": -1
+    }
+  },
+  {
+    "operation": "widget.viewport_ensure",
+    "case": "numeric-above-maximum@zOrder",
+    "args": {
+      "hostBlueprintId": "x",
+      "widgetBlueprintId": "x",
+      "agentKey": "x",
+      "inputKey": "E",
+      "zOrder": 1
+    }
   }
 ]

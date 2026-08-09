@@ -1,0 +1,37 @@
+{
+  "phase": "P1.3",
+  "engine": {"version": "5.8.1", "changelist": 56057345, "hostArchitecture": "arm64"},
+  "catalog": {"count": 55, "sha256": "7cd513c54122e73b4c0b5faaf8f3669f89819584822e10602017e9f41f19e05b"},
+  "plugin": {"binary": "libUnrealEditor-MagiUnrealAXI.dylib", "requiredArchitectures": ["arm64", "x86_64"], "sourceRoot": "plugin/MagiUnrealAXI/Source"},
+  "cli": {"binary": "target/release/magi-unreal-axi"},
+  "fixture": {
+    "name": "ui-state-loop",
+    "widgetBlueprints": 1,
+    "hostBlueprints": 1,
+    "widgetPath": "/Game/MagiP13/WBP_UIState",
+    "hostPath": "/Game/MagiP13/BP_UIStateHost",
+    "level": "/Game/MagiP13/P13UIState",
+    "agentKey": "p13.ui-state",
+    "root": {"name": "StateRoot", "class": "VerticalBox"},
+    "text": {"name": "StateText", "class": "TextBlock", "ready": "READY", "active": "ACTIVE"},
+    "inputKey": "E",
+    "zOrder": 0
+  },
+  "limits": {"widgetCount": 2, "screenshotWidthMax": 16384, "screenshotHeightMax": 16384},
+  "p12RegressionTests": [
+    "MagiUnrealAXI.Bridge.AdversarialFrames", "MagiUnrealAXI.Bridge.Authentication", "MagiUnrealAXI.Bridge.AuthenticationLimit", "MagiUnrealAXI.Bridge.QueueBounds", "MagiUnrealAXI.Bridge.ResponseIdentity", "MagiUnrealAXI.LiveFixture.DirtyPackage", "MagiUnrealAXI.LiveFixture.ReadData", "MagiUnrealAXI.M6.BlueprintDiagnosticsContract", "MagiUnrealAXI.M6.ComponentWorldSettingsContracts", "MagiUnrealAXI.M6.PlayReceiptContracts", "MagiUnrealAXI.Mutation.ActorUpdateDelete", "MagiUnrealAXI.Mutation.LevelOperations", "MagiUnrealAXI.Mutation.UnsafeStates", "MagiUnrealAXI.Read.CatalogContract", "MagiUnrealAXI.Read.PaginationContract", "MagiUnrealAXI.Runtime.GeneratedMetadataAndIdentity", "MagiUnrealAXI.P11.BlueprintConstructionKernel", "MagiUnrealAXI.P11.RevisionBudgetHelpers", "MagiUnrealAXI.Protocol.CanonicalCursorParser", "MagiUnrealAXI.P12.SCSContracts", "MagiUnrealAXI.P12.InterfaceContracts", "MagiUnrealAXI.P12.ComponentObservation"
+  ],
+  "nativeTests": ["MagiUnrealAXI.P13.WidgetCoreContracts", "MagiUnrealAXI.P13.WidgetCoreRollback", "MagiUnrealAXI.P13.WidgetEventContracts", "MagiUnrealAXI.P13.WidgetViewportContracts", "MagiUnrealAXI.P13.UiObserveContracts"],
+  "automationTests": [
+    "MagiUnrealAXI.Bridge.AdversarialFrames", "MagiUnrealAXI.Bridge.Authentication", "MagiUnrealAXI.Bridge.AuthenticationLimit", "MagiUnrealAXI.Bridge.QueueBounds", "MagiUnrealAXI.Bridge.ResponseIdentity", "MagiUnrealAXI.LiveFixture.DirtyPackage", "MagiUnrealAXI.LiveFixture.ReadData", "MagiUnrealAXI.M6.BlueprintDiagnosticsContract", "MagiUnrealAXI.M6.ComponentWorldSettingsContracts", "MagiUnrealAXI.M6.PlayReceiptContracts", "MagiUnrealAXI.Mutation.ActorUpdateDelete", "MagiUnrealAXI.Mutation.LevelOperations", "MagiUnrealAXI.Mutation.UnsafeStates", "MagiUnrealAXI.Read.CatalogContract", "MagiUnrealAXI.Read.PaginationContract", "MagiUnrealAXI.Runtime.GeneratedMetadataAndIdentity", "MagiUnrealAXI.P11.BlueprintConstructionKernel", "MagiUnrealAXI.P11.RevisionBudgetHelpers", "MagiUnrealAXI.Protocol.CanonicalCursorParser", "MagiUnrealAXI.P12.SCSContracts", "MagiUnrealAXI.P12.InterfaceContracts", "MagiUnrealAXI.P12.ComponentObservation", "MagiUnrealAXI.P13.WidgetCoreContracts", "MagiUnrealAXI.P13.WidgetCoreRollback", "MagiUnrealAXI.P13.WidgetEventContracts", "MagiUnrealAXI.P13.WidgetViewportContracts", "MagiUnrealAXI.P13.UiObserveContracts"
+  ],
+  "liveAssertions": ["author-widget-tree", "state-root-vertical-box-state-text-ready", "author-host-viewport-input-forwarding", "compile-save-restart", "invalid-intent-no-partial-mutation", "two-pie-ready-e-active-reset", "screenshot-capture-sandwich", "blueprint-only-cook-package"],
+  "pipeline": {"blueprintOnly": true, "compileAllBlueprints": true, "cook": true, "package": true},
+  "packageAssertions": {
+    "contentRoot": "MagiP13",
+    "widget": {"file": "MagiP13/WBP_UIState.uasset", "object": "/Game/MagiP13/WBP_UIState.WBP_UIState", "generatedRuntime": "WBP_UIState_C"},
+    "host": {"file": "MagiP13/BP_UIStateHost.uasset", "object": "/Game/MagiP13/BP_UIStateHost.BP_UIStateHost", "generatedRuntime": "BP_UIStateHost_C"},
+    "map": "MagiP13/P13UIState.umap",
+    "mapPackage": "/Game/MagiP13/P13UIState"
+  }
+}

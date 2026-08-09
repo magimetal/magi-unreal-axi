@@ -3726,6 +3726,415 @@
     }
   },
   {
+    "operation": "operation.view",
+    "case": "numeric-below-minimum@verification.requestZOrder",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestZOrder": -1
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-above-maximum@verification.requestZOrder",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestZOrder": 1
+      }
+    }
+  },
+  {
+    "operation": "play.ui_observe",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "play.ui_observe",
+    "case": "root-not-closed",
+    "result": {
+      "sessionId": "x",
+      "widgetBlueprintId": "x",
+      "instanceId": "x",
+      "inViewport": false,
+      "widgets": [
+        {
+          "widgetId": "x",
+          "name": "x",
+          "class": "VerticalBox",
+          "text": null,
+          "visibility": "Visible",
+          "enabled": false
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.create",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "widget.create",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "generatedClass": "x",
+      "rootWidgetId": "x",
+      "rootName": "x",
+      "rootClass": "VerticalBox",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.tree_view",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "widget.tree_view",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "generatedClass": "x",
+      "rootWidgetId": "x",
+      "count": 1,
+      "total": 1,
+      "scope": "x",
+      "widgets": [
+        {
+          "widgetId": "x",
+          "name": "x",
+          "class": "VerticalBox",
+          "parentWidgetId": null,
+          "index": 0,
+          "text": null,
+          "visibility": "Visible",
+          "enabled": false
+        }
+      ],
+      "events": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.tree_view",
+    "case": "numeric-below-minimum@count",
+    "result": {
+      "blueprintId": "x",
+      "generatedClass": "x",
+      "rootWidgetId": "x",
+      "count": 0,
+      "total": 1,
+      "scope": "x",
+      "widgets": [
+        {
+          "widgetId": "x",
+          "name": "x",
+          "class": "VerticalBox",
+          "parentWidgetId": null,
+          "index": 0,
+          "text": null,
+          "visibility": "Visible",
+          "enabled": false
+        }
+      ],
+      "events": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "widget.tree_view",
+    "case": "numeric-above-maximum@count",
+    "result": {
+      "blueprintId": "x",
+      "generatedClass": "x",
+      "rootWidgetId": "x",
+      "count": 101,
+      "total": 1,
+      "scope": "x",
+      "widgets": [
+        {
+          "widgetId": "x",
+          "name": "x",
+          "class": "VerticalBox",
+          "parentWidgetId": null,
+          "index": 0,
+          "text": null,
+          "visibility": "Visible",
+          "enabled": false
+        }
+      ],
+      "events": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "widget.tree_view",
+    "case": "numeric-below-minimum@total",
+    "result": {
+      "blueprintId": "x",
+      "generatedClass": "x",
+      "rootWidgetId": "x",
+      "count": 1,
+      "total": 0,
+      "scope": "x",
+      "widgets": [
+        {
+          "widgetId": "x",
+          "name": "x",
+          "class": "VerticalBox",
+          "parentWidgetId": null,
+          "index": 0,
+          "text": null,
+          "visibility": "Visible",
+          "enabled": false
+        }
+      ],
+      "events": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "widget.tree_view",
+    "case": "numeric-above-maximum@total",
+    "result": {
+      "blueprintId": "x",
+      "generatedClass": "x",
+      "rootWidgetId": "x",
+      "count": 1,
+      "total": 101,
+      "scope": "x",
+      "widgets": [
+        {
+          "widgetId": "x",
+          "name": "x",
+          "class": "VerticalBox",
+          "parentWidgetId": null,
+          "index": 0,
+          "text": null,
+          "visibility": "Visible",
+          "enabled": false
+        }
+      ],
+      "events": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "widget.tree_view",
+    "case": "numeric-below-minimum@widgets.0.index",
+    "result": {
+      "blueprintId": "x",
+      "generatedClass": "x",
+      "rootWidgetId": "x",
+      "count": 1,
+      "total": 1,
+      "scope": "x",
+      "widgets": [
+        {
+          "widgetId": "x",
+          "name": "x",
+          "class": "VerticalBox",
+          "parentWidgetId": null,
+          "index": -1,
+          "text": null,
+          "visibility": "Visible",
+          "enabled": false
+        }
+      ],
+      "events": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "widget.tree_view",
+    "case": "numeric-above-maximum@widgets.0.index",
+    "result": {
+      "blueprintId": "x",
+      "generatedClass": "x",
+      "rootWidgetId": "x",
+      "count": 1,
+      "total": 1,
+      "scope": "x",
+      "widgets": [
+        {
+          "widgetId": "x",
+          "name": "x",
+          "class": "VerticalBox",
+          "parentWidgetId": null,
+          "index": 100,
+          "text": null,
+          "visibility": "Visible",
+          "enabled": false
+        }
+      ],
+      "events": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "widget.child_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "widget.child_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "widgetId": "x",
+      "parentWidgetId": "x",
+      "name": "x",
+      "class": "TextBlock",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.property_set",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "widget.property_set",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "widgetId": "x",
+      "property": "text",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.event_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "widget.event_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "eventId": "x",
+      "agentKey": "x",
+      "event": "activate",
+      "actions": [
+        {
+          "kind": "text.set",
+          "targetWidgetId": "x"
+        }
+      ],
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.viewport_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "widget.viewport_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "hostBlueprintId": "x",
+      "widgetBlueprintId": "x",
+      "viewportId": "x",
+      "graphId": "x",
+      "inputKey": "E",
+      "zOrder": 0,
+      "widgetRevision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "widget.viewport_ensure",
+    "case": "numeric-below-minimum@zOrder",
+    "result": {
+      "hostBlueprintId": "x",
+      "widgetBlueprintId": "x",
+      "viewportId": "x",
+      "graphId": "x",
+      "inputKey": "E",
+      "zOrder": -1,
+      "widgetRevision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "widget.viewport_ensure",
+    "case": "numeric-above-maximum@zOrder",
+    "result": {
+      "hostBlueprintId": "x",
+      "widgetBlueprintId": "x",
+      "viewportId": "x",
+      "graphId": "x",
+      "inputKey": "E",
+      "zOrder": 1,
+      "widgetRevision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
     "operation": "actor.list",
     "case": "missing-list-id",
     "result": {

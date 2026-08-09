@@ -1,6 +1,6 @@
 # Verification status
 
-Certified cell: Unreal Engine 5.8.1, changelist `56057345`, macOS arm64. M7 independent review: CLEAN. M8 hardened exact-artifact gate: PASS.
+Certified cell: Unreal Engine 5.8.1, changelist `56057345`, macOS arm64. M7 independent review: CLEAN. M8 hardened exact-artifact gate: PASS. P1.3 integrated gate: PASS.
 
 ## Successful gates
 
@@ -27,11 +27,12 @@ cargo run --locked --bin xtask -- release check
 ./tests/unreal/certify-p1.1.sh
 ./tests/unreal/certify-p1.2.sh
 ./tests/unreal/certify-m8-live.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
+./tests/unreal/certify-p1.3.sh
 ```
 
-Rust gate: 44 library tests, 5 xtask tests, and 44 real-binary integration tests = 93 tests (`cargo test --all-targets --all-features --locked`, verified locally). Catalog check validates 48 records, generated static Rust/C++ schemas and registries, mutation safety metadata, semantic receipt bindings, and hash `fc2c7109093b848359b6307908ede3e5939389c301929394f916a0e0e00c2d60`.
+Rust gate: 46 library tests, 5 xtask tests, and 44 real-binary integration tests = 95 tests (`cargo test --all-targets --all-features --locked`, verified locally). Catalog check validates 55 records, generated static Rust/C++ schemas and registries, mutation safety metadata, semantic receipt bindings, and hash `7cd513c54122e73b4c0b5faaf8f3669f89819584822e10602017e9f41f19e05b`.
 
-P1.0/P1.1 native/live certification and M8 exact-artifact regression remain historical passes. P1 remains active; P1.2 integrated native/live certification passes exact 22/22 Unreal automation, interface/two-Blueprint/nested-SCS/overlap/interaction/two-PIE reset, and Blueprint-only compile/cook/package gates. P1.3–P1.6 remain not started.
+P1.0/P1.1 native/live certification and M8 exact-artifact regression remain historical passes. P1 remains active; P1.2 and P1.3 integrated certification pass exact 22-test regression plus 5 P1.3 tests, live UI state, and Blueprint-only compile/cook/package gates. P1.4–P1.6 remain not started.
 
 ## Evidence paths
 
@@ -45,25 +46,30 @@ P1.0/P1.1 native/live certification and M8 exact-artifact regression remain hist
 - M6 native: `~/Library/Caches/magi-unreal-axi/m6/native/evidence.T25zpG`
 - M6 live: `~/Library/Caches/magi-unreal-axi/m6/live/evidence.m9J5dO`
 - M7 live: `~/Library/Caches/magi-unreal-axi/m7/live/evidence.Ekd7HQ`
-- M8 hardened exact-archive clean install: `~/Library/Caches/magi-unreal-axi/m8/live/evidence.w517tz`
+- M8 hardened exact-archive clean install: `~/Library/Caches/magi-unreal-axi/m8/live/evidence.8v8UFv`
 - M8 agent evaluation: `~/Library/Caches/magi-unreal-axi/m8/agent-evaluation/run.Gy9dcQ/evidence`
 - Post-fix full automation: `~/Library/Caches/magi-unreal-axi/read-fixture-fix.KGV2FR/evidence`
 - P1.0 native: `~/Library/Caches/magi-unreal-axi/p1.0/native/evidence.zLZ1or`
 - P1.0 live: `~/Library/Caches/magi-unreal-axi/p1.0/live/evidence.FRJY3A`
 - P1.1 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.1/native/evidence.CUX9X7`
 - P1.2 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.2/native/evidence.iY67AH`
+- P1.3 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.3/native/evidence.1kyPg7`
 
 ## P1.0 certification
 
 Dedicated native certification packages the plugin, builds the source fixture, runs `CompileAllBlueprints`, and passes all 16 Unreal automation tests. Generated catalog/runtime metadata, identity validity, save-policy enforcement, lifecycle registration, and token-file absence are bound to catalog hash `8f947b51381647334ccbb35b99ab3f15c4cb50d779e90737dc7a0a414f0390a6`.
 
-Dedicated live certification proves native availability while editor is live, offline `unknown/editor_offline`, non-atomic dirty failed-compile receipt semantics, exact live/offline `operation view` recovery, restart-preserved invalid structure/revision, and retained-evidence token absence. Refreshed M8 certification binds archive SHA-256 `4be0341503bf63cc8ea7ed928f4cd3864764ad16a4608b08c59f626243c16424` and exact 16-test inventory to clean-install lifecycle evidence.
+Dedicated live certification proves native availability while editor is live, offline `unknown/editor_offline`, non-atomic dirty failed-compile receipt semantics, exact live/offline `operation view` recovery, restart-preserved invalid structure/revision, and retained-evidence token absence. Refreshed M8 certification binds archive SHA-256 `663fe3e1db383c1b1d021de34398ff5f1af653292d15df801b6c3b583b10720f` and exact 27-test inventory to clean-install lifecycle evidence.
 
 P1.0 and P1.1 acceptance are complete. P1.1 certifies six bounded Blueprint authoring operations through 19/19 Unreal automation, compile/build, Blueprint-only cook/package, restart/idempotency/invalid matrices, PIE behavior, source provenance, and token scans.
 
 ## P1.2 certification
 
 P1.2 adds exactly eight capabilities: `blueprint.interface_create`, `blueprint.interface_view`, `blueprint.interface_ensure`, `blueprint.scs_view`, `blueprint.scs_component_ensure`, `blueprint.scs_component_update`, `blueprint.scs_component_remove`, and `play.component_observe`. Native and live gates prove Blueprint-only `CompileAllBlueprints`, cook/package, registry/generated classes, IoStore, inventory, receipt, and token checks. Evidence: `~/Library/Caches/magi-unreal-axi/p1.2/native/evidence.iY67AH`.
+
+## P1.3 certification
+
+P1.3 adds exactly seven capabilities: `widget.create`, `widget.tree_view`, `widget.child_ensure`, `widget.property_set`, `widget.event_ensure`, `widget.viewport_ensure`, and `play.ui_observe`. Integrated gate passes 27/27 Unreal automation, two-session `READY` → `ACTIVE` structured observation/reset, stale-session rejection, content-hashed confined screenshots with stable within-session dimensions, C0/C1 control-character and ancestor-symlink rejection, restart/no-op/invalid-input checks, universal plugin build, and Blueprint-only IoStore/Asset Registry/package verification. Evidence: `~/Library/Caches/magi-unreal-axi/p1.3/native/evidence.1kyPg7`.
 
 ## M3–M5 regression status
 
@@ -103,11 +109,11 @@ Cook copies a bounded, symlink-safe inventory from canonical project `Saved/Cook
 
 Evidence: `~/Library/Caches/magi-unreal-axi/m7/live/evidence.Ekd7HQ`.
 
-M7 acceptance is complete. UE 5.8.1/macOS arm64 support is certified through P1.2.
+M7 acceptance is complete. UE 5.8.1/macOS arm64 support is certified through P1.3.
 
 ## M8 certification
 
-`~/Library/Caches/magi-unreal-axi/m8/live/evidence.w517tz` contains current retained hardened exact-artifact evidence. Gate binds archive SHA-256 `4be0341503bf63cc8ea7ed928f4cd3864764ad16a4608b08c59f626243c16424` to adjacent `SHA256SUMS`, allowlists complete inventory and rejects links/path traversal, verifies macOS arm64 and ad-hoc codesign, proves isolated-HOME agent setup, installs matching managed plugin, runs project build plus exact 16/16 `MagiUnrealAXI` automation inventory, completes editor health/read/mutation/save/restart persistence, safely uninstalls plugin, records artifact/source/workflow identity, retains authoritative automation report/manifest evidence, and proves retained evidence excludes captured bridge token.
+`~/Library/Caches/magi-unreal-axi/m8/live/evidence.8v8UFv` contains current retained hardened exact-artifact evidence. Gate binds archive SHA-256 `663fe3e1db383c1b1d021de34398ff5f1af653292d15df801b6c3b583b10720f` to adjacent `SHA256SUMS`, allowlists complete inventory and rejects links/path traversal, verifies macOS arm64 and ad-hoc codesign, proves isolated-HOME agent setup, installs matching managed plugin, runs project build plus exact 27/27 `MagiUnrealAXI` automation inventory, completes editor health/read/mutation/save/restart persistence, safely uninstalls plugin, records artifact/source/workflow identity, retains authoritative automation report/manifest evidence, and proves retained evidence excludes captured bridge token.
 
 After concrete `UInputAction` fixture correction, source fixture built and full MagiUnrealAXI automation passed 15/15 with zero warnings/errors at `~/Library/Caches/magi-unreal-axi/read-fixture-fix.KGV2FR/evidence`. This is build/editor automation proof, not source game-target package proof.
 

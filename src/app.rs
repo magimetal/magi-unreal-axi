@@ -670,6 +670,10 @@ fn execute_capability_with_options(
             | "blueprint.interface_ensure"
             | "blueprint.scs_component_ensure"
             | "blueprint.scs_component_update"
+            | "widget.child_ensure"
+            | "widget.property_set"
+            | "widget.event_ensure"
+            | "widget.viewport_ensure"
     ) && options.expected_revision.is_none()
     {
         return Err(AppError::usage(

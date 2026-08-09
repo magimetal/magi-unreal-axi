@@ -58,12 +58,12 @@ Current gaps that must be addressed before graph authoring expands:
 | P1.0 | done | Catalog-driven native safety and stable authoring identities | V1 regression fixture |
 | P1.1 | done | Ordinary Blueprint creation and bounded K2 graph authoring | `interaction-loop` foundation |
 | P1.2 | done | Reusable interaction, SCS components, collision, and physics | `interaction-loop` complete |
-| P1.3 | not-started | Widget-driven runtime state | `ui-state-loop` |
+| P1.3 | done | Widget-driven runtime state | `ui-state-loop` |
 | P1.4 | not-started | NavMesh, AI Controller, Blackboard, and Behavior Tree | `ai-navigation-loop` |
 | P1.5 | not-started | Basic Animation Blueprint state machine | `animation-state-loop` |
 | P1.6 | not-started | Combined P1 agent evaluation and exact-artifact certification | all P1 fixtures |
 
-Phases execute in order. P1.1–P1.5 are independently release-capable once their promotion gate passes. P1.0–P1.2 are complete; P1.3–P1.6 remain not started. P1 remains active until P1.6 passes.
+Phases execute in order. P1.1–P1.5 are independently release-capable once their promotion gate passes. P1.0–P1.3 are complete; P1.4–P1.6 remain not started. P1 remains active until P1.6 passes.
 
 ## 5. Universal capability promotion gate
 
@@ -110,8 +110,8 @@ Make catalog authoritative for native safety before adding mutation operations.
 - Every existing catalogued mutation consumes generated safety metadata without unintended external behavior changes.
 - Every generated safety field, including `destructive` and `idempotency`, has runtime parity coverage; catalog/runtime disagreement fails build or startup closed.
 - No catalogued capability lacks handler/output validation, and no mutation lacks declared receipt/readback routing. `blueprint.compile` metadata and failed receipts truthfully report preserved dirty state as non-atomic. Non-catalogued lifecycle operations remain explicitly registered and tested.
-- Current 44 library, 5 xtask, and 44 real-binary integration tests pass with contract-preserving updates.
-- Full Unreal automation passes exact 22/22 for P1.2.
+- Current 46 library, 5 xtask, and 44 real-binary integration tests pass with contract-preserving updates.
+- Full Unreal automation passes exact 22/22 P1.2 regression plus 5 P1.3 tests.
 - M8 exact-artifact lifecycle remains green after version generalization.
 - Invalid dirty Blueprint compile test proves catalog metadata, error receipt/recovery, observed revision and dirty packages, and absence of false atomic rollback/persistence claims.
 

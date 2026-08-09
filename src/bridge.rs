@@ -98,7 +98,7 @@ struct OperationResponse {
     operation_id: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct BridgeOperationError {
     #[serde(rename = "type")]
@@ -681,6 +681,11 @@ fn exchange_selected_args(
             | "blueprint.node_ensure"
             | "blueprint.pin_default_set"
             | "blueprint.pin_connect"
+            | "widget.create"
+            | "widget.child_ensure"
+            | "widget.property_set"
+            | "widget.event_ensure"
+            | "widget.viewport_ensure"
     ) && matches!(error.kind.as_str(), "operation_failed" | "outcome_unknown")
     {
         let receipt = response
@@ -795,11 +800,53 @@ fn validate_failed_atomic_receipt(
     let target = match operation {
         "blueprint.create" => {
             let path = args["path"].as_str().ok_or_else(|| outcome_unknown(id))?;
-            format!(
-                "{path}.{name}",
-                name = path.rsplit('/').next().unwrap_or_default()
-            )
+            format!("{path}.{}", path.rsplit('/').next().unwrap_or_default())
         }
+        "widget.create" => {
+            let path = args["path"].as_str().ok_or_else(|| outcome_unknown(id))?;
+            format!("{path}.{}", path.rsplit('/').next().unwrap_or_default())
+        }
+        "widget.child_ensure" => {
+            let blueprint = args["blueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?;
+            let name = args["name"].as_str().ok_or_else(|| outcome_unknown(id))?;
+            format!("{blueprint}#{blueprint}#widget:{name}")
+        }
+        "widget.property_set" => format!(
+            "{}#{}#{}",
+            args["blueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["widgetId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["property"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?
+        ),
+        "widget.event_ensure" => {
+            let blueprint = args["blueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?;
+            let agent = args["agentKey"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?;
+            format!("{blueprint}#{blueprint}#event:{agent}")
+        }
+        "widget.viewport_ensure" => format!(
+            "{}#viewport:{}",
+            args["hostBlueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["agentKey"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?
+        ),
+        "widget.tree_view" => args["blueprintId"]
+            .as_str()
+            .ok_or_else(|| outcome_unknown(id))?
+            .to_owned(),
         "blueprint.event_ensure" | "blueprint.node_ensure" => format!(
             "{}#{}#{}",
             args["blueprintId"]
@@ -874,9 +921,16 @@ fn validate_failed_atomic_receipt(
         .ok_or_else(|| outcome_unknown(id))?;
     let unknown = error.kind == "outcome_unknown";
     let valid = capability::canonical_revision;
+    let absent_revision = format!("{:x}", Sha256::digest(format!("{target}\nabsent")));
     let expected_before = if matches!(operation, "blueprint.create" | "blueprint.interface_create")
     {
-        format!("{:x}", Sha256::digest(format!("{target}\nabsent")))
+        absent_revision.clone()
+    } else if operation == "widget.create" {
+        if before == absent_revision || (before == observed && !receipt.changed) {
+            before.to_owned()
+        } else {
+            return Err(outcome_unknown(id));
+        }
     } else {
         options
             .expected_revision
@@ -1011,6 +1065,48 @@ fn validate_failed_atomic_receipt(
     {
         return Err(outcome_unknown(id));
     }
+    if operation == "widget.create"
+        && (verification["requestPath"] != args["path"]
+            || verification["requestRootName"] != args["rootName"]
+            || verification["requestRootClass"] != args["rootClass"])
+    {
+        return Err(outcome_unknown(id));
+    }
+    if operation == "widget.child_ensure"
+        && (verification["requestBlueprintId"] != args["blueprintId"]
+            || verification["requestParentWidgetId"] != args["parentWidgetId"]
+            || verification["requestName"] != args["name"]
+            || verification["requestClass"] != args["class"])
+    {
+        return Err(outcome_unknown(id));
+    }
+    if operation == "widget.property_set"
+        && (verification["requestBlueprintId"] != args["blueprintId"]
+            || verification["requestWidgetId"] != args["widgetId"]
+            || verification["requestProperty"] != args["property"]
+            || verification.get("requestText") != args.get("text")
+            || verification.get("requestVisibility") != args.get("visibility")
+            || verification.get("requestEnabled") != args.get("enabled"))
+    {
+        return Err(outcome_unknown(id));
+    }
+    if operation == "widget.event_ensure"
+        && (verification["requestBlueprintId"] != args["blueprintId"]
+            || verification["requestAgentKey"] != args["agentKey"]
+            || verification["requestIntent"] != args["event"]
+            || verification["requestActions"] != args["actions"])
+    {
+        return Err(outcome_unknown(id));
+    }
+    if operation == "widget.viewport_ensure"
+        && (verification["requestHostBlueprintId"] != args["hostBlueprintId"]
+            || verification["requestWidgetBlueprintId"] != args["widgetBlueprintId"]
+            || verification["requestAgentKey"] != args["agentKey"]
+            || verification["requestInputKey"] != args["inputKey"]
+            || verification["requestZOrder"] != args["zOrder"])
+    {
+        return Err(outcome_unknown(id));
+    }
     Ok(())
 }
 
@@ -1141,6 +1237,7 @@ fn validate_receipt_with_replay(
         .and_then(Value::as_bool)
         .ok_or_else(|| outcome_unknown(id))?;
     let result_target = match operation {
+        "play.screenshot" => result["path"].as_str().unwrap_or_default().to_owned(),
         "blueprint.event_ensure" | "blueprint.node_ensure" => format!(
             "{}#{}#{}",
             args["blueprintId"].as_str().unwrap_or_default(),
@@ -1173,6 +1270,7 @@ fn validate_receipt_with_replay(
             args["blueprintId"].as_str().unwrap_or_default(),
             args["variableGuid"].as_str().unwrap_or_default()
         ),
+        "widget.viewport_ensure" => result["viewportId"].as_str().unwrap_or_default().to_owned(),
         _ if !capability_record.target_fields.is_empty() => capability_record
             .target_fields
             .iter()
@@ -1181,10 +1279,36 @@ fn validate_receipt_with_replay(
             .join("#"),
         _ => String::new(),
     };
-    let request_target_matches = capability_record.target_fields.iter().all(|field| {
-        args.get(*field)
-            .is_none_or(|request_value| result.get(*field) == Some(request_value))
-    });
+    let request_target_matches = if operation == "play.screenshot" {
+        let session = args["sessionId"].as_str().unwrap_or_default();
+        let requested_name = args["path"].as_str().unwrap_or("");
+        let name = if requested_name.is_empty() {
+            format!("{session}.png")
+        } else {
+            requested_name.to_owned()
+        };
+        let clean = !name.contains(['/', '\\'])
+            && Path::new(&name)
+                .file_name()
+                .and_then(|value| value.to_str())
+                == Some(name.as_str());
+        let valid_name = clean && name.ends_with(".png") && !name.chars().any(char::is_control);
+        let expected = Path::new(&discovery.project_path)
+            .parent()
+            .map(|parent| parent.join("Saved/MagiUnrealAXI/Screenshots").join(&name))
+            .and_then(|path| path.to_str().map(str::to_owned));
+        valid_name
+            && result["sessionId"].as_str() == Some(session)
+            && expected.as_deref() == result["path"].as_str()
+            && target == result_target
+            && receipt.target == result_target
+            && verification.get("target").and_then(Value::as_str) == Some(result_target.as_str())
+    } else {
+        capability_record.target_fields.iter().all(|field| {
+            args.get(*field)
+                .is_none_or(|request_value| result.get(*field) == Some(request_value))
+        })
+    };
     let p11_request_matches = match operation {
         "blueprint.interface_create" => {
             result.get("id").and_then(Value::as_str)
@@ -1276,6 +1400,103 @@ fn validate_receipt_with_replay(
         }
         _ => true,
     };
+    let p13_request_matches = match operation {
+        "widget.create" => {
+            let path = args.get("path").and_then(Value::as_str);
+            let blueprint = path.and_then(|path| {
+                path.rsplit_once('/')
+                    .map(|(_, name)| format!("{path}.{name}"))
+            });
+            result.get("blueprintId").and_then(Value::as_str) == blueprint.as_deref()
+                && result.get("rootName") == args.get("rootName")
+                && result.get("rootClass") == args.get("rootClass")
+                && verification.get("requestPath") == args.get("path")
+                && verification.get("requestRootName") == args.get("rootName")
+                && verification.get("requestRootClass") == args.get("rootClass")
+        }
+        "widget.child_ensure" => {
+            let blueprint = args
+                .get("blueprintId")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let name = args.get("name").and_then(Value::as_str).unwrap_or_default();
+            result.get("blueprintId") == args.get("blueprintId")
+                && result.get("widgetId").and_then(Value::as_str)
+                    == Some(&format!("{blueprint}#widget:{name}"))
+                && result.get("parentWidgetId") == args.get("parentWidgetId")
+                && result.get("name") == args.get("name")
+                && result.get("class") == args.get("class")
+                && verification.get("requestBlueprintId") == args.get("blueprintId")
+                && verification.get("requestParentWidgetId") == args.get("parentWidgetId")
+                && verification.get("requestName") == args.get("name")
+                && verification.get("requestClass") == args.get("class")
+        }
+        "widget.property_set" => {
+            result.get("blueprintId") == args.get("blueprintId")
+                && result.get("widgetId") == args.get("widgetId")
+                && result.get("property") == args.get("property")
+                && args
+                    .get("property")
+                    .and_then(Value::as_str)
+                    .is_some_and(|property| result.get(property) == args.get(property))
+                && verification.get("requestBlueprintId") == args.get("blueprintId")
+                && verification.get("requestWidgetId") == args.get("widgetId")
+                && verification.get("requestProperty") == args.get("property")
+                && verification.get("requestText") == args.get("text")
+                && verification.get("requestVisibility") == args.get("visibility")
+                && verification.get("requestEnabled") == args.get("enabled")
+        }
+        "widget.event_ensure" => {
+            let blueprint = args
+                .get("blueprintId")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let agent = args
+                .get("agentKey")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            result.get("blueprintId") == args.get("blueprintId")
+                && result.get("eventId").and_then(Value::as_str)
+                    == Some(&format!("{blueprint}#event:{agent}"))
+                && result.get("agentKey") == args.get("agentKey")
+                && result.get("event") == args.get("event")
+                && result.get("actions") == args.get("actions")
+                && verification.get("requestBlueprintId") == args.get("blueprintId")
+                && verification.get("requestAgentKey") == args.get("agentKey")
+                && verification.get("requestIntent") == args.get("event")
+                && verification.get("requestActions") == args.get("actions")
+        }
+        "widget.viewport_ensure" => {
+            let host = args
+                .get("hostBlueprintId")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let agent = args
+                .get("agentKey")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            result.get("hostBlueprintId") == args.get("hostBlueprintId")
+                && result.get("widgetBlueprintId") == args.get("widgetBlueprintId")
+                && result.get("viewportId").and_then(Value::as_str)
+                    == Some(&format!("{host}#viewport:{agent}"))
+                && result
+                    .get("graphId")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| !value.is_empty())
+                && result.get("inputKey") == args.get("inputKey")
+                && result.get("zOrder") == args.get("zOrder")
+                && result
+                    .get("widgetRevision")
+                    .and_then(Value::as_str)
+                    .is_some_and(capability::canonical_revision)
+                && verification.get("requestHostBlueprintId") == args.get("hostBlueprintId")
+                && verification.get("requestWidgetBlueprintId") == args.get("widgetBlueprintId")
+                && verification.get("requestAgentKey") == args.get("agentKey")
+                && verification.get("requestInputKey") == args.get("inputKey")
+                && verification.get("requestZOrder") == args.get("zOrder")
+        }
+        _ => true,
+    };
     let p12_update_fields_match = operation != "blueprint.scs_component_update"
         || [
             ("location", "requestLocation"),
@@ -1348,10 +1569,8 @@ fn validate_receipt_with_replay(
         || !request_target_matches
         || !p11_request_matches
         || !p12_update_fields_match
+        || !p13_request_matches
         || target.chars().count() > 8192
-        || readback.is_empty()
-        || readback.chars().count() > 128
-        || readback != expected_readback
         || !matched
         || receipt.changed != result_changed
         || receipt.revision != result_revision
@@ -1361,6 +1580,9 @@ fn validate_receipt_with_replay(
         || receipt.reversibility != expected_reversibility
         || receipt.persistence != expected_persistence
         || !capability::canonical_revision(&receipt.revision)
+        || readback.is_empty()
+        || readback.chars().count() > 128
+        || readback != expected_readback
         || receipt.dirty_packages.len() > MAX_DIRTY_PACKAGES
         || receipt.saved_packages.len() > MAX_DIRTY_PACKAGES
         || receipt
@@ -1374,11 +1596,16 @@ fn validate_receipt_with_replay(
     {
         return Err(outcome_unknown(id));
     }
-    if let Some(observed) = verification.get("observedRevision").and_then(Value::as_str) {
+    let observed = verification.get("observedRevision").and_then(Value::as_str);
+    if operation == "play.screenshot" || operation.starts_with("widget.") {
+        if observed != Some(result_revision) {
+            return Err(outcome_unknown(id));
+        }
+    } else if let Some(observed) = observed {
         if observed != result_revision {
             return Err(outcome_unknown(id));
         }
-    } else if operation != "play.screenshot" {
+    } else {
         return Err(outcome_unknown(id));
     }
     if operation == "play.input" {
@@ -1399,7 +1626,7 @@ fn validate_receipt_with_replay(
             || result_revision != after
             || observed != after
             || result_changed != (before != after)
-            || (result["event"] == "pressed" && before == after)
+            || (result["event"] != "pressed" && result["event"] != "released")
             || (result["event"] == "released" && before != after)
             || verification.get("accepted").and_then(Value::as_bool) != Some(true)
             || verification.get("beforeRevision").and_then(Value::as_str) != Some(before)
@@ -2246,6 +2473,234 @@ mod tests {
         );
     }
 
+    #[test]
+    fn validate_p13_receipts_bind_widget_semantics() {
+        let revision = "a".repeat(64);
+        let blueprint = "/Game/UI.UI";
+        let child_args = json!({"blueprintId":blueprint,"parentWidgetId":format!("{blueprint}#widget:Root"),"name":"Label","class":"TextBlock"});
+        let child_result = json!({"blueprintId":blueprint,"widgetId":format!("{blueprint}#widget:Label"),"parentWidgetId":child_args["parentWidgetId"],"name":"Label","class":"TextBlock","changed":true,"dirtyPackages":["/Game/UI"],"savedPackages":[],"revision":revision});
+        let mut child_receipt = receipt_fixture("widget.child_ensure", child_result.clone(), true);
+        child_receipt.verification["requestBlueprintId"] = child_args["blueprintId"].clone();
+        child_receipt.verification["requestParentWidgetId"] = child_args["parentWidgetId"].clone();
+        child_receipt.verification["requestName"] = child_args["name"].clone();
+        child_receipt.verification["requestClass"] = child_args["class"].clone();
+        assert!(
+            validate_receipt(
+                "widget.child_ensure",
+                "id",
+                &child_receipt,
+                &child_result,
+                &child_args,
+                &fake_discovery(0)
+            )
+            .is_ok()
+        );
+        let mut missing_binding = child_receipt.clone();
+        missing_binding
+            .verification
+            .as_object_mut()
+            .unwrap()
+            .remove("requestName");
+        assert!(
+            validate_receipt(
+                "widget.child_ensure",
+                "id",
+                &missing_binding,
+                &child_result,
+                &child_args,
+                &fake_discovery(0)
+            )
+            .is_err()
+        );
+        let property_args = json!({"blueprintId":blueprint,"widgetId":format!("{blueprint}#widget:Label"),"property":"text","text":"READY"});
+        let property_result = json!({"blueprintId":blueprint,"widgetId":property_args["widgetId"],"property":"text","text":"READY","changed":true,"dirtyPackages":["/Game/UI"],"savedPackages":[],"revision":revision});
+        let mut property_receipt =
+            receipt_fixture("widget.property_set", property_result.clone(), true);
+        property_receipt.verification["requestBlueprintId"] = property_args["blueprintId"].clone();
+        property_receipt.verification["requestWidgetId"] = property_args["widgetId"].clone();
+        property_receipt.verification["requestProperty"] = property_args["property"].clone();
+        property_receipt.verification["requestText"] = property_args["text"].clone();
+        assert!(
+            validate_receipt(
+                "widget.property_set",
+                "id",
+                &property_receipt,
+                &property_result,
+                &property_args,
+                &fake_discovery(0)
+            )
+            .is_ok()
+        );
+        property_receipt.verification["requestText"] = json!("tampered");
+        assert!(
+            validate_receipt(
+                "widget.property_set",
+                "id",
+                &property_receipt,
+                &property_result,
+                &property_args,
+                &fake_discovery(0)
+            )
+            .is_err()
+        );
+        let event_args = json!({"blueprintId":blueprint,"agentKey":"main","event":"activate","actions":[{"kind":"text.set","targetWidgetId":format!("{blueprint}#widget:Label"),"text":"Go"}]});
+        let event_result = json!({"blueprintId":blueprint,"eventId":format!("{blueprint}#event:main"),"agentKey":"main","event":"activate","actions":event_args["actions"],"changed":true,"dirtyPackages":["/Game/UI"],"savedPackages":[],"revision":revision});
+        let mut event_receipt = receipt_fixture("widget.event_ensure", event_result.clone(), true);
+        event_receipt.verification["requestBlueprintId"] = event_args["blueprintId"].clone();
+        event_receipt.verification["requestAgentKey"] = event_args["agentKey"].clone();
+        event_receipt.verification["requestIntent"] = event_args["event"].clone();
+        event_receipt.verification["requestActions"] = event_args["actions"].clone();
+        assert!(
+            validate_receipt(
+                "widget.event_ensure",
+                "id",
+                &event_receipt,
+                &event_result,
+                &event_args,
+                &fake_discovery(0)
+            )
+            .is_ok()
+        );
+        let viewport_args = json!({"hostBlueprintId":blueprint,"widgetBlueprintId":"/Game/HUD.HUD","agentKey":"main","inputKey":"E","zOrder":0});
+        let viewport_result = json!({"hostBlueprintId":blueprint,"widgetBlueprintId":"/Game/HUD.HUD","viewportId":format!("{blueprint}#viewport:main"),"graphId":"graph","inputKey":"E","zOrder":0,"widgetRevision":revision,"changed":true,"dirtyPackages":["/Game/UI"],"savedPackages":[],"revision":revision});
+        let mut viewport_receipt =
+            receipt_fixture("widget.viewport_ensure", viewport_result.clone(), true);
+        viewport_receipt.target = viewport_result["viewportId"].as_str().unwrap().to_owned();
+        viewport_receipt.verification["target"] = json!(viewport_receipt.target);
+        viewport_receipt.verification["requestHostBlueprintId"] =
+            viewport_args["hostBlueprintId"].clone();
+        viewport_receipt.verification["requestWidgetBlueprintId"] =
+            viewport_args["widgetBlueprintId"].clone();
+        viewport_receipt.verification["requestAgentKey"] = viewport_args["agentKey"].clone();
+        viewport_receipt.verification["requestInputKey"] = viewport_args["inputKey"].clone();
+        viewport_receipt.verification["requestZOrder"] = viewport_args["zOrder"].clone();
+        assert!(
+            validate_receipt(
+                "widget.viewport_ensure",
+                "id",
+                &viewport_receipt,
+                &viewport_result,
+                &viewport_args,
+                &fake_discovery(0)
+            )
+            .is_ok()
+        );
+        assert!(
+            capability::validate_output(
+                "operation.view",
+                serde_json::to_value(&viewport_receipt).unwrap()
+            )
+            .is_ok()
+        );
+        let screenshot_args = json!({"sessionId":"m6-pie-1","path":"ready-one.png"});
+        let screenshot_result = json!({"sessionId":"m6-pie-1","path":"/fixture/Saved/MagiUnrealAXI/Screenshots/ready-one.png","width":640,"height":360,"format":"png","changed":true,"revision":revision});
+        let screenshot_receipt =
+            receipt_fixture("play.screenshot", screenshot_result.clone(), true);
+        assert!(
+            validate_receipt(
+                "play.screenshot",
+                "id",
+                &screenshot_receipt,
+                &screenshot_result,
+                &screenshot_args,
+                &fake_discovery(0)
+            )
+            .is_ok()
+        );
+        let nul_args = json!({"sessionId":"m6-pie-1","path":"claimed.png\0suffix.png"});
+        assert!(
+            validate_receipt(
+                "play.screenshot",
+                "id",
+                &screenshot_receipt,
+                &screenshot_result,
+                &nul_args,
+                &fake_discovery(0)
+            )
+            .is_err()
+        );
+        let mut wrong_session = screenshot_result.clone();
+        wrong_session["sessionId"] = json!("other");
+        assert!(
+            validate_receipt(
+                "play.screenshot",
+                "id",
+                &screenshot_receipt,
+                &wrong_session,
+                &screenshot_args,
+                &fake_discovery(0)
+            )
+            .is_err()
+        );
+        let mut wrong_path = screenshot_result.clone();
+        wrong_path["path"] = json!("/tmp/ready-one.png");
+        assert!(
+            validate_receipt(
+                "play.screenshot",
+                "id",
+                &screenshot_receipt,
+                &wrong_path,
+                &screenshot_args,
+                &fake_discovery(0)
+            )
+            .is_err()
+        );
+        let mut wrong_observed = screenshot_receipt.clone();
+        wrong_observed.verification["observedRevision"] = json!("b".repeat(64));
+        assert!(
+            validate_receipt(
+                "play.screenshot",
+                "id",
+                &wrong_observed,
+                &screenshot_result,
+                &screenshot_args,
+                &fake_discovery(0)
+            )
+            .is_err()
+        );
+        let default_args = json!({"sessionId":"m6-pie-1"});
+        let mut default_result = screenshot_result.clone();
+        default_result["path"] = json!("/fixture/Saved/MagiUnrealAXI/Screenshots/m6-pie-1.png");
+        let default_receipt = receipt_fixture("play.screenshot", default_result.clone(), true);
+        assert!(
+            validate_receipt(
+                "play.screenshot",
+                "id",
+                &default_receipt,
+                &default_result,
+                &default_args,
+                &fake_discovery(0)
+            )
+            .is_ok()
+        );
+        let mut altered = event_args;
+        altered["actions"][0]["text"] = json!("Tampered");
+        assert!(
+            validate_receipt(
+                "widget.event_ensure",
+                "id",
+                &event_receipt,
+                &event_result,
+                &altered,
+                &fake_discovery(0)
+            )
+            .is_err()
+        );
+        let mut altered_viewport = viewport_result;
+        altered_viewport["zOrder"] = json!(1);
+        assert!(
+            validate_receipt(
+                "widget.viewport_ensure",
+                "id",
+                &viewport_receipt,
+                &altered_viewport,
+                &viewport_args,
+                &fake_discovery(0)
+            )
+            .is_err()
+        );
+    }
+
     fn receipt_fixture(operation: &str, result: Value, matched: bool) -> Receipt {
         let capability = metadata(operation).unwrap();
         let target = capability
@@ -2503,20 +2958,23 @@ mod tests {
         );
     }
     #[test]
-    fn validate_receipt_requires_later_pressed_revision() {
-        let result = json!({"sessionId":"s","key":"W","event":"pressed","accepted":true,"changed":true,"beforeRevision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","afterRevision":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","revision":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","dirtyPackages":[],"savedPackages":[]});
-        let receipt = receipt_fixture("play.input", result.clone(), true);
-        assert!(
-            validate_receipt(
-                "play.input",
-                "id",
-                &receipt,
-                &result,
-                &json!({"sessionId":"s","key":"W","event":"pressed"}),
-                &fake_discovery(0)
-            )
-            .is_ok()
-        );
+    fn validate_receipt_accepts_truthful_pressed_revision() {
+        let changed = json!({"sessionId":"s","key":"W","event":"pressed","accepted":true,"changed":true,"beforeRevision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","afterRevision":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","revision":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","dirtyPackages":[],"savedPackages":[]});
+        let unchanged = json!({"sessionId":"s","key":"E","event":"pressed","accepted":true,"changed":false,"beforeRevision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","afterRevision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","revision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","dirtyPackages":[],"savedPackages":[]});
+        for result in [changed, unchanged] {
+            let receipt = receipt_fixture("play.input", result.clone(), true);
+            assert!(
+                validate_receipt(
+                    "play.input",
+                    "id",
+                    &receipt,
+                    &result,
+                    &json!({"sessionId":"s","key":result["key"],"event":"pressed"}),
+                    &fake_discovery(0)
+                )
+                .is_ok()
+            );
+        }
     }
     #[test]
     fn validate_receipt_rejects_request_target_mismatch() {
@@ -2604,7 +3062,51 @@ mod tests {
         let mut unknown_receipt = atomic_receipt.clone();
         unknown_receipt.state = "outcome_unknown".into();
         unknown_receipt.verification["matched"] = json!(false);
-        let mut unknown_error = atomic_error;
+        let mut unknown_error = atomic_error.clone();
+        let viewport_args = json!({"hostBlueprintId":"/Game/Host.Host","widgetBlueprintId":"/Game/HUD.HUD","agentKey":"main","inputKey":"E","zOrder":0});
+        let mut viewport_receipt = atomic_receipt.clone();
+        viewport_receipt.operation = "widget.viewport_ensure".into();
+        viewport_receipt.target = "/Game/Host.Host#viewport:main".into();
+        viewport_receipt.verification["target"] = json!(viewport_receipt.target);
+        viewport_receipt.verification["readback"] = json!("blueprint.graph_view");
+        viewport_receipt.verification["requestHostBlueprintId"] =
+            viewport_args["hostBlueprintId"].clone();
+        viewport_receipt.verification["requestWidgetBlueprintId"] =
+            viewport_args["widgetBlueprintId"].clone();
+        viewport_receipt.verification["requestAgentKey"] = viewport_args["agentKey"].clone();
+        viewport_receipt.verification["requestInputKey"] = viewport_args["inputKey"].clone();
+        viewport_receipt.verification["requestZOrder"] = viewport_args["zOrder"].clone();
+        assert!(
+            validate_failed_atomic_receipt(
+                "widget.viewport_ensure",
+                "atomic-id",
+                &viewport_args,
+                &ExecutionOptions {
+                    expected_revision: Some(viewport_receipt.revision.clone()),
+                    idempotency_key: None
+                },
+                &viewport_receipt,
+                &atomic_error,
+                &discovery
+            )
+            .is_ok()
+        );
+        viewport_receipt.verification["requestZOrder"] = json!(1);
+        assert!(
+            validate_failed_atomic_receipt(
+                "widget.viewport_ensure",
+                "atomic-id",
+                &viewport_args,
+                &ExecutionOptions {
+                    expected_revision: Some(viewport_receipt.revision.clone()),
+                    idempotency_key: None
+                },
+                &viewport_receipt,
+                &atomic_error,
+                &discovery
+            )
+            .is_err()
+        );
         unknown_error.kind = "outcome_unknown".into();
         unknown_error.retryable = false;
         assert!(
