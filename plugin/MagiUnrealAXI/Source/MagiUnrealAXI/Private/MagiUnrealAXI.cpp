@@ -1107,7 +1107,11 @@ FString ActorLevelId(const AActor& Actor)
     const ULevel* Level = Actor.GetLevel();
     if (!Level || !Level->GetOutermost()) return FString();
     FString PackageName = Level->GetOutermost()->GetName();
-    if (const UWorld* World = Actor.GetWorld(); World && World->IsPlayInEditor()) PackageName = UWorld::StripPIEPrefixFromPackageName(PackageName, World->StreamingLevelsPrefix);
+    if (const UWorld* World = Actor.GetWorld(); World && World->IsPlayInEditor())
+    {
+        if (Level->IsWorldPartitionRuntimeCell() && World->GetOutermost()) PackageName = World->GetOutermost()->GetName();
+        PackageName = UWorld::StripPIEPrefixFromPackageName(PackageName, World->StreamingLevelsPrefix);
+    }
     return PackageName;
 }
 

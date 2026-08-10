@@ -636,6 +636,7 @@ static FString P14Navigation(const FString& Id, const FString& Operation, const 
     return ErrorResponse(Id, TEXT("unsupported"), TEXT("unsupported navigation operation"));
 }
 static FString P14AiObservation(const FString& Id, const FString& Operation, const TSharedPtr<FJsonObject>& Args);
+static AActor* P14RuntimeActorByStableId(UWorld& World, const FString& Wanted, bool& Ambiguous);
 FString HandleP14AiNavigationOperation(const FString& Id, const FString& Operation, const TSharedPtr<FJsonObject>& Args, const FString& ExpectedRevision)
 {
     if (!Args.IsValid()) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("operation requires arguments"));
@@ -679,10 +680,91 @@ bool FMagiUnrealAXIP14BlackboardContracts::RunTest(const FString&)
     const FString Path = TEXT("/Game/MagiP14Automation/BB_Contracts"); TSharedRef<FJsonObject> CreateArgs = MakeShared<FJsonObject>(); CreateArgs->SetStringField(TEXT("path"), Path); const FString Created = P14Blackboard(TEXT("p14-bb-create"), TEXT("blackboard.create"), CreateArgs, FString()); TestTrue(TEXT("blackboard create succeeds"), ResponseStatusIsOk(Created)); UBlackboardData* Asset = LoadObject<UBlackboardData>(nullptr, *(Path + TEXT(".") + FPackageName::GetShortName(Path))); TestNotNull(TEXT("blackboard asset exists"), Asset); if (!Asset) return false;
     TSharedRef<FJsonObject> KeyArgs = MakeShared<FJsonObject>(); KeyArgs->SetStringField(TEXT("blackboardId"), Asset->GetPathName()); KeyArgs->SetStringField(TEXT("keyName"), TEXT("TargetActor")); KeyArgs->SetStringField(TEXT("keyType"), TEXT("Actor")); const FString First = P14Blackboard(TEXT("p14-bb-key"), TEXT("blackboard.key_ensure"), KeyArgs, ObjectContentRevision(Asset)); TestTrue(TEXT("Actor key ensure succeeds"), ResponseStatusIsOk(First)); const FString Repeat = P14Blackboard(TEXT("p14-bb-repeat"), TEXT("blackboard.key_ensure"), KeyArgs, ObjectContentRevision(Asset)); TestTrue(TEXT("Actor key ensure is idempotent"), ResponseStatusIsOk(Repeat)); return true;
 }
+struct FP14AiObservePieContext
+{
+    FAutomationTestBase* Test = nullptr;
+    TWeakObjectPtr<UWorld> EditorWorld;
+    TWeakObjectPtr<ACharacter> EditorPawn;
+    TWeakObjectPtr<AActor> EditorTarget;
+    UBlackboardData* Blackboard = nullptr;
+    UBehaviorTree* Tree = nullptr;
+    FString SessionId;
+    FString PawnId;
+    FString TargetId;
+    bool WasDirty = false;
+    bool Initialized = false;
+    bool Ending = false;
+    double Deadline = 0.0;
+};
+
+class FP14AiObservePieCommand final : public IAutomationLatentCommand
+{
+public:
+    explicit FP14AiObservePieCommand(TSharedRef<FP14AiObservePieContext> InContext) : Context(MoveTemp(InContext)) {}
+
+    virtual bool Update() override
+    {
+        if (Context->Ending)
+        {
+            if (PieWorld() && FPlatformTime::Seconds() < Context->Deadline) return false;
+            if (PieWorld()) Context->Test->AddError(TEXT("PIE session did not stop before timeout"));
+            TSharedRef<FJsonObject> StaleArgs = MakeShared<FJsonObject>(); StaleArgs->SetStringField(TEXT("sessionId"), Context->SessionId); StaleArgs->SetStringField(TEXT("pawnId"), Context->PawnId); StaleArgs->SetStringField(TEXT("keyName"), TEXT("TargetActor")); const FString Stale = P14AiObservation(TEXT("p14-pie-observe-stale"), TEXT("play.ai_observe"), StaleArgs); Context->Test->TestTrue(TEXT("ended PIE session rejects observation"), Stale.Contains(TEXT("unsafe_editor_state")) || Stale.Contains(TEXT("stale")));
+            if (UWorld* EditorWorld = Context->EditorWorld.Get()) { if (Context->EditorPawn.IsValid()) EditorWorld->DestroyActor(Context->EditorPawn.Get()); if (Context->EditorTarget.IsValid()) EditorWorld->DestroyActor(Context->EditorTarget.Get()); if (EditorWorld->GetOutermost()) EditorWorld->GetOutermost()->SetDirtyFlag(Context->WasDirty); }
+            if (Context->Tree) Context->Tree->RemoveFromRoot(); if (Context->Blackboard) Context->Blackboard->RemoveFromRoot(); PlayState = EPlayState::Stopped; PlaySessionId.Reset();
+            return true;
+        }
+
+        UWorld* World = PieWorld();
+        if (!World)
+        {
+            if (FPlatformTime::Seconds() < Context->Deadline) return false;
+            Context->Test->AddError(TEXT("PIE world did not start before timeout"));
+            Context->Ending = true; Context->Deadline = FPlatformTime::Seconds();
+            return false;
+        }
+
+        bool PawnAmbiguous = false, TargetAmbiguous = false;
+        ACharacter* Pawn = Cast<ACharacter>(P14RuntimeActorByStableId(*World, Context->PawnId, PawnAmbiguous));
+        AActor* Target = P14RuntimeActorByStableId(*World, Context->TargetId, TargetAmbiguous);
+        if ((!Pawn || !Target) && FPlatformTime::Seconds() < Context->Deadline) return false;
+        Context->Test->TestFalse(TEXT("PIE pawn identity is unambiguous"), PawnAmbiguous); Context->Test->TestFalse(TEXT("PIE target identity is unambiguous"), TargetAmbiguous); Context->Test->TestNotNull(TEXT("PIE pawn exists"), Pawn); Context->Test->TestNotNull(TEXT("PIE target exists"), Target);
+        if (Pawn && Target && !Context->Initialized)
+        {
+            FActorSpawnParameters Spawn; Spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn; AAIController* Controller = World->SpawnActor<AAIController>(AAIController::StaticClass(), Pawn->GetActorLocation(), FRotator::ZeroRotator, Spawn); Context->Test->TestNotNull(TEXT("real PIE AIController spawns"), Controller);
+            UBlackboardComponent* BlackboardComponent = nullptr; const bool Possessed = Controller && (Controller->Possess(Pawn), Pawn->GetController() == Controller); const bool BlackboardReady = Controller && Controller->UseBlackboard(Context->Blackboard, BlackboardComponent); const bool TreeRunning = Controller && Controller->RunBehaviorTree(Context->Tree); Context->Test->TestTrue(TEXT("real PIE AIController possesses pawn"), Possessed); Context->Test->TestTrue(TEXT("real PIE Blackboard initializes"), BlackboardReady && BlackboardComponent); Context->Test->TestTrue(TEXT("real PIE Behavior Tree starts"), TreeRunning);
+            TSharedRef<FJsonObject> TargetArgs = MakeShared<FJsonObject>(); TargetArgs->SetStringField(TEXT("sessionId"), Context->SessionId); TargetArgs->SetStringField(TEXT("pawnId"), Context->PawnId); TargetArgs->SetStringField(TEXT("keyName"), TEXT("TargetActor")); TargetArgs->SetStringField(TEXT("targetActorId"), Context->TargetId); const FString TargetResponse = ReadResponseOnGameThread(TEXT("p14-pie-target-set"), TEXT("play.ai_target_set"), TargetArgs); Context->Test->TestTrue(*FString::Printf(TEXT("public target set succeeds in real PIE: %s"), *TargetResponse), ResponseStatusIsOk(TargetResponse));
+            Context->Initialized = true; Context->Deadline = FPlatformTime::Seconds() + 15.0;
+            return false;
+        }
+        if (Pawn && Target)
+        {
+            TSharedRef<FJsonObject> ObserveArgs = MakeShared<FJsonObject>(); ObserveArgs->SetStringField(TEXT("sessionId"), Context->SessionId); ObserveArgs->SetStringField(TEXT("pawnId"), Context->PawnId); ObserveArgs->SetStringField(TEXT("keyName"), TEXT("TargetActor")); const FString ObserveResponse = ReadResponseOnGameThread(TEXT("p14-pie-observe"), TEXT("play.ai_observe"), ObserveArgs); TSharedPtr<FJsonObject> Envelope; const TSharedPtr<FJsonObject>* Result = nullptr; const bool Parsed = FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(ObserveResponse), Envelope) && Envelope.IsValid() && Envelope->TryGetObjectField(TEXT("result"), Result) && Result && Result->IsValid(); const TSharedPtr<FJsonObject> Observation = Parsed ? *Result : nullptr; const TArray<TSharedPtr<FJsonValue>>* ActiveNodeIds = nullptr; if (Observation) Observation->TryGetArrayField(TEXT("activeNodeIds"), ActiveNodeIds); const bool ActiveWait = ActiveNodeIds && ActiveNodeIds->ContainsByPredicate([](const TSharedPtr<FJsonValue>& Value) { return Value && Value->AsString() == TEXT("wait"); });
+            if (ResponseStatusIsOk(ObserveResponse) && Parsed && !ActiveWait && FPlatformTime::Seconds() < Context->Deadline) return false;
+            Context->Test->TestTrue(*FString::Printf(TEXT("public AI observation succeeds in real PIE: %s"), *ObserveResponse), ResponseStatusIsOk(ObserveResponse) && Parsed);
+            if (Observation)
+            {
+                const TArray<TSharedPtr<FJsonValue>>* BlackboardValues = nullptr; const TArray<TSharedPtr<FJsonValue>>* CompletedNodeIds = nullptr; Observation->TryGetArrayField(TEXT("blackboardValues"), BlackboardValues); Observation->TryGetArrayField(TEXT("completedNodeIds"), CompletedNodeIds); const TSharedPtr<FJsonObject> BlackboardRow = BlackboardValues && BlackboardValues->Num() == 1 ? (*BlackboardValues)[0]->AsObject() : nullptr;
+                Context->Test->TestTrue(TEXT("real PIE observation satisfies schema"), MagiAxiValidateOutput(TEXT("play.ai_observe"), Observation.ToSharedRef())); Context->Test->TestTrue(TEXT("real PIE observation reports possession"), Observation->GetBoolField(TEXT("possessed"))); Context->Test->TestEqual(TEXT("real PIE observation binds pawn identity"), Observation->GetStringField(TEXT("pawnId")), Context->PawnId); Context->Test->TestEqual(TEXT("real PIE observation binds target identity"), Observation->GetStringField(TEXT("targetActorId")), Context->TargetId); Context->Test->TestEqual(TEXT("real PIE observation binds Behavior Tree"), Observation->GetStringField(TEXT("behaviorTreeId")), Context->Tree->GetPathName()); Context->Test->TestTrue(TEXT("real PIE observation reports controller identity"), !Observation->GetStringField(TEXT("controllerId")).IsEmpty()); Context->Test->TestTrue(TEXT("real PIE observation reports Blackboard value"), BlackboardRow && BlackboardRow->GetStringField(TEXT("keyName")) == TEXT("TargetActor") && BlackboardRow->GetStringField(TEXT("valueActorId")) == Context->TargetId); Context->Test->TestTrue(TEXT("real PIE observation reports active authored Wait node"), ActiveWait); Context->Test->TestTrue(TEXT("completed node history stays empty without trustworthy tracking"), CompletedNodeIds && CompletedNodeIds->IsEmpty()); Context->Test->TestEqual(TEXT("real PIE Behavior Tree reports running"), Observation->GetStringField(TEXT("behavior")), FString(TEXT("running"))); Context->Test->TestEqual(TEXT("real PIE observation revision is canonical"), Observation->GetStringField(TEXT("revision")).Len(), 64);
+            }
+        }
+        GUnrealEd->RequestEndPlayMap(); Context->Ending = true; Context->Deadline = FPlatformTime::Seconds() + 15.0;
+        return false;
+    }
+
+private:
+    TSharedRef<FP14AiObservePieContext> Context;
+};
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagiUnrealAXIP14AiObserveContracts, "MagiUnrealAXI.P14.AiObserveContracts", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FMagiUnrealAXIP14AiObserveContracts::RunTest(const FString&)
 {
-    TSharedRef<FJsonObject> Args = MakeShared<FJsonObject>(); Args->SetStringField(TEXT("sessionId"), TEXT("missing-session")); Args->SetStringField(TEXT("pawnId"), TEXT("missing")); Args->SetStringField(TEXT("keyName"), TEXT("TargetActor")); const FString Response = P14AiObservation(TEXT("p14-observe"), TEXT("play.ai_observe"), Args); TestTrue(TEXT("observe rejects absent PIE world or actor"), Response.Contains(TEXT("stale")) || Response.Contains(TEXT("unsafe_editor_state")) || Response.Contains(TEXT("not_found"))); return true;
+    FModuleManager::Get().LoadModule(TEXT("AIGraph")); FModuleManager::Get().LoadModule(TEXT("BehaviorTreeEditor")); FModuleManager::Get().LoadModule(TEXT("GameplayTasks")); UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr; TestNotNull(TEXT("AI observation editor world exists"), World); if (!World || !World->GetOutermost()) return false; const bool WasDirty = World->GetOutermost()->IsDirty();
+    const FString BlackboardPath = TEXT("/Game/MagiP14Automation/BB_PieObserve"); TSharedRef<FJsonObject> BlackboardCreate = MakeShared<FJsonObject>(); BlackboardCreate->SetStringField(TEXT("path"), BlackboardPath); TestTrue(TEXT("PIE observation Blackboard creates"), ResponseStatusIsOk(P14Blackboard(TEXT("p14-pie-bb-create"), TEXT("blackboard.create"), BlackboardCreate, FString()))); UBlackboardData* Blackboard = LoadObject<UBlackboardData>(nullptr, *(BlackboardPath + TEXT(".BB_PieObserve"))); TestNotNull(TEXT("PIE observation Blackboard exists"), Blackboard); if (!Blackboard) return false; TSharedRef<FJsonObject> KeyArgs = MakeShared<FJsonObject>(); KeyArgs->SetStringField(TEXT("blackboardId"), Blackboard->GetPathName()); KeyArgs->SetStringField(TEXT("keyName"), TEXT("TargetActor")); KeyArgs->SetStringField(TEXT("keyType"), TEXT("Actor")); TestTrue(TEXT("PIE observation Actor key creates"), ResponseStatusIsOk(P14Blackboard(TEXT("p14-pie-bb-key"), TEXT("blackboard.key_ensure"), KeyArgs, ObjectContentRevision(Blackboard))));
+    const FString TreePath = TEXT("/Game/MagiP14Automation/BT_PieObserve"); TSharedRef<FJsonObject> TreeCreate = MakeShared<FJsonObject>(); TreeCreate->SetStringField(TEXT("path"), TreePath); TreeCreate->SetStringField(TEXT("blackboardId"), Blackboard->GetPathName()); TestTrue(TEXT("PIE observation Behavior Tree creates"), ResponseStatusIsOk(P14BehaviorTree(TEXT("p14-pie-tree-create"), TEXT("behavior_tree.create"), TreeCreate, FString()))); UBehaviorTree* Tree = LoadObject<UBehaviorTree>(nullptr, *(TreePath + TEXT(".BT_PieObserve"))); TestNotNull(TEXT("PIE observation Behavior Tree exists"), Tree); if (!Tree) return false;
+    auto EnsureNode = [&](const FString& NodeId, const FString& NodeType) { TSharedRef<FJsonObject> Args = MakeShared<FJsonObject>(); Args->SetStringField(TEXT("behaviorTreeId"), Tree->GetPathName()); Args->SetStringField(TEXT("nodeId"), NodeId); Args->SetStringField(TEXT("nodeType"), NodeType); return P14BehaviorTree(TEXT("p14-pie-node-") + NodeId, TEXT("behavior_tree.node_ensure"), Args, ObjectContentRevision(Tree)); }; auto Connect = [&](const FString& ParentId, const FString& ChildId, int32 Index) { TSharedRef<FJsonObject> Args = MakeShared<FJsonObject>(); Args->SetStringField(TEXT("behaviorTreeId"), Tree->GetPathName()); Args->SetStringField(TEXT("parentNodeId"), ParentId); Args->SetStringField(TEXT("childNodeId"), ChildId); Args->SetNumberField(TEXT("childIndex"), Index); return P14BehaviorTree(TEXT("p14-pie-link-") + ParentId + TEXT("-") + ChildId, TEXT("behavior_tree.connect"), Args, ObjectContentRevision(Tree)); }; TestTrue(TEXT("PIE observation sequence creates"), ResponseStatusIsOk(EnsureNode(TEXT("loop"), TEXT("sequence")))); TestTrue(TEXT("PIE observation Wait creates"), ResponseStatusIsOk(EnsureNode(TEXT("wait"), TEXT("wait")))); TestTrue(TEXT("PIE observation Wait links"), ResponseStatusIsOk(Connect(TEXT("loop"), TEXT("wait"), 0))); TestTrue(TEXT("PIE observation root links"), ResponseStatusIsOk(Connect(TEXT("root"), TEXT("loop"), 0)));
+    FActorSpawnParameters Spawn; Spawn.OverrideLevel = World->PersistentLevel; Spawn.ObjectFlags |= RF_Transactional; Spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn; ACharacter* Pawn = World->SpawnActor<ACharacter>(ACharacter::StaticClass(), FVector(0, 0, 200), FRotator::ZeroRotator, Spawn); AStaticMeshActor* Target = World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), FVector(0, 0, 200), FRotator::ZeroRotator, Spawn); TestNotNull(TEXT("editor pawn fixture spawns"), Pawn); TestNotNull(TEXT("editor target fixture spawns"), Target); if (!Pawn || !Target || !Pawn->GetActorGuid().IsValid() || !Target->GetActorGuid().IsValid()) { if (Pawn) World->DestroyActor(Pawn); if (Target) World->DestroyActor(Target); World->GetOutermost()->SetDirtyFlag(WasDirty); return false; }
+    Blackboard->AddToRoot(); Tree->AddToRoot(); TSharedRef<FJsonObject> StartArgs = MakeShared<FJsonObject>(); const FString StartResponse = ReadResponseOnGameThread(TEXT("p14-pie-start"), TEXT("play.start"), StartArgs); TSharedPtr<FJsonObject> StartEnvelope; const TSharedPtr<FJsonObject>* StartResult = nullptr; const bool Started = FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(StartResponse), StartEnvelope) && StartEnvelope.IsValid() && StartEnvelope->TryGetObjectField(TEXT("result"), StartResult) && StartResult && StartResult->IsValid(); TestTrue(TEXT("production play.start queues real PIE"), ResponseStatusIsOk(StartResponse) && Started); if (!Started) { Tree->RemoveFromRoot(); Blackboard->RemoveFromRoot(); World->DestroyActor(Pawn); World->DestroyActor(Target); World->GetOutermost()->SetDirtyFlag(WasDirty); return false; }
+    TSharedRef<FP14AiObservePieContext> Context = MakeShared<FP14AiObservePieContext>(); Context->Test = this; Context->EditorWorld = World; Context->EditorPawn = Pawn; Context->EditorTarget = Target; Context->Blackboard = Blackboard; Context->Tree = Tree; Context->SessionId = (*StartResult)->GetStringField(TEXT("sessionId")); Context->PawnId = ActorId(*Pawn); Context->TargetId = ActorId(*Target); Context->WasDirty = WasDirty; Context->Deadline = FPlatformTime::Seconds() + 15.0; ADD_LATENT_AUTOMATION_COMMAND(FP14AiObservePieCommand(Context)); return true;
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagiUnrealAXIP14AiControllerContracts, "MagiUnrealAXI.P14.AiControllerContracts", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FMagiUnrealAXIP14AiControllerContracts::RunTest(const FString&)
@@ -726,7 +808,6 @@ bool FMagiUnrealAXIP14NavigationPathContracts::RunTest(const FString&)
     return true;
 }
 #endif
-
 
 static AActor* P14RuntimeActorByStableId(UWorld& World, const FString& Wanted, bool& Ambiguous)
 {
@@ -857,7 +938,28 @@ static FString P14AiObservation(const FString& Id, const FString& Operation, con
     UBehaviorTreeComponent* Behavior = Cast<UBehaviorTreeComponent>(Controller->GetBrainComponent());
     UBehaviorTree* Tree = Behavior ? Behavior->GetCurrentTree() : nullptr;
     if (Tree) Result->SetStringField(TEXT("behaviorTreeId"), Tree->GetPathName()); else P14Null(Result, TEXT("behaviorTreeId"));
-    Result->SetArrayField(TEXT("activeNodeIds"), {}); Result->SetArrayField(TEXT("completedNodeIds"), {});
+    TArray<TSharedPtr<FJsonValue>> ActiveNodeIds;
+    if (Tree && Behavior && Behavior->IsRunning() && Behavior->GetActiveNode())
+    {
+        const UBTNode* ActiveNode = Behavior->GetActiveNode();
+        const UBTNode* TemplateNode = Behavior->FindTemplateNode(ActiveNode);
+        if (!TemplateNode) TemplateNode = ActiveNode;
+        if (UBehaviorTreeGraph* Graph = Cast<UBehaviorTreeGraph>(Tree->BTGraph))
+        {
+            UEdGraphNode* Match = nullptr;
+            for (UEdGraphNode* GraphNode : Graph->Nodes)
+            {
+                const UBehaviorTreeGraphNode* BehaviorNode = Cast<UBehaviorTreeGraphNode>(GraphNode);
+                const UBTNode* AuthoredNode = BehaviorNode ? Cast<UBTNode>(BehaviorNode->NodeInstance) : nullptr;
+                if (!AuthoredNode || (AuthoredNode != TemplateNode && (AuthoredNode->GetExecutionIndex() != TemplateNode->GetExecutionIndex() || AuthoredNode->GetClass() != TemplateNode->GetClass()))) continue;
+                if (Match) { Match = nullptr; break; }
+                Match = GraphNode;
+            }
+            if (Match && !Match->NodeComment.IsEmpty()) ActiveNodeIds.Add(MakeShared<FJsonValueString>(Match->NodeComment));
+        }
+    }
+    Result->SetArrayField(TEXT("activeNodeIds"), ActiveNodeIds);
+    Result->SetArrayField(TEXT("completedNodeIds"), {});
     Result->SetStringField(TEXT("behavior"), Behavior && Behavior->IsRunning() ? TEXT("running") : TEXT("inactive"));
     Result->SetStringField(TEXT("revision"), Sha256(Serialize(Result)));
     return SuccessResponse(Id, Result, Operation, Args);
