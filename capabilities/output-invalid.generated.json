@@ -981,6 +981,7 @@
       "variableGuid": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
       "changed": false,
       "dirtyPackages": [],
+      "savedPackages": [],
       "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
       "unknown": true
     }
@@ -3415,9 +3416,9 @@
         "target": "x",
         "matched": false,
         "requestLocation": [
-          -100001.0,
-          -100000.0,
-          -100000.0
+          -1000000001.0,
+          -1000000000.0,
+          -1000000000.0
         ]
       }
     }
@@ -3444,9 +3445,9 @@
         "target": "x",
         "matched": false,
         "requestLocation": [
-          100001.0,
-          -100000.0,
-          -100000.0
+          1000000001.0,
+          -1000000000.0,
+          -1000000000.0
         ]
       }
     }
@@ -3773,6 +3774,1153 @@
         "matched": false,
         "requestZOrder": 1
       }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-below-minimum@verification.requestExtent.0",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestExtent": [
+          -0.999,
+          0.001,
+          0.001
+        ]
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-above-maximum@verification.requestExtent.0",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestExtent": [
+          100001.0,
+          0.001,
+          0.001
+        ]
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-below-minimum@verification.requestChildIndex",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestChildIndex": -1
+      }
+    }
+  },
+  {
+    "operation": "operation.view",
+    "case": "numeric-above-maximum@verification.requestChildIndex",
+    "result": {
+      "operationId": "x",
+      "operation": "x",
+      "state": "queued",
+      "projectId": "x",
+      "editorPid": 1,
+      "target": "x",
+      "changed": false,
+      "transaction": "x",
+      "reversibility": "x",
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "persistence": "x",
+      "verification": {
+        "readback": "x",
+        "target": "x",
+        "matched": false,
+        "requestChildIndex": 32
+      }
+    }
+  },
+  {
+    "operation": "ai.controller_configure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "ai.controller_configure",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "behaviorTreeId": "x",
+      "semantic": "on_possess.run_behavior_tree",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "ai.pawn_configure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "ai.pawn_configure",
+    "case": "root-not-closed",
+    "result": {
+      "blueprintId": "x",
+      "controllerBlueprintId": "x",
+      "typedDefaults": {
+        "controllerClass": "x",
+        "autoPossessAI": "PlacedInWorldOrSpawned",
+        "maxWalkSpeed": 0.001
+      },
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "ai.pawn_configure",
+    "case": "numeric-below-minimum@typedDefaults.maxWalkSpeed",
+    "result": {
+      "blueprintId": "x",
+      "controllerBlueprintId": "x",
+      "typedDefaults": {
+        "controllerClass": "x",
+        "autoPossessAI": "PlacedInWorldOrSpawned",
+        "maxWalkSpeed": -0.999
+      },
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "ai.pawn_configure",
+    "case": "numeric-above-maximum@typedDefaults.maxWalkSpeed",
+    "result": {
+      "blueprintId": "x",
+      "controllerBlueprintId": "x",
+      "typedDefaults": {
+        "controllerClass": "x",
+        "autoPossessAI": "PlacedInWorldOrSpawned",
+        "maxWalkSpeed": 10001.0
+      },
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "behavior_tree.connect",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "behavior_tree.connect",
+    "case": "root-not-closed",
+    "result": {
+      "behaviorTreeId": "x",
+      "parentNodeId": "x",
+      "childNodeId": "x",
+      "childIndex": 0,
+      "linkId": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "behavior_tree.connect",
+    "case": "numeric-below-minimum@childIndex",
+    "result": {
+      "behaviorTreeId": "x",
+      "parentNodeId": "x",
+      "childNodeId": "x",
+      "childIndex": -1,
+      "linkId": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "behavior_tree.connect",
+    "case": "numeric-above-maximum@childIndex",
+    "result": {
+      "behaviorTreeId": "x",
+      "parentNodeId": "x",
+      "childNodeId": "x",
+      "childIndex": 32,
+      "linkId": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "behavior_tree.create",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "behavior_tree.create",
+    "case": "root-not-closed",
+    "result": {
+      "behaviorTreeId": "x",
+      "blackboardId": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "behavior_tree.node_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "behavior_tree.node_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "behaviorTreeId": "x",
+      "nodeId": "x",
+      "nodeType": "sequence",
+      "keyName": null,
+      "waitSeconds": null,
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "behavior_tree.node_ensure",
+    "case": "numeric-below-minimum@waitSeconds",
+    "result": {
+      "behaviorTreeId": "x",
+      "nodeId": "x",
+      "nodeType": "sequence",
+      "keyName": null,
+      "waitSeconds": -0.5,
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "behavior_tree.node_ensure",
+    "case": "numeric-above-maximum@waitSeconds",
+    "result": {
+      "behaviorTreeId": "x",
+      "nodeId": "x",
+      "nodeType": "sequence",
+      "keyName": null,
+      "waitSeconds": 1.5,
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "behavior_tree.view",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "behavior_tree.view",
+    "case": "root-not-closed",
+    "result": {
+      "behaviorTreeId": "x",
+      "blackboardId": "x",
+      "nodes": [],
+      "links": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "behavior_tree.view",
+    "case": "numeric-below-minimum@nodes.0.waitSeconds",
+    "result": {
+      "behaviorTreeId": "x",
+      "blackboardId": "x",
+      "nodes": [
+        {
+          "nodeId": "x",
+          "nodeType": "sequence",
+          "keyName": null,
+          "waitSeconds": -0.5
+        }
+      ],
+      "links": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "behavior_tree.view",
+    "case": "numeric-above-maximum@nodes.0.waitSeconds",
+    "result": {
+      "behaviorTreeId": "x",
+      "blackboardId": "x",
+      "nodes": [
+        {
+          "nodeId": "x",
+          "nodeType": "sequence",
+          "keyName": null,
+          "waitSeconds": 1.5
+        }
+      ],
+      "links": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "behavior_tree.view",
+    "case": "numeric-below-minimum@links.0.childIndex",
+    "result": {
+      "behaviorTreeId": "x",
+      "blackboardId": "x",
+      "nodes": [],
+      "links": [
+        {
+          "linkId": "x",
+          "parentNodeId": "x",
+          "childNodeId": "x",
+          "childIndex": -1
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "behavior_tree.view",
+    "case": "numeric-above-maximum@links.0.childIndex",
+    "result": {
+      "behaviorTreeId": "x",
+      "blackboardId": "x",
+      "nodes": [],
+      "links": [
+        {
+          "linkId": "x",
+          "parentNodeId": "x",
+          "childNodeId": "x",
+          "childIndex": 32
+        }
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "blackboard.create",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blackboard.create",
+    "case": "root-not-closed",
+    "result": {
+      "blackboardId": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blackboard.key_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blackboard.key_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "blackboardId": "x",
+      "keyName": "x",
+      "keyType": "Actor",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blackboard.view",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "blackboard.view",
+    "case": "root-not-closed",
+    "result": {
+      "blackboardId": "x",
+      "keys": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "navigation.build",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "navigation.build",
+    "case": "root-not-closed",
+    "result": {
+      "levelId": "x",
+      "ticketId": "x",
+      "state": "scheduled",
+      "changed": false,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "navigation.status",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "navigation.status",
+    "case": "root-not-closed",
+    "result": {
+      "ticketId": "x",
+      "levelId": "x",
+      "state": "scheduled",
+      "terminal": false,
+      "message": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "navigation.bounds_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "navigation.bounds_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "levelId": "x",
+      "agentKey": "x",
+      "boundsId": "x",
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "extent": [
+        0.001,
+        0.001,
+        0.001
+      ],
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "navigation.bounds_ensure",
+    "case": "numeric-below-minimum@location.0",
+    "result": {
+      "levelId": "x",
+      "agentKey": "x",
+      "boundsId": "x",
+      "location": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "extent": [
+        0.001,
+        0.001,
+        0.001
+      ],
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "navigation.bounds_ensure",
+    "case": "numeric-above-maximum@location.0",
+    "result": {
+      "levelId": "x",
+      "agentKey": "x",
+      "boundsId": "x",
+      "location": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "extent": [
+        0.001,
+        0.001,
+        0.001
+      ],
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "navigation.bounds_ensure",
+    "case": "numeric-below-minimum@extent.0",
+    "result": {
+      "levelId": "x",
+      "agentKey": "x",
+      "boundsId": "x",
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "extent": [
+        -0.999,
+        0.001,
+        0.001
+      ],
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "navigation.bounds_ensure",
+    "case": "numeric-above-maximum@extent.0",
+    "result": {
+      "levelId": "x",
+      "agentKey": "x",
+      "boundsId": "x",
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "extent": [
+        100001.0,
+        0.001,
+        0.001
+      ],
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "root-not-closed",
+    "result": {
+      "levelId": "x",
+      "start": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "reachable": false,
+      "partial": false,
+      "pathLength": 0.0,
+      "points": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "numeric-below-minimum@start.0",
+    "result": {
+      "levelId": "x",
+      "start": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "reachable": false,
+      "partial": false,
+      "pathLength": 0.0,
+      "points": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "numeric-above-maximum@start.0",
+    "result": {
+      "levelId": "x",
+      "start": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "reachable": false,
+      "partial": false,
+      "pathLength": 0.0,
+      "points": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "numeric-below-minimum@target.0",
+    "result": {
+      "levelId": "x",
+      "start": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "reachable": false,
+      "partial": false,
+      "pathLength": 0.0,
+      "points": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "numeric-above-maximum@target.0",
+    "result": {
+      "levelId": "x",
+      "start": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "reachable": false,
+      "partial": false,
+      "pathLength": 0.0,
+      "points": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "numeric-below-minimum@pathLength",
+    "result": {
+      "levelId": "x",
+      "start": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "reachable": false,
+      "partial": false,
+      "pathLength": -1.0,
+      "points": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "numeric-above-maximum@pathLength",
+    "result": {
+      "levelId": "x",
+      "start": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "reachable": false,
+      "partial": false,
+      "pathLength": 1000000001.0,
+      "points": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "numeric-below-minimum@points.0.0",
+    "result": {
+      "levelId": "x",
+      "start": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "reachable": false,
+      "partial": false,
+      "pathLength": 0.0,
+      "points": [
+        [
+          -1000000001.0,
+          -1000000000.0,
+          -1000000000.0
+        ],
+        [
+          -1000000000.0,
+          -1000000000.0,
+          -1000000000.0
+        ],
+        [
+          -1000000000.0,
+          -1000000000.0,
+          -1000000000.0
+        ]
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "numeric-above-maximum@points.0.0",
+    "result": {
+      "levelId": "x",
+      "start": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "reachable": false,
+      "partial": false,
+      "pathLength": 0.0,
+      "points": [
+        [
+          1000000001.0,
+          -1000000000.0,
+          -1000000000.0
+        ],
+        [
+          -1000000000.0,
+          -1000000000.0,
+          -1000000000.0
+        ],
+        [
+          -1000000000.0,
+          -1000000000.0,
+          -1000000000.0
+        ]
+      ],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.ai_target_set",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "play.ai_target_set",
+    "case": "root-not-closed",
+    "result": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "controllerId": "x",
+      "keyName": "x",
+      "targetActorId": "x",
+      "targetLocation": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "changed": false,
+      "restarted": false,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.ai_target_set",
+    "case": "numeric-below-minimum@targetLocation.0",
+    "result": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "controllerId": "x",
+      "keyName": "x",
+      "targetActorId": "x",
+      "targetLocation": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "changed": false,
+      "restarted": false,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.ai_target_set",
+    "case": "numeric-above-maximum@targetLocation.0",
+    "result": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "controllerId": "x",
+      "keyName": "x",
+      "targetActorId": "x",
+      "targetLocation": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "changed": false,
+      "restarted": false,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.ai_observe",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "play.ai_observe",
+    "case": "root-not-closed",
+    "result": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "controllerId": "x",
+      "possessed": false,
+      "pawnLocation": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "targetActorId": null,
+      "targetLocation": null,
+      "destination": null,
+      "distanceToTarget": null,
+      "moveStatus": "idle",
+      "blackboardValues": [],
+      "behaviorTreeId": null,
+      "activeNodeIds": [],
+      "completedNodeIds": [],
+      "behavior": "inactive",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.ai_observe",
+    "case": "numeric-below-minimum@pawnLocation.0",
+    "result": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "controllerId": "x",
+      "possessed": false,
+      "pawnLocation": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "targetActorId": null,
+      "targetLocation": null,
+      "destination": null,
+      "distanceToTarget": null,
+      "moveStatus": "idle",
+      "blackboardValues": [],
+      "behaviorTreeId": null,
+      "activeNodeIds": [],
+      "completedNodeIds": [],
+      "behavior": "inactive",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.ai_observe",
+    "case": "numeric-above-maximum@pawnLocation.0",
+    "result": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "controllerId": "x",
+      "possessed": false,
+      "pawnLocation": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "targetActorId": null,
+      "targetLocation": null,
+      "destination": null,
+      "distanceToTarget": null,
+      "moveStatus": "idle",
+      "blackboardValues": [],
+      "behaviorTreeId": null,
+      "activeNodeIds": [],
+      "completedNodeIds": [],
+      "behavior": "inactive",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.ai_observe",
+    "case": "numeric-below-minimum@targetLocation.0",
+    "result": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "controllerId": "x",
+      "possessed": false,
+      "pawnLocation": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "targetActorId": null,
+      "targetLocation": [
+        -1000000001.0
+      ],
+      "destination": null,
+      "distanceToTarget": null,
+      "moveStatus": "idle",
+      "blackboardValues": [],
+      "behaviorTreeId": null,
+      "activeNodeIds": [],
+      "completedNodeIds": [],
+      "behavior": "inactive",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.ai_observe",
+    "case": "numeric-above-maximum@targetLocation.0",
+    "result": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "controllerId": "x",
+      "possessed": false,
+      "pawnLocation": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "targetActorId": null,
+      "targetLocation": [
+        1000000001.0
+      ],
+      "destination": null,
+      "distanceToTarget": null,
+      "moveStatus": "idle",
+      "blackboardValues": [],
+      "behaviorTreeId": null,
+      "activeNodeIds": [],
+      "completedNodeIds": [],
+      "behavior": "inactive",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.ai_observe",
+    "case": "numeric-below-minimum@destination.0",
+    "result": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "controllerId": "x",
+      "possessed": false,
+      "pawnLocation": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "targetActorId": null,
+      "targetLocation": null,
+      "destination": [
+        -1000000001.0
+      ],
+      "distanceToTarget": null,
+      "moveStatus": "idle",
+      "blackboardValues": [],
+      "behaviorTreeId": null,
+      "activeNodeIds": [],
+      "completedNodeIds": [],
+      "behavior": "inactive",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.ai_observe",
+    "case": "numeric-above-maximum@destination.0",
+    "result": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "controllerId": "x",
+      "possessed": false,
+      "pawnLocation": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "targetActorId": null,
+      "targetLocation": null,
+      "destination": [
+        1000000001.0
+      ],
+      "distanceToTarget": null,
+      "moveStatus": "idle",
+      "blackboardValues": [],
+      "behaviorTreeId": null,
+      "activeNodeIds": [],
+      "completedNodeIds": [],
+      "behavior": "inactive",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.ai_observe",
+    "case": "numeric-below-minimum@distanceToTarget",
+    "result": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "controllerId": "x",
+      "possessed": false,
+      "pawnLocation": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "targetActorId": null,
+      "targetLocation": null,
+      "destination": null,
+      "distanceToTarget": -1.0,
+      "moveStatus": "idle",
+      "blackboardValues": [],
+      "behaviorTreeId": null,
+      "activeNodeIds": [],
+      "completedNodeIds": [],
+      "behavior": "inactive",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.ai_observe",
+    "case": "numeric-above-maximum@distanceToTarget",
+    "result": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "controllerId": "x",
+      "possessed": false,
+      "pawnLocation": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "targetActorId": null,
+      "targetLocation": null,
+      "destination": null,
+      "distanceToTarget": 1000000001.0,
+      "moveStatus": "idle",
+      "blackboardValues": [],
+      "behaviorTreeId": null,
+      "activeNodeIds": [],
+      "completedNodeIds": [],
+      "behavior": "inactive",
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     }
   },
   {

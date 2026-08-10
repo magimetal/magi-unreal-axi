@@ -720,6 +720,30 @@ fn exchange_selected_args(
         .with_receipt(serde_json::to_value(receipt).map_err(|_| outcome_unknown(&id))?);
         return Err(app_error);
     }
+    if operation == "navigation.build"
+        && error.kind == "navigation_build_failed"
+        && metadata(operation).and_then(|value| value.failure_receipt) == Some("terminal-ticket")
+    {
+        let receipt = response
+            .receipt
+            .as_ref()
+            .ok_or_else(|| outcome_unknown(&id))?;
+        validate_failed_terminal_ticket_receipt(&operation_id, &args, receipt, &error, discovery)?;
+        let app_error = AppError::operational(
+            "bridge",
+            "navigation_build_failed",
+            error.message.clone(),
+            format!("inspect `magi-unreal-axi operation view {operation_id}` before retrying"),
+        )
+        .with_bridge_details(
+            error.retryable,
+            error.dirty_package_count,
+            error.dirty_packages.clone(),
+        )
+        .with_operation_id(receipt.operation_id.clone())
+        .with_receipt(serde_json::to_value(receipt).map_err(|_| outcome_unknown(&id))?);
+        return Err(app_error);
+    }
     if operation == "blueprint.compile"
         && error.kind == "blueprint_compile_failed"
         && metadata(operation).and_then(|value| value.failure_receipt) == Some("preserved-dirty")
@@ -1110,6 +1134,80 @@ fn validate_failed_atomic_receipt(
     Ok(())
 }
 
+fn validate_failed_terminal_ticket_receipt(
+    id: &str,
+    args: &Value,
+    receipt: &Receipt,
+    error: &BridgeOperationError,
+    discovery: &Discovery,
+) -> Result<(), AppError> {
+    let verification = receipt
+        .verification
+        .as_object()
+        .ok_or_else(|| outcome_unknown(id))?;
+    let level = args["levelId"]
+        .as_str()
+        .ok_or_else(|| outcome_unknown(id))?;
+    let ticket = verification["ticketId"]
+        .as_str()
+        .ok_or_else(|| outcome_unknown(id))?;
+    let observed = verification["observedRevision"]
+        .as_str()
+        .ok_or_else(|| outcome_unknown(id))?;
+    let dirty = error
+        .dirty_packages
+        .as_ref()
+        .ok_or_else(|| outcome_unknown(id))?;
+    let allowed = [
+        "target",
+        "readback",
+        "matched",
+        "ticketId",
+        "levelId",
+        "requestLevelId",
+        "observedRevision",
+        "observedStatus",
+        "terminal",
+        "failureType",
+        "failureMessage",
+    ];
+    if verification
+        .keys()
+        .any(|key| !allowed.contains(&key.as_str()))
+        || receipt.operation_id != id
+        || receipt.operation != "navigation.build"
+        || verification.get("matched") != Some(&json!(true))
+        || verification["target"].as_str() != Some(ticket)
+        || verification["levelId"].as_str() != Some(level)
+        || receipt.state != "failed"
+        || receipt.project_id != discovery.project_id
+        || receipt.editor_pid != discovery.pid
+        || receipt.target != ticket
+        || verification["terminal"] != json!(true)
+        || verification["failureType"].as_str() != Some(error.kind.as_str())
+        || verification["readback"].as_str()
+            != metadata("navigation.build").and_then(|value| value.readback)
+        || verification.get("requestLevelId") != args.get("levelId")
+        || verification["observedStatus"].as_str() != Some("failed")
+        || verification["failureType"].as_str() != Some(error.kind.as_str())
+        || verification["failureMessage"].as_str() != Some(error.message.as_str())
+        || !capability::canonical_revision(observed)
+        || receipt.revision != observed
+        || error.retryable
+        || receipt.changed
+        || !receipt.dirty_packages.is_empty()
+        || !dirty.is_empty()
+        || error.dirty_package_count != Some(0)
+        || !receipt.saved_packages.is_empty()
+        || receipt.persistence != "unchanged"
+        || receipt.transaction != "non-atomic"
+        || receipt.reversibility != "none"
+    {
+        return Err(outcome_unknown(id));
+    }
+    Ok(())
+}
+
 fn validate_failed_receipt(
     operation: &str,
     id: &str,
@@ -1124,6 +1222,25 @@ fn validate_failed_receipt(
         .verification
         .as_object()
         .ok_or_else(|| outcome_unknown(id))?;
+    let allowed_verification = [
+        "target",
+        "readback",
+        "matched",
+        "beforeRevision",
+        "observedRevision",
+        "observedStatus",
+        "failureType",
+        "errorCount",
+        "warningCount",
+        "diagnostics",
+        "changedObjects",
+    ];
+    if verification
+        .keys()
+        .any(|key| !allowed_verification.contains(&key.as_str()))
+    {
+        return Err(outcome_unknown(id));
+    }
     let target = args
         .get("id")
         .and_then(Value::as_str)
@@ -1153,7 +1270,8 @@ fn validate_failed_receipt(
         .ok_or_else(|| outcome_unknown(id))?;
     let valid_revision = capability::canonical_revision;
     let changed = before_revision != observed_revision;
-    if receipt.operation_id != id
+    if error.retryable
+        || receipt.operation_id != id
         || receipt.operation != operation
         || receipt.state != "failed"
         || receipt.project_id != discovery.project_id
@@ -1238,6 +1356,46 @@ fn validate_receipt_with_replay(
         .ok_or_else(|| outcome_unknown(id))?;
     let result_target = match operation {
         "play.screenshot" => result["path"].as_str().unwrap_or_default().to_owned(),
+        "navigation.bounds_ensure" => format!(
+            "{}#nav-bounds:{}",
+            args["levelId"].as_str().unwrap_or_default(),
+            args["agentKey"].as_str().unwrap_or_default()
+        ),
+        "navigation.build" => result["ticketId"].as_str().unwrap_or_default().to_owned(),
+        "blackboard.key_ensure" => format!(
+            "{}#{}",
+            args["blackboardId"].as_str().unwrap_or_default(),
+            args["keyName"].as_str().unwrap_or_default()
+        ),
+        "behavior_tree.connect" => {
+            let link_id = result["linkId"].as_str().unwrap_or_default();
+            format!(
+                "{}#{}",
+                args["behaviorTreeId"].as_str().unwrap_or_default(),
+                link_id
+            )
+        }
+        "ai.controller_configure" => format!(
+            "{}#ai-controller:{}",
+            args["blueprintId"].as_str().unwrap_or_default(),
+            args["behaviorTreeId"].as_str().unwrap_or_default()
+        ),
+        "ai.pawn_configure" => format!(
+            "{}#ai-pawn",
+            args["blueprintId"].as_str().unwrap_or_default()
+        ),
+        "play.ai_target_set" => format!(
+            "{}#{}#{}#{}",
+            args["sessionId"].as_str().unwrap_or_default(),
+            args["pawnId"].as_str().unwrap_or_default(),
+            args["keyName"].as_str().unwrap_or_default(),
+            args["targetActorId"].as_str().unwrap_or_default()
+        ),
+        "behavior_tree.node_ensure" => format!(
+            "{}#{}",
+            args["behaviorTreeId"].as_str().unwrap_or_default(),
+            args["nodeId"].as_str().unwrap_or_default()
+        ),
         "blueprint.event_ensure" | "blueprint.node_ensure" => format!(
             "{}#{}#{}",
             args["blueprintId"].as_str().unwrap_or_default(),
@@ -1310,38 +1468,109 @@ fn validate_receipt_with_replay(
         })
     };
     let p11_request_matches = match operation {
-        "blueprint.interface_create" => {
-            result.get("id").and_then(Value::as_str)
-                == args
-                    .get("path")
-                    .and_then(Value::as_str)
-                    .and_then(|path| {
-                        path.rsplit_once('/')
-                            .map(|(_, name)| format!("{path}.{name}"))
+        "navigation.bounds_ensure" => {
+            result.get("levelId") == args.get("levelId")
+                && result.get("agentKey") == args.get("agentKey")
+                && result.get("location") == args.get("location")
+                && result.get("extent") == args.get("extent")
+                && verification.get("requestLevelId") == args.get("levelId")
+                && verification.get("requestAgentKey") == args.get("agentKey")
+                && verification.get("requestLocation") == args.get("location")
+                && verification.get("requestExtent") == args.get("extent")
+        }
+        "navigation.build" => {
+            result.get("levelId") == args.get("levelId")
+                && verification.get("requestLevelId") == args.get("levelId")
+        }
+        "blackboard.create" => {
+            result
+                .get("blackboardId")
+                .and_then(Value::as_str)
+                .is_some_and(|id| {
+                    args["path"].as_str().is_some_and(|path| {
+                        path.rsplit('/')
+                            .next()
+                            .is_some_and(|name| id == format!("{path}.{name}"))
                     })
-                    .as_deref()
+                })
                 && verification.get("requestPath") == args.get("path")
-                && verification.get("requestFunction") == args.get("function")
+        }
+        "behavior_tree.create" => {
+            result
+                .get("behaviorTreeId")
+                .and_then(Value::as_str)
+                .is_some_and(|id| {
+                    args["path"].as_str().is_some_and(|path| {
+                        path.rsplit('/')
+                            .next()
+                            .is_some_and(|name| id == format!("{path}.{name}"))
+                    })
+                })
+                && verification.get("requestPath") == args.get("path")
+                && verification.get("requestBlackboardId") == args.get("blackboardId")
+        }
+        "blackboard.key_ensure" => {
+            result.get("blackboardId") == args.get("blackboardId")
+                && result.get("keyName") == args.get("keyName")
+                && result.get("keyType") == args.get("keyType")
+                && verification.get("requestBlackboardId") == args.get("blackboardId")
+                && verification.get("requestKeyName") == args.get("keyName")
+                && verification.get("requestKeyType") == args.get("keyType")
+        }
+        "behavior_tree.node_ensure" => {
+            result.get("behaviorTreeId") == args.get("behaviorTreeId")
+                && result.get("nodeId") == args.get("nodeId")
+                && result.get("nodeType") == args.get("nodeType")
+                && verification.get("requestBehaviorTreeId") == args.get("behaviorTreeId")
+                && verification.get("requestNodeId") == args.get("nodeId")
+                && verification.get("requestNodeType") == args.get("nodeType")
+        }
+        "behavior_tree.connect" => {
+            result.get("behaviorTreeId") == args.get("behaviorTreeId")
+                && result.get("parentNodeId") == args.get("parentNodeId")
+                && result.get("childNodeId") == args.get("childNodeId")
+                && result.get("childIndex") == args.get("childIndex")
+                && result.get("linkId").and_then(Value::as_str)
+                    == Some(&format!(
+                        "{}->{}",
+                        args["parentNodeId"].as_str().unwrap_or_default(),
+                        args["childNodeId"].as_str().unwrap_or_default()
+                    ))
+                && verification.get("requestBehaviorTreeId") == args.get("behaviorTreeId")
+                && verification.get("requestParentNodeId") == args.get("parentNodeId")
+                && verification.get("requestChildNodeId") == args.get("childNodeId")
+                && verification.get("requestChildIndex") == args.get("childIndex")
+        }
+        "ai.controller_configure" => {
+            result.get("blueprintId") == args.get("blueprintId")
+                && result.get("behaviorTreeId") == args.get("behaviorTreeId")
+                && result.get("semantic")
+                    == Some(&Value::String("on_possess.run_behavior_tree".into()))
+                && verification.get("requestBlueprintId") == args.get("blueprintId")
+                && verification.get("requestBehaviorTreeId") == args.get("behaviorTreeId")
+        }
+        "ai.pawn_configure" => {
+            result.get("blueprintId") == args.get("blueprintId")
+                && result.get("controllerBlueprintId") == args.get("controllerBlueprintId")
+                && verification.get("requestBlueprintId") == args.get("blueprintId")
+                && verification.get("requestControllerBlueprintId")
+                    == args.get("controllerBlueprintId")
+        }
+        "play.ai_target_set" => {
+            result.get("sessionId") == args.get("sessionId")
+                && result.get("pawnId") == args.get("pawnId")
+                && result.get("keyName") == args.get("keyName")
+                && result.get("targetActorId") == args.get("targetActorId")
+                && verification.get("requestSessionId") == args.get("sessionId")
+                && verification.get("requestPawnId") == args.get("pawnId")
+                && verification.get("requestKeyName") == args.get("keyName")
+                && verification.get("requestTargetActorId") == args.get("targetActorId")
         }
         "blueprint.interface_ensure" => {
             result.get("blueprintId") == args.get("blueprintId")
                 && result.get("interfaceId") == args.get("interfaceId")
                 && verification.get("requestBlueprintId") == args.get("blueprintId")
                 && verification.get("requestInterfaceId") == args.get("interfaceId")
-        }
-        "blueprint.scs_component_ensure" => {
-            result.get("blueprintId") == args.get("blueprintId")
-                && verification.get("requestBlueprintId") == args.get("blueprintId")
-                && verification.get("requestName") == args.get("name")
-                && verification.get("requestClass") == args.get("class")
-                && verification
-                    .get("requestParent")
-                    .is_some_and(|request_parent| {
-                        args.get("parent").map_or_else(
-                            || request_parent.is_null(),
-                            |parent| request_parent == parent,
-                        )
-                    })
         }
         "blueprint.scs_component_update" | "blueprint.scs_component_remove" => {
             result.get("blueprintId") == args.get("blueprintId")
@@ -1363,32 +1592,15 @@ fn validate_receipt_with_replay(
                 && verification.get("requestParentClass") == args.get("parentClass")
                 && result.get("parentClass") == args.get("parentClass")
         }
-        "blueprint.event_ensure" | "blueprint.node_ensure" => {
-            let intent_field = if operation == "blueprint.event_ensure" {
-                "event"
-            } else {
-                "node"
-            };
-            result.get("blueprintId") == args.get("blueprintId")
-                && result.get("graphId") == args.get("graphId")
-                && verification.get("requestBlueprintId") == args.get("blueprintId")
-                && verification.get("requestGraphId") == args.get("graphId")
-                && verification.get("requestAgentKey") == args.get("agentKey")
-                && verification.get("requestIntent") == args.get(intent_field)
-                && verification.get("requestVariableGuid") == args.get("variableGuid")
-                && verification.get("requestInterfaceId") == args.get("interfaceId")
-        }
         "blueprint.pin_default_set" => {
             let value = args.get("value").and_then(Value::as_object);
             result.get("blueprintId") == args.get("blueprintId")
                 && result.get("pinId") == args.get("pinId")
                 && verification.get("requestBlueprintId") == args.get("blueprintId")
                 && verification.get("requestPinId") == args.get("pinId")
-                && verification.get("requestValueType") == value.and_then(|value| value.get("type"))
+                && verification.get("requestValueType") == value.and_then(|v| v.get("type"))
                 && verification.get("requestValue").and_then(Value::as_f64)
-                    == value
-                        .and_then(|value| value.get("value"))
-                        .and_then(Value::as_f64)
+                    == value.and_then(|v| v.get("value")).and_then(Value::as_f64)
         }
         "blueprint.pin_connect" => {
             result.get("blueprintId") == args.get("blueprintId")
@@ -1397,6 +1609,19 @@ fn validate_receipt_with_replay(
                 && verification.get("requestBlueprintId") == args.get("blueprintId")
                 && verification.get("requestSourcePinId") == args.get("sourcePinId")
                 && verification.get("requestTargetPinId") == args.get("targetPinId")
+        }
+        "blueprint.interface_create" => {
+            result.get("id").and_then(Value::as_str)
+                == args
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .and_then(|path| {
+                        path.rsplit_once('/')
+                            .map(|(_, name)| format!("{path}.{name}"))
+                    })
+                    .as_deref()
+                && verification.get("requestPath") == args.get("path")
+                && verification.get("requestFunction") == args.get("function")
         }
         _ => true,
     };
@@ -1516,6 +1741,28 @@ fn validate_receipt_with_replay(
             args.get(argument)
                 .is_none_or(|value| verification.get(request) == Some(value))
         });
+    let legacy_request_matches = match operation {
+        "blueprint.node_ensure" | "blueprint.event_ensure" => {
+            verification.get("requestBlueprintId") == args.get("blueprintId")
+                && verification.get("requestGraphId") == args.get("graphId")
+                && verification.get("requestAgentKey") == args.get("agentKey")
+                && verification.get("requestIntent")
+                    == args.get(if operation == "blueprint.node_ensure" {
+                        "node"
+                    } else {
+                        "event"
+                    })
+                && verification.get("requestVariableGuid") == args.get("variableGuid")
+                && verification.get("requestInterfaceId") == args.get("interfaceId")
+        }
+        "blueprint.scs_component_remove" => {
+            verification.get("requestBlueprintId") == args.get("blueprintId")
+                && verification.get("requestVariableGuid") == args.get("variableGuid")
+                && verification.get("requestForce") == args.get("force")
+                && verification.get("requestDryRun") == args.get("dryRun")
+        }
+        _ => true,
+    };
     let result_changed = result["changed"]
         .as_bool()
         .ok_or_else(|| outcome_unknown(id))?;
@@ -1568,6 +1815,7 @@ fn validate_receipt_with_replay(
         || target.is_empty()
         || !request_target_matches
         || !p11_request_matches
+        || !legacy_request_matches
         || !p12_update_fields_match
         || !p13_request_matches
         || target.chars().count() > 8192
@@ -3141,6 +3389,259 @@ mod tests {
             .is_err()
         );
     }
+    #[test]
+    fn validate_p14_receipts_bind_all_adversarial_requests_and_results() {
+        let revision = "a".repeat(64);
+        let cases = [
+            (
+                "navigation.bounds_ensure",
+                json!({"levelId":"/Game/L","agentKey":"Nav","location":[1,2,3],"extent":[100,100,100],"boundsId":"/Game/L#nav-bounds:Nav","changed":false,"dirtyPackages":[],"savedPackages":[],"revision":revision.clone()}),
+                json!({"levelId":"/Game/L","agentKey":"Nav","location":[1,2,3],"extent":[100,100,100]}),
+                "requestLevelId",
+                "location",
+            ),
+            (
+                "navigation.build",
+                json!({"levelId":"/Game/L","ticketId":"ticket-1","state":"scheduled","changed":true,"revision":revision.clone()}),
+                json!({"levelId":"/Game/L"}),
+                "requestLevelId",
+                "ticketId",
+            ),
+            (
+                "blackboard.create",
+                json!({"blackboardId":"/Game/BB.BB","changed":false,"dirtyPackages":[],"savedPackages":[],"revision":revision.clone()}),
+                json!({"path":"/Game/BB"}),
+                "requestPath",
+                "blackboardId",
+            ),
+            (
+                "blackboard.key_ensure",
+                json!({"blackboardId":"/Game/BB.BB","keyName":"Target","keyType":"Actor","changed":false,"dirtyPackages":[],"savedPackages":[],"revision":revision.clone()}),
+                json!({"blackboardId":"/Game/BB.BB","keyName":"Target","keyType":"Actor"}),
+                "requestKeyName",
+                "keyType",
+            ),
+            (
+                "behavior_tree.create",
+                json!({"behaviorTreeId":"/Game/BT.BT","blackboardId":"/Game/BB.BB","changed":false,"dirtyPackages":[],"savedPackages":[],"revision":revision.clone()}),
+                json!({"path":"/Game/BT","blackboardId":"/Game/BB.BB"}),
+                "requestPath",
+                "behaviorTreeId",
+            ),
+            (
+                "behavior_tree.node_ensure",
+                json!({"behaviorTreeId":"/Game/BT.BT","nodeId":"Root","nodeType":"sequence","keyName":null,"waitSeconds":null,"changed":false,"dirtyPackages":[],"savedPackages":[],"revision":revision.clone()}),
+                json!({"behaviorTreeId":"/Game/BT.BT","nodeId":"Root","nodeType":"sequence"}),
+                "requestNodeType",
+                "nodeType",
+            ),
+            (
+                "behavior_tree.connect",
+                json!({"behaviorTreeId":"/Game/BT.BT","parentNodeId":"Root","childNodeId":"Move","childIndex":0,"linkId":"Root->Move","changed":false,"dirtyPackages":[],"savedPackages":[],"revision":revision.clone()}),
+                json!({"behaviorTreeId":"/Game/BT.BT","parentNodeId":"Root","childNodeId":"Move","childIndex":0}),
+                "requestChildIndex",
+                "childIndex",
+            ),
+            (
+                "ai.controller_configure",
+                json!({"blueprintId":"/Game/C.C","behaviorTreeId":"/Game/BT.BT","semantic":"on_possess.run_behavior_tree","changed":false,"dirtyPackages":[],"savedPackages":[],"revision":revision.clone()}),
+                json!({"blueprintId":"/Game/C.C","behaviorTreeId":"/Game/BT.BT"}),
+                "requestBehaviorTreeId",
+                "semantic",
+            ),
+            (
+                "ai.pawn_configure",
+                json!({"blueprintId":"/Game/P.P","controllerBlueprintId":"/Game/C.C","typedDefaults":{"controllerClass":"/Game/C.C_C","autoPossessAI":"PlacedInWorldOrSpawned","maxWalkSpeed":600},"changed":false,"dirtyPackages":[],"savedPackages":[],"revision":revision.clone()}),
+                json!({"blueprintId":"/Game/P.P","controllerBlueprintId":"/Game/C.C"}),
+                "requestControllerBlueprintId",
+                "controllerBlueprintId",
+            ),
+            (
+                "play.ai_target_set",
+                json!({"sessionId":"s","pawnId":"p","controllerId":"c","keyName":"Target","targetActorId":"a","targetLocation":[1,2,3],"changed":false,"restarted":false,"revision":revision.clone()}),
+                json!({"sessionId":"s","pawnId":"p","keyName":"Target","targetActorId":"a"}),
+                "requestTargetActorId",
+                "targetActorId",
+            ),
+        ];
+        for (operation, result, args, request_key, result_key) in cases {
+            let mut receipt = receipt_fixture(operation, result.clone(), true);
+            let target = match operation {
+                "navigation.bounds_ensure" => "/Game/L#nav-bounds:Nav",
+                "navigation.build" => "ticket-1",
+                "blackboard.create" => "/Game/BB.BB",
+                "blackboard.key_ensure" => "/Game/BB.BB#Target",
+                "behavior_tree.create" => "/Game/BT.BT",
+                "behavior_tree.node_ensure" => "/Game/BT.BT#Root",
+                "behavior_tree.connect" => "/Game/BT.BT#Root->Move",
+                "ai.controller_configure" => "/Game/C.C#ai-controller:/Game/BT.BT",
+                "ai.pawn_configure" => "/Game/P.P#ai-pawn",
+                "play.ai_target_set" => "s#p#Target#a",
+                _ => unreachable!(),
+            };
+            receipt.target = target.into();
+            if operation == "navigation.build" {
+                receipt.transaction = "non-atomic".into();
+                receipt.reversibility = "none".into();
+            }
+            receipt.verification["target"] = json!(target);
+            for (key, value) in [
+                ("requestLevelId", args.get("levelId")),
+                ("requestAgentKey", args.get("agentKey")),
+                ("requestLocation", args.get("location")),
+                ("requestExtent", args.get("extent")),
+                ("requestPath", args.get("path")),
+                ("requestBlackboardId", args.get("blackboardId")),
+                ("requestKeyName", args.get("keyName")),
+                ("requestKeyType", args.get("keyType")),
+                ("requestBehaviorTreeId", args.get("behaviorTreeId")),
+                ("requestNodeId", args.get("nodeId")),
+                ("requestNodeType", args.get("nodeType")),
+                ("requestParentNodeId", args.get("parentNodeId")),
+                ("requestChildNodeId", args.get("childNodeId")),
+                ("requestChildIndex", args.get("childIndex")),
+                ("requestBlueprintId", args.get("blueprintId")),
+                (
+                    "requestControllerBlueprintId",
+                    args.get("controllerBlueprintId"),
+                ),
+                ("requestSessionId", args.get("sessionId")),
+                ("requestPawnId", args.get("pawnId")),
+                ("requestTargetActorId", args.get("targetActorId")),
+            ] {
+                if let Some(value) = value {
+                    receipt.verification[key] = value.clone();
+                }
+            }
+            let generated_validation = capability::validate_output(operation, result.clone());
+            assert!(
+                generated_validation.is_ok(),
+                "{operation} generated output: {generated_validation:?}"
+            );
+            let validation = validate_receipt(
+                operation,
+                "id",
+                &receipt,
+                &result,
+                &args,
+                &fake_discovery(0),
+            );
+            assert!(validation.is_ok(), "{operation} valid: {validation:?}");
+            let mut request_tampered = receipt.clone();
+            request_tampered.verification[request_key] = json!("tampered");
+            assert!(
+                validate_receipt(
+                    operation,
+                    "id",
+                    &request_tampered,
+                    &result,
+                    &args,
+                    &fake_discovery(0)
+                )
+                .is_err(),
+                "{operation} request"
+            );
+            let mut result_tampered = result.clone();
+            result_tampered[result_key] = if result_key == "location" {
+                json!([9, 9, 9])
+            } else {
+                json!("tampered")
+            };
+            assert!(
+                validate_receipt(
+                    operation,
+                    "id",
+                    &receipt,
+                    &result_tampered,
+                    &args,
+                    &fake_discovery(0)
+                )
+                .is_err(),
+                "{operation} result"
+            );
+            let mut target_tampered = receipt;
+            target_tampered.target = "tampered".into();
+            assert!(
+                validate_receipt(
+                    operation,
+                    "id",
+                    &target_tampered,
+                    &result,
+                    &args,
+                    &fake_discovery(0)
+                )
+                .is_err(),
+                "{operation} target"
+            );
+        }
+    }
+    #[test]
+    fn validate_failed_terminal_ticket_receipt_rejects_ticket_level_message_revision_tampering() {
+        let discovery = fake_discovery(0);
+        let args = json!({"levelId":"/Game/L"});
+        let revision = "a".repeat(64);
+        let error = BridgeOperationError {
+            kind: "navigation_build_failed".into(),
+            message: "build failed".into(),
+            retryable: false,
+            dirty_package_count: Some(0),
+            dirty_packages: Some(vec![]),
+            error_count: None,
+            warning_count: None,
+            diagnostics: None,
+            current_revision: None,
+        };
+        let mut receipt = Receipt {
+            operation_id: "id".into(),
+            operation: "navigation.build".into(),
+            state: "failed".into(),
+            project_id: discovery.project_id.clone(),
+            editor_pid: discovery.pid,
+            target: "ticket-1".into(),
+            changed: false,
+            transaction: "non-atomic".into(),
+            reversibility: "none".into(),
+            dirty_packages: vec![],
+            saved_packages: vec![],
+            revision: revision.clone(),
+            persistence: "unchanged".into(),
+            verification: json!({"target":"ticket-1","readback":"navigation.status","matched":true,"ticketId":"ticket-1","levelId":"/Game/L","requestLevelId":"/Game/L","observedRevision":revision,"observedStatus":"failed","terminal":true,"failureType":"navigation_build_failed","failureMessage":"build failed"}),
+        };
+        assert!(
+            capability::validate_output("operation.view", serde_json::to_value(&receipt).unwrap())
+                .is_ok()
+        );
+        assert!(
+            validate_failed_terminal_ticket_receipt("id", &args, &receipt, &error, &discovery)
+                .is_ok()
+        );
+        for (field, value) in [
+            ("ticketId", json!("wrong")),
+            ("levelId", json!("wrong")),
+            ("failureMessage", json!("wrong")),
+            ("observedRevision", json!("b".repeat(64))),
+        ] {
+            let original = receipt.verification[field].clone();
+            receipt.verification[field] = value;
+            assert!(
+                validate_failed_terminal_ticket_receipt("id", &args, &receipt, &error, &discovery)
+                    .is_err(),
+                "{field}"
+            );
+            receipt.verification[field] = original;
+        }
+        receipt.verification["terminal"] = json!(false);
+        assert!(
+            validate_failed_terminal_ticket_receipt("id", &args, &receipt, &error, &discovery)
+                .is_err()
+        );
+        receipt.verification["extra"] = json!(true);
+        assert!(
+            validate_failed_terminal_ticket_receipt("id", &args, &receipt, &error, &discovery)
+                .is_err()
+        );
+    }
+
     fn failed_compile_fixture() -> (Receipt, BridgeOperationError, Value, ExecutionOptions) {
         let before = "a".repeat(64);
         let observed = before.clone();
@@ -3290,6 +3791,53 @@ mod tests {
                 &fake_discovery(0)
             )
             .is_err()
+        );
+    }
+    #[test]
+    fn validate_failed_compile_receipt_rejects_retryable_and_dirty_package_tampering() {
+        let (mut receipt, mut error, args, options) = failed_compile_fixture();
+        let discovery = fake_discovery(0);
+        let valid = |receipt: &Receipt, error: &BridgeOperationError| {
+            validate_failed_receipt(
+                "blueprint.compile",
+                "id",
+                &args,
+                &options,
+                receipt,
+                error,
+                &discovery,
+            )
+        };
+
+        error.retryable = true;
+        assert!(
+            valid(&receipt, &error).is_err(),
+            "retryable compile failure"
+        );
+        error.retryable = false;
+
+        receipt.dirty_packages = vec!["/Game/A".into(), "/Game/B".into()];
+        error.dirty_packages = Some(receipt.dirty_packages.clone());
+        error.dirty_package_count = Some(2);
+        assert!(valid(&receipt, &error).is_ok(), "two-package fixture");
+
+        let mut swapped = receipt.clone();
+        swapped.dirty_packages.swap(0, 1);
+        assert!(valid(&swapped, &error).is_err(), "swapped dirty packages");
+
+        let mut extra = receipt.clone();
+        extra.dirty_packages.push("/Game/C".into());
+        assert!(valid(&extra, &error).is_err(), "extra dirty package");
+
+        let mut absent = receipt.clone();
+        absent.dirty_packages.pop();
+        assert!(valid(&absent, &error).is_err(), "absent dirty package");
+
+        let mut unknown = receipt;
+        unknown.verification["extra"] = json!(true);
+        assert!(
+            valid(&unknown, &error).is_err(),
+            "unknown verification field"
         );
     }
 

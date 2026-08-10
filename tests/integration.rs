@@ -407,7 +407,7 @@ mod m3_fake_bridge {
         );
         assert!(search.status.success());
         let search = json_output(&search);
-        assert_eq!(search["count"], 6);
+        assert_eq!(search["count"], 7);
         assert!(search["items"][0].get("inputSchema").is_none());
         assert_eq!(search["items"][0]["availability"], "unknown");
         assert_eq!(search["items"][0]["reasons"][0]["code"], "editor_offline");

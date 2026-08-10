@@ -611,8 +611,9 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
         FString Path, ParentClass;
         Args->TryGetStringField(TEXT("path"), Path);
         Args->TryGetStringField(TEXT("parentClass"), ParentClass);
-        if ((ParentClass != TEXT("/Script/Engine.StaticMeshActor") && ParentClass != TEXT("/Script/Engine.Actor")) || !Path.StartsWith(TEXT("/Game/")) || !FPackageName::IsValidLongPackageName(Path) || Path.Contains(TEXT(".")))
-            return ErrorResponse(Id, TEXT("invalid_input"), TEXT("path must be a /Game long package path and parentClass must be /Script/Engine.StaticMeshActor or /Script/Engine.Actor"));
+        const bool ValidParent = ParentClass == TEXT("/Script/Engine.StaticMeshActor") || ParentClass == TEXT("/Script/Engine.Actor") || ParentClass == TEXT("/Script/Engine.Character") || ParentClass == TEXT("/Script/AIModule.AIController");
+        if (!ValidParent || !Path.StartsWith(TEXT("/Game/")) || !FPackageName::IsValidLongPackageName(Path) || Path.Contains(TEXT(".")))
+            return ErrorResponse(Id, TEXT("invalid_input"), TEXT("path must be /Game long package path and parentClass must be supported"));
         const FString Name = FPackageName::GetLongPackageAssetName(Path);
         if (Name.IsEmpty()) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("Blueprint path requires asset name"));
         const FString BlueprintId = Path + TEXT(".") + Name;
@@ -644,7 +645,8 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
         {
             UObject* Existing = StaticLoadObject(UObject::StaticClass(), nullptr, *BlueprintId, nullptr, LOAD_NoWarn);
             UBlueprint* Blueprint = Cast<UBlueprint>(Existing);
-            if (!Blueprint || (ParentClass == TEXT("/Script/Engine.StaticMeshActor") && Blueprint->ParentClass != AStaticMeshActor::StaticClass()) || (ParentClass == TEXT("/Script/Engine.Actor") && Blueprint->ParentClass != AActor::StaticClass())) return ErrorResponse(Id, TEXT("conflict"), TEXT("asset path exists with incompatible Blueprint intent"));
+            const TMap<FString, UClass*> Parents{{TEXT("/Script/Engine.StaticMeshActor"), AStaticMeshActor::StaticClass()}, {TEXT("/Script/Engine.Actor"), AActor::StaticClass()}, {TEXT("/Script/Engine.Character"), ACharacter::StaticClass()}, {TEXT("/Script/AIModule.AIController"), AAIController::StaticClass()}};
+            if (!Blueprint || !Parents.Contains(ParentClass) || Blueprint->ParentClass != Parents.FindChecked(ParentClass)) return ErrorResponse(Id, TEXT("conflict"), TEXT("asset path exists with incompatible Blueprint intent"));
             const TSharedRef<FJsonObject> Result = P11MutationResult(*Blueprint, FString(), FString(), FString(), FString(), FString(), false);
             Result->SetStringField(TEXT("parentClass"), Blueprint->ParentClass->GetPathName());
             Result->SetStringField(TEXT("generatedClass"), Blueprint->GeneratedClass ? Blueprint->GeneratedClass->GetPathName() : BlueprintId + TEXT("_C"));
@@ -652,8 +654,9 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
         }
         UPackage* Package = CreatePackage(*Path);
         if (!Package || Package->GetName() != Path || FindObject<UObject>(Package, *Name)) return ErrorResponse(Id, TEXT("conflict"), TEXT("Blueprint package or object already exists"));
+        const TMap<FString, UClass*> Parents{{TEXT("/Script/Engine.StaticMeshActor"), AStaticMeshActor::StaticClass()}, {TEXT("/Script/Engine.Actor"), AActor::StaticClass()}, {TEXT("/Script/Engine.Character"), ACharacter::StaticClass()}, {TEXT("/Script/AIModule.AIController"), AAIController::StaticClass()}};
         FScopedTransaction Transaction(NSLOCTEXT("MagiUnrealAXI", "P11CreateBlueprint", "Magi AXI Create Blueprint"));
-        UClass* Parent = ParentClass == TEXT("/Script/Engine.Actor") ? AActor::StaticClass() : AStaticMeshActor::StaticClass();
+        UClass* Parent = Parents.FindChecked(ParentClass);
         UBlueprint* Blueprint = FKismetEditorUtilities::CreateBlueprint(Parent, Package, FName(*Name), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), TEXT("MagiUnrealAXI"));
         bool AssetRegistered = false;
         if (!Blueprint) { Transaction.Cancel(); P11DiscardCreatedBlueprint(*Package, nullptr, false); return FailedCreate(TEXT("Blueprint creation failed")); }

@@ -623,7 +623,8 @@ fn set_schema_path(value: &mut Value, schema: &Value, path: &[String], replaceme
             *value = Value::Array(Vec::new());
         }
         let array = value.as_array_mut().unwrap();
-        while array.len() <= index {
+        let minimum = item_schema["minItems"].as_u64().unwrap_or(0) as usize;
+        while array.len() < minimum.max(index + 1) {
             array.push(minimal_value(item_schema));
         }
         set_schema_path(&mut array[index], item_schema, &path[1..], replacement);
@@ -926,7 +927,7 @@ fn emit_rust_non_null(
         "integer" => {
             let index = *counter;
             *counter += 1;
-            let number = format!("number_{index}");
+            let number = format!("_number_{index}");
             output.push_str(&format!(
                 "{pad}let {number} = {value}.as_i64().ok_or(\"output integer expected\")?;\n"
             ));
@@ -940,7 +941,7 @@ fn emit_rust_non_null(
         "number" => {
             let index = *counter;
             *counter += 1;
-            let number = format!("number_{index}");
+            let number = format!("_number_{index}");
             output.push_str(&format!(
                 "{pad}let {number} = {value}.as_f64().filter(|number| number.is_finite()).ok_or(\"output number expected\")?;\n"
             ));
@@ -1114,7 +1115,9 @@ fn emit_cpp_non_null(
             }
             output.push_str(&format!(
                 "{pad}if (MagiAxiUnicodeScalarCount({text}) > {}) return false;\n",
-                schema["maxLength"].as_u64().unwrap()
+                schema["maxLength"]
+                    .as_u64()
+                    .expect("validated string maxLength")
             ));
             if let Some(values) = schema.get("enum").and_then(Value::as_array) {
                 let condition = values
@@ -1300,7 +1303,10 @@ fn validate_catalog(catalog: &Value) -> Result<usize, String> {
                     ));
                 }
             }
-            Some("preserved-dirty") if mutates && transaction == Some("non-atomic") => {}
+            Some("preserved-dirty")
+                if id == "blueprint.compile" && mutates && transaction == Some("non-atomic") => {}
+            Some("terminal-ticket")
+                if id == "navigation.build" && transaction == Some("non-atomic") => {}
             Some(_) => return Err(format!("{id}: invalid failureReceipt contract")),
         }
         if !object["engineSupport"].is_object() {
@@ -1482,10 +1488,9 @@ mod tests {
             .find(|record| record["id"] == id)
             .unwrap()
     }
-
     #[test]
     fn catalog_runtime_metadata_is_strict() {
-        assert_eq!(validate_catalog(&catalog()).unwrap(), 55);
+        assert_eq!(validate_catalog(&catalog()).unwrap(), 70);
         for (field, value) in [
             ("idempotency", json!("retry-everything")),
             ("saveBehavior", json!("automatic")),
@@ -1510,7 +1515,7 @@ mod tests {
             .iter()
             .filter(|record| record["mutates"] == true)
             .count();
-        assert_eq!(mutations, 33);
+        assert_eq!(mutations, 43);
         assert!(validate_catalog(&catalog).is_ok());
 
         let mut missing_target = catalog.clone();
@@ -1605,5 +1610,40 @@ mod numeric_fixture_tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod schema_path_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn replacing_array_leaf_preserves_min_items_boundary() {
+        let schema = json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "values": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "items": {"type": "integer", "minimum": 0, "maximum": 10}
+                }
+            },
+            "required": ["values"]
+        });
+        let mut fixture = minimal_value(&schema);
+        set_schema_path(
+            &mut fixture,
+            &schema,
+            &["values".into(), "2".into()],
+            json!(10),
+        );
+        assert_eq!(fixture["values"], json!([0, 0, 10]));
+        assert_eq!(
+            schema_at_path(&schema, &["values".into(), "2".into()])["maximum"],
+            10
+        );
     }
 }

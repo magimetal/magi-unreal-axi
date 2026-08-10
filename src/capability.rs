@@ -800,6 +800,21 @@ pub fn validate_input(id: &str, args: Value) -> Result<Value, AppError> {
                 previous = Some(widget);
             }
         }
+        "navigation.bounds_ensure"
+        | "navigation.build"
+        | "navigation.status"
+        | "navigation.path_query"
+        | "blackboard.create"
+        | "blackboard.key_ensure"
+        | "blackboard.view"
+        | "behavior_tree.create"
+        | "behavior_tree.node_ensure"
+        | "behavior_tree.connect"
+        | "behavior_tree.view"
+        | "ai.controller_configure"
+        | "ai.pawn_configure"
+        | "play.ai_target_set"
+        | "play.ai_observe" => {}
         _ => {
             return Err(input_error(
                 id,
@@ -993,7 +1008,22 @@ pub fn validate_output_for_request(
         | "play.observe"
         | "play.component_observe"
         | "play.screenshot"
-        | "play.stop" => {
+        | "play.stop"
+        | "navigation.bounds_ensure"
+        | "navigation.build"
+        | "navigation.status"
+        | "navigation.path_query"
+        | "blackboard.create"
+        | "blackboard.key_ensure"
+        | "blackboard.view"
+        | "behavior_tree.create"
+        | "behavior_tree.node_ensure"
+        | "behavior_tree.connect"
+        | "behavior_tree.view"
+        | "ai.controller_configure"
+        | "ai.pawn_configure"
+        | "play.ai_target_set"
+        | "play.ai_observe" => {
             require_output_string(id, object, "revision")?;
         }
         _ => return Err(output_error(id, "unknown result contract")),
@@ -2101,7 +2131,7 @@ mod tests {
     #[test]
     fn search_is_compact_and_deterministic() {
         let result = search("actor", 50);
-        assert_eq!(result["count"], 6);
+        assert_eq!(result["count"], 7);
         assert_eq!(result["items"][0]["id"], "actor.delete");
         assert!(result["items"][0].get("inputSchema").is_none());
     }

@@ -876,6 +876,322 @@
     }
   },
   {
+    "operation": "ai.controller_configure",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "behaviorTreeId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "ai.pawn_configure",
+    "case": "input-root-not-closed",
+    "args": {
+      "blueprintId": "x",
+      "controllerBlueprintId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "behavior_tree.connect",
+    "case": "input-root-not-closed",
+    "args": {
+      "behaviorTreeId": "x",
+      "parentNodeId": "x",
+      "childNodeId": "x",
+      "childIndex": 0,
+      "unknown": true
+    }
+  },
+  {
+    "operation": "behavior_tree.connect",
+    "case": "numeric-below-minimum@childIndex",
+    "args": {
+      "behaviorTreeId": "x",
+      "parentNodeId": "x",
+      "childNodeId": "x",
+      "childIndex": -1
+    }
+  },
+  {
+    "operation": "behavior_tree.connect",
+    "case": "numeric-above-maximum@childIndex",
+    "args": {
+      "behaviorTreeId": "x",
+      "parentNodeId": "x",
+      "childNodeId": "x",
+      "childIndex": 32
+    }
+  },
+  {
+    "operation": "behavior_tree.create",
+    "case": "input-root-not-closed",
+    "args": {
+      "path": "x",
+      "blackboardId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "behavior_tree.node_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "behaviorTreeId": "x",
+      "nodeId": "x",
+      "nodeType": "sequence",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "behavior_tree.view",
+    "case": "input-root-not-closed",
+    "args": {
+      "behaviorTreeId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blackboard.create",
+    "case": "input-root-not-closed",
+    "args": {
+      "path": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blackboard.key_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "blackboardId": "x",
+      "keyName": "x",
+      "keyType": "Actor",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "blackboard.view",
+    "case": "input-root-not-closed",
+    "args": {
+      "blackboardId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "navigation.build",
+    "case": "input-root-not-closed",
+    "args": {
+      "levelId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "navigation.status",
+    "case": "input-root-not-closed",
+    "args": {
+      "ticketId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "navigation.bounds_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "levelId": "x",
+      "agentKey": "x",
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "extent": [
+        0.001,
+        0.001,
+        0.001
+      ],
+      "unknown": true
+    }
+  },
+  {
+    "operation": "navigation.bounds_ensure",
+    "case": "numeric-below-minimum@location.0",
+    "args": {
+      "levelId": "x",
+      "agentKey": "x",
+      "location": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "extent": [
+        0.001,
+        0.001,
+        0.001
+      ]
+    }
+  },
+  {
+    "operation": "navigation.bounds_ensure",
+    "case": "numeric-above-maximum@location.0",
+    "args": {
+      "levelId": "x",
+      "agentKey": "x",
+      "location": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "extent": [
+        0.001,
+        0.001,
+        0.001
+      ]
+    }
+  },
+  {
+    "operation": "navigation.bounds_ensure",
+    "case": "numeric-below-minimum@extent.0",
+    "args": {
+      "levelId": "x",
+      "agentKey": "x",
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "extent": [
+        -0.999,
+        0.001,
+        0.001
+      ]
+    }
+  },
+  {
+    "operation": "navigation.bounds_ensure",
+    "case": "numeric-above-maximum@extent.0",
+    "args": {
+      "levelId": "x",
+      "agentKey": "x",
+      "location": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "extent": [
+        100001.0,
+        0.001,
+        0.001
+      ]
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "input-root-not-closed",
+    "args": {
+      "levelId": "x",
+      "start": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "unknown": true
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "numeric-below-minimum@start.0",
+    "args": {
+      "levelId": "x",
+      "start": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ]
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "numeric-above-maximum@start.0",
+    "args": {
+      "levelId": "x",
+      "start": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ]
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "numeric-below-minimum@target.0",
+    "args": {
+      "levelId": "x",
+      "start": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        -1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ]
+    }
+  },
+  {
+    "operation": "navigation.path_query",
+    "case": "numeric-above-maximum@target.0",
+    "args": {
+      "levelId": "x",
+      "start": [
+        -1000000000.0,
+        -1000000000.0,
+        -1000000000.0
+      ],
+      "target": [
+        1000000001.0,
+        -1000000000.0,
+        -1000000000.0
+      ]
+    }
+  },
+  {
+    "operation": "play.ai_target_set",
+    "case": "input-root-not-closed",
+    "args": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "keyName": "x",
+      "targetActorId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.ai_observe",
+    "case": "input-root-not-closed",
+    "args": {
+      "sessionId": "x",
+      "pawnId": "x",
+      "keyName": "x",
+      "unknown": true
+    }
+  },
+  {
     "operation": "play.ui_observe",
     "case": "input-root-not-closed",
     "args": {

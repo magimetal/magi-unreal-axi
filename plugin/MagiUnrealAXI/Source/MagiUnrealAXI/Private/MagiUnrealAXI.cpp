@@ -45,6 +45,32 @@
 #include "Components/InputComponent.h"
 #include "Engine/InputKeyDelegateBinding.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/Character.h"
+#include "AIController.h"
+#include "BehaviorTree/BlackboardData.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyType_Object.h"
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/Tasks/BTTask_MoveTo.h"
+#include "BehaviorTree/BehaviorTreeComponent.h"
+#include "BehaviorTree/BlackboardComponent.h"
+#include "Navigation/PathFollowingComponent.h"
+#include "BehaviorTree/Tasks/BTTask_Wait.h"
+#include "BehaviorTree/Composites/BTComposite_Sequence.h"
+#include "BehaviorTreeGraph.h"
+#include "BehaviorTreeGraphNode.h"
+#include "BehaviorTreeGraphNode_Root.h"
+#include "BehaviorTreeGraphNode_Composite.h"
+#include "BehaviorTreeGraphNode_Task.h"
+#include "EdGraphSchema_BehaviorTree.h"
+#include "AIGraphNode.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "NavigationSystem.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
+#include "Builders/CubeBuilder.h"
+#include "ActorFactories/ActorFactory.h"
+#include "NavigationPath.h"
+#include "GameFramework/Pawn.h"
 #include "Engine/StaticMeshActor.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -364,6 +390,7 @@ void SetReceipt(const FString& Id, const FString& Operation, const FString& Resp
     FScopeLock Lock(&LedgerMutex);
     PruneLedger();
     FLedgerRecord* Record = FindLedger(Id);
+    if (Record && (Record->State == TEXT("completed") || Record->State == TEXT("failed") || Record->State == TEXT("outcome_unknown"))) return;
     if (!Record)
     {
         FLedgerRecord NewRecord;
@@ -965,6 +992,7 @@ TSharedRef<FJsonObject> P13TreeResult(UWidgetBlueprint& Blueprint);
 bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJsonObject>& Result, const FString& Target, const TSharedRef<FJsonObject>& Verification, const TSharedPtr<FJsonObject>& Args = nullptr);
 UBlueprint* P11LoadBlueprint(const FString& Id);
 static bool P13ViewportReadback(UBlueprint& Blueprint, UEdGraph& Graph, const FString& AgentKey, UClass* WidgetClass, UEdGraphNode*& Begin, UEdGraphNode*& Input, UK2Node_CreateWidget*& Create, UK2Node_CallFunction*& Add, UK2Node_CallFunction*& Enable, UK2Node_CallFunction*& Activate);
+static bool P14ControllerContract(UBlueprint& Blueprint, UBehaviorTree* Tree);
 static FString P13WidgetId(const UWidgetBlueprint& Blueprint, const UWidget& Widget);
 static bool P13Visibility(const FString& Value, ESlateVisibility& Out);
 UActorComponent* FindComponentById(UWorld& World, const FString& Wanted, AActor*& OutActor);
@@ -973,10 +1001,13 @@ FString ObjectContentRevision(const UObject* Object);
 UEdGraph* P11FindGraph(UBlueprint& Blueprint, const FString& GraphId);
 UEdGraphNode* P11FindNode(UBlueprint& Blueprint, const FString& NodeId, UEdGraph*& OutGraph);
 UEdGraphPin* P11FindPin(UBlueprint& Blueprint, const FString& PinId, UEdGraph*& OutGraph, UEdGraphNode*& OutNode);
+bool P14NavigationTicketExists(const FString& TicketId);
 FString P11NodeIntent(const UEdGraphNode& Node);
 FString P11NodeOwner(UBlueprint& Blueprint, const UEdGraphNode& Node);
 bool P12InterfaceContract(UBlueprint& Interface, UFunction*& OutFunction);
 UClass* P12InterfaceClass(const FString& InterfaceId, UFunction*& OutFunction);
+static UEdGraphNode* P14FindBehaviorTreeNode(UBehaviorTreeGraph& Graph, const FString& NodeId);
+static bool P14BehaviorTreeRuntimeValid(const UBehaviorTree& Tree, UBehaviorTreeGraph& Graph, bool AllowEmptyRoot);
 USCS_Node* P12FindSCSNode(UBlueprint& Blueprint, const FString& VariableGuid);
 FString P12ParentGuid(UBlueprint& Blueprint, USCS_Node& Node);
 bool P12SCSRequestMatches(USCS_Node& Node, const TSharedPtr<FJsonObject>& Args);
@@ -1030,6 +1061,18 @@ FString SuccessResponse(const FString& Id, const TSharedRef<FJsonObject>& Result
         {
             BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("sourcePinId"), TEXT("requestSourcePinId")); BindRequest(TEXT("targetPinId"), TEXT("requestTargetPinId"));
         }
+        else if (Args.IsValid() && Operation == TEXT("blackboard.create")) { BindRequest(TEXT("path"), TEXT("requestPath")); }
+        else if (Args.IsValid() && Operation == TEXT("blackboard.key_ensure")) { BindRequest(TEXT("blackboardId"), TEXT("requestBlackboardId")); BindRequest(TEXT("keyName"), TEXT("requestKeyName")); BindRequest(TEXT("keyType"), TEXT("requestKeyType")); }
+        else if (Args.IsValid() && Operation == TEXT("behavior_tree.create")) { BindRequest(TEXT("path"), TEXT("requestPath")); BindRequest(TEXT("blackboardId"), TEXT("requestBlackboardId")); }
+        else if (Args.IsValid() && Operation == TEXT("blackboard.view")) { BindRequest(TEXT("blackboardId"), TEXT("requestBlackboardId")); }
+        else if (Args.IsValid() && Operation == TEXT("behavior_tree.view")) { BindRequest(TEXT("behaviorTreeId"), TEXT("requestBehaviorTreeId")); }
+        else if (Args.IsValid() && Operation == TEXT("behavior_tree.node_ensure")) { BindRequest(TEXT("behaviorTreeId"), TEXT("requestBehaviorTreeId")); BindRequest(TEXT("nodeId"), TEXT("requestNodeId")); BindRequest(TEXT("nodeType"), TEXT("requestNodeType")); }
+        else if (Args.IsValid() && Operation == TEXT("navigation.bounds_ensure")) { BindRequest(TEXT("levelId"), TEXT("requestLevelId")); BindRequest(TEXT("agentKey"), TEXT("requestAgentKey")); BindRequest(TEXT("location"), TEXT("requestLocation")); BindRequest(TEXT("extent"), TEXT("requestExtent")); }
+        else if (Args.IsValid() && Operation == TEXT("navigation.build")) { BindRequest(TEXT("levelId"), TEXT("requestLevelId")); }
+        else if (Args.IsValid() && Operation == TEXT("play.ai_target_set")) { BindRequest(TEXT("sessionId"), TEXT("requestSessionId")); BindRequest(TEXT("pawnId"), TEXT("requestPawnId")); BindRequest(TEXT("keyName"), TEXT("requestKeyName")); BindRequest(TEXT("targetActorId"), TEXT("requestTargetActorId")); }
+        else if (Args.IsValid() && Operation == TEXT("ai.controller_configure")) { BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("behaviorTreeId"), TEXT("requestBehaviorTreeId")); }
+        else if (Args.IsValid() && Operation == TEXT("ai.pawn_configure")) { BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("controllerBlueprintId"), TEXT("requestControllerBlueprintId")); }
+        else if (Args.IsValid() && Operation == TEXT("behavior_tree.connect")) { BindRequest(TEXT("behaviorTreeId"), TEXT("requestBehaviorTreeId")); BindRequest(TEXT("parentNodeId"), TEXT("requestParentNodeId")); BindRequest(TEXT("childNodeId"), TEXT("requestChildNodeId")); BindRequest(TEXT("childIndex"), TEXT("requestChildIndex")); }
         else if (Args.IsValid() && Operation == TEXT("widget.create")) { BindRequest(TEXT("path"), TEXT("requestPath")); BindRequest(TEXT("rootName"), TEXT("requestRootName")); BindRequest(TEXT("rootClass"), TEXT("requestRootClass")); }
         else if (Args.IsValid() && Operation == TEXT("widget.child_ensure")) { BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("parentWidgetId"), TEXT("requestParentWidgetId")); BindRequest(TEXT("name"), TEXT("requestName")); BindRequest(TEXT("class"), TEXT("requestClass")); }
         else if (Args.IsValid() && Operation == TEXT("widget.property_set")) { BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("widgetId"), TEXT("requestWidgetId")); BindRequest(TEXT("property"), TEXT("requestProperty")); BindRequest(TEXT("text"), TEXT("requestText")); BindRequest(TEXT("visibility"), TEXT("requestVisibility")); BindRequest(TEXT("enabled"), TEXT("requestEnabled")); }
@@ -1043,7 +1086,14 @@ FString SuccessResponse(const FString& Id, const TSharedRef<FJsonObject>& Result
         else if (Args.IsValid() && (Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure"))) { FString BlueprintId, GraphId, AgentKey; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("graphId"), GraphId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Target = BlueprintId + TEXT("#") + GraphId + TEXT("#") + AgentKey; }
         else if (Args.IsValid() && Operation == TEXT("blueprint.pin_default_set")) { FString BlueprintId, PinId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("pinId"), PinId); Target = BlueprintId + TEXT("#") + PinId; }
         else if (Args.IsValid() && Operation == TEXT("widget.viewport_ensure")) { FString Host, Agent; Args->TryGetStringField(TEXT("hostBlueprintId"), Host); Args->TryGetStringField(TEXT("agentKey"), Agent); Target = Host + TEXT("#viewport:") + Agent; }
+        else if (Args.IsValid() && Operation == TEXT("blackboard.create")) { FString Path; Args->TryGetStringField(TEXT("path"), Path); Target = Path + TEXT(".") + FPackageName::GetShortName(Path); }
+        else if (Args.IsValid() && Operation == TEXT("blackboard.key_ensure")) { FString BlackboardId, KeyName; Args->TryGetStringField(TEXT("blackboardId"), BlackboardId); Args->TryGetStringField(TEXT("keyName"), KeyName); Target = BlackboardId + TEXT("#") + KeyName; }
+        else if (Args.IsValid() && Operation == TEXT("behavior_tree.create")) { FString Path; Args->TryGetStringField(TEXT("path"), Path); Target = Path + TEXT(".") + FPackageName::GetShortName(Path); }
         else if (Args.IsValid() && Operation == TEXT("blueprint.pin_connect")) { FString BlueprintId, SourcePinId, TargetPinId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("sourcePinId"), SourcePinId); Args->TryGetStringField(TEXT("targetPinId"), TargetPinId); Target = BlueprintId + TEXT("#") + SourcePinId + TEXT("#") + TargetPinId; }
+        else if (Args.IsValid() && Operation == TEXT("play.ai_target_set")) { FString Session, Pawn, Key, TargetId; Args->TryGetStringField(TEXT("sessionId"), Session); Args->TryGetStringField(TEXT("pawnId"), Pawn); Args->TryGetStringField(TEXT("keyName"), Key); Args->TryGetStringField(TEXT("targetActorId"), TargetId); Target = Session + TEXT("#") + Pawn + TEXT("#") + Key + TEXT("#") + TargetId; }
+        else if (Args.IsValid() && Operation == TEXT("ai.controller_configure")) { FString BlueprintId, TreeId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("behaviorTreeId"), TreeId); Target = BlueprintId + TEXT("#ai-controller:") + TreeId; }
+        else if (Args.IsValid() && Operation == TEXT("ai.pawn_configure")) { FString BlueprintId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Target = BlueprintId + TEXT("#ai-pawn"); }
+        else if (Args.IsValid() && Operation == TEXT("navigation.bounds_ensure")) { FString LevelId, AgentKey; Args->TryGetStringField(TEXT("levelId"), LevelId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Target = LevelId + TEXT("#nav-bounds:") + AgentKey; }
         bool Matched = true;
         if (Operation == TEXT("play.input")) { FString Key, Event, Session; bool Accepted = false; Result->TryGetStringField(TEXT("key"), Key); Result->TryGetStringField(TEXT("event"), Event); Result->TryGetStringField(TEXT("sessionId"), Session); Result->TryGetBoolField(TEXT("accepted"), Accepted); Target = Session + TEXT("#") + Key + TEXT("#") + Event; Matched = Accepted; }
         if (!VerifyMutationPostcondition(Operation, Result, Target, Verification, Args)) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("mutation postcondition verification failed"));
@@ -1390,6 +1440,118 @@ FString BlueprintContentRevision(const UBlueprint& Blueprint)
             Revision = ExtendRevision(Revision, {TEXT("widget"), Child->GetName(), TEXT("TextBlock"), Root->GetName(), LexToString(Root->GetChildIndex(const_cast<UTextBlock*>(Child))), Child->GetText().ToString(), LexToString(static_cast<int32>(Child->GetVisibility())), Child->GetIsEnabled() ? TEXT("enabled") : TEXT("disabled"), Child->bIsVariable ? TEXT("variable") : TEXT("notVariable")});
         }
     }
+    if (const ACharacter* Defaults = Blueprint.GeneratedClass ? Cast<ACharacter>(Blueprint.GeneratedClass->GetDefaultObject()) : nullptr)
+    {
+        const UCharacterMovementComponent* Movement = Defaults->GetCharacterMovement(); Revision = ExtendRevision(Revision, {TEXT("aiPawnDefaults"), Defaults->AIControllerClass ? Defaults->AIControllerClass->GetPathName() : FString(), LexToString(static_cast<int32>(Defaults->AutoPossessAI)), Movement ? FString::SanitizeFloat(Movement->MaxWalkSpeed) : FString()});
+    }
+    for (const UEdGraph* Graph : Blueprint.UbergraphPages)
+        for (const UEdGraphNode* Node : Graph ? Graph->Nodes : TArray<TObjectPtr<UEdGraphNode>>{})
+            if (const UK2Node_CallFunction* Call = Cast<UK2Node_CallFunction>(Node))
+            {
+                const UFunction* Function = Call->GetTargetFunction(); if (Function == AAIController::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(AAIController, RunBehaviorTree))) { const UEdGraphPin* Pin = Call->FindPin(TEXT("BTAsset"), EGPD_Input); Revision = ExtendRevision(Revision, {TEXT("aiControllerRunBehaviorTree"), Pin && Pin->DefaultObject ? Pin->DefaultObject->GetPathName() : FString()}); }
+            }
+    return Revision;
+}
+
+static FString BlackboardContentRevision(const UBlackboardData& Blackboard)
+{
+    if (Blackboard.Keys.Num() > 32) return FString();
+    TArray<FString> Rows;
+    TSet<FString> Names;
+    for (const FBlackboardEntry& Entry : Blackboard.Keys)
+    {
+        const FString Name = Entry.EntryName.ToString();
+        const UBlackboardKeyType_Object* Type = Cast<UBlackboardKeyType_Object>(Entry.KeyType);
+        if (Name.IsEmpty() || Names.Contains(Name) || !Type || Type->BaseClass != AActor::StaticClass()) return FString();
+        Names.Add(Name);
+        Rows.Add(Name + TEXT("\nActor\n") + Type->BaseClass->GetPathName());
+    }
+    Rows.Sort();
+    FString Revision = Sha256(Blackboard.GetPathName());
+    for (const FString& Row : Rows) Revision = ExtendRevision(Revision, {Row});
+    return Revision;
+}
+
+static FString BehaviorTreeContentRevision(const UBehaviorTree& Tree)
+{
+    FString Revision = Sha256(Tree.GetPathName() + TEXT("\n") + (Tree.BlackboardAsset ? Tree.BlackboardAsset->GetPathName() : FString()));
+    const UBehaviorTreeGraph* Graph = Cast<UBehaviorTreeGraph>(Tree.BTGraph);
+    if (!Graph || !Graph->GetSchema() || Graph->GetSchema()->GetClass() != UEdGraphSchema_BehaviorTree::StaticClass()) return FString();
+    if (!P14BehaviorTreeRuntimeValid(Tree, *const_cast<UBehaviorTreeGraph*>(Graph), true)) return FString();
+    TArray<FString> NodeRows;
+    TArray<FString> LinkRows;
+    TSet<FString> NodeIds;
+    TSet<FString> Links;
+    TSet<const UEdGraphNode*> ParentOf;
+    TMap<const UEdGraphNode*, TArray<const UEdGraphNode*>> Adjacency;
+    int32 RootCount = 0;
+    const UBehaviorTreeGraphNode_Root* RootNode = nullptr;
+    for (const UEdGraphNode* Candidate : Graph->Nodes) if (const UBehaviorTreeGraphNode_Root* CandidateRoot = Cast<UBehaviorTreeGraphNode_Root>(Candidate)) { ++RootCount; RootNode = CandidateRoot; }
+    if (RootCount != 1 || !RootNode || RootNode->BlackboardAsset != Tree.BlackboardAsset) return FString();
+    const UEdGraphPin* RootOutput = nullptr; int32 RootOutputs = 0; for (const UEdGraphPin* Pin : RootNode->Pins) if (Pin && Pin->Direction == EGPD_Output) { RootOutput = Pin; ++RootOutputs; }
+    if (RootOutputs != 1) return FString();
+    const int32 RootChildren = RootOutput->LinkedTo.Num();
+    if ((RootChildren == 0 && Tree.RootNode != nullptr) || RootChildren > 1 || (RootChildren == 1 && (!RootOutput->LinkedTo[0] || !RootOutput->LinkedTo[0]->GetOwningNode() || !Cast<UBehaviorTreeGraphNode_Composite>(RootOutput->LinkedTo[0]->GetOwningNode()) || Tree.RootNode != Cast<UBehaviorTreeGraphNode_Composite>(RootOutput->LinkedTo[0]->GetOwningNode())->NodeInstance))) return FString();
+    NodeRows.Add(TEXT("root"));
+    for (const UEdGraphNode* Node : Graph->Nodes)
+    {
+        if (!Node) return FString();
+        if (Node == RootNode) continue;
+        if (NodeIds.Num() == 32 || Node->NodeComment.IsEmpty() || Node->NodeComment == TEXT("root") || Node->NodeComment.Contains(TEXT("\n")) || Node->NodeComment.Contains(TEXT("\r")) || Node->NodeComment.Contains(TEXT("->")) || NodeIds.Contains(Node->NodeComment)) return FString();
+        const FString NodeId = Node->NodeComment;
+        FString NodeType;
+        FString KeyName;
+        FString WaitSeconds;
+        if (const UBehaviorTreeGraphNode_Composite* Composite = Cast<UBehaviorTreeGraphNode_Composite>(Node))
+        {
+            if (!Composite->NodeInstance || Composite->NodeInstance->GetClass() != UBTComposite_Sequence::StaticClass()) return FString();
+            NodeType = TEXT("sequence");
+        }
+        else if (const UBehaviorTreeGraphNode_Task* Task = Cast<UBehaviorTreeGraphNode_Task>(Node))
+        {
+            if (!Task->NodeInstance) return FString();
+            if (const UBTTask_MoveTo* MoveTo = Cast<UBTTask_MoveTo>(Task->NodeInstance))
+            {
+                if (MoveTo->GetClass() != UBTTask_MoveTo::StaticClass() || !Tree.BlackboardAsset || MoveTo->GetSelectedBlackboardKey() != FName(TEXT("TargetActor"))) return FString();
+                const FBlackboardEntry* Entry = Tree.BlackboardAsset->Keys.FindByPredicate([](const FBlackboardEntry& Candidate) { return Candidate.EntryName == FName(TEXT("TargetActor")); });
+                const UBlackboardKeyType_Object* Type = Entry ? Cast<UBlackboardKeyType_Object>(Entry->KeyType) : nullptr;
+                if (!Type || Type->BaseClass != AActor::StaticClass()) return FString();
+                NodeType = TEXT("move_to"); KeyName = MoveTo->GetSelectedBlackboardKey().ToString();
+            }
+            else if (const UBTTask_Wait* Wait = Cast<UBTTask_Wait>(Task->NodeInstance)) { if (Wait->GetClass() != UBTTask_Wait::StaticClass() || !FMath::IsNearlyEqual(Wait->WaitTime, 0.5f)) return FString(); NodeType = TEXT("wait"); WaitSeconds = FString::SanitizeFloat(Wait->WaitTime); }
+            else return FString();
+        }
+        for (const UEdGraphPin* Pin : Node->Pins) if (Pin && Pin->Direction == EGPD_Input) { if (Pin->LinkedTo.Num() > 1) return FString(); for (const UEdGraphPin* Link : Pin->LinkedTo) if (!Link || Link->Direction != EGPD_Output || !Link->LinkedTo.Contains(Pin)) return FString(); }
+        NodeIds.Add(NodeId);
+        NodeRows.Add(NodeId + TEXT("\n") + NodeType + TEXT("\n") + KeyName + TEXT("\n") + WaitSeconds);
+    }
+    for (const UEdGraphNode* Node : Graph->Nodes)
+    {
+        TArray<const UEdGraphNode*> Children;
+        for (const UEdGraphPin* Pin : Node->Pins) if (Pin && Pin->Direction == EGPD_Output) for (const UEdGraphPin* Linked : Pin->LinkedTo) { const UEdGraphNode* Child = Linked ? Linked->GetOwningNode() : nullptr; if (!Child || !NodeIds.Contains(Child->NodeComment)) return FString(); Children.Add(Child); }
+        if (Children.Num() > 32 || (Node == RootNode && Children.Num() > 1) || (Node != RootNode && !Cast<UBehaviorTreeGraphNode_Composite>(Node) && !Children.IsEmpty())) return FString();
+        Children.Sort([](const UEdGraphNode& Left, const UEdGraphNode& Right) { return Left.NodePosX == Right.NodePosX ? Left.NodeGuid.ToString() < Right.NodeGuid.ToString() : Left.NodePosX < Right.NodePosX; });
+        TSet<int32> Positions;
+        const FString ParentId = Node == RootNode ? TEXT("root") : Node->NodeComment;
+        for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ++ChildIndex)
+        {
+            const UEdGraphNode* Child = Children[ChildIndex];
+            if (Positions.Contains(Child->NodePosX) || ParentOf.Contains(Child) || (Node == RootNode && !Cast<UBehaviorTreeGraphNode_Composite>(Child))) return FString();
+            Positions.Add(Child->NodePosX); ParentOf.Add(Child);
+            const FString Identity = ParentId + TEXT("\n") + Child->NodeComment;
+            if (Links.Contains(Identity) || Links.Num() == 64) return FString();
+            Links.Add(Identity); LinkRows.Add(Identity + TEXT("\n") + LexToString(ChildIndex));
+        }
+        Adjacency.Add(Node, Children);
+    }
+    for (const TPair<const UEdGraphNode*, TArray<const UEdGraphNode*>>& Pair : Adjacency)
+    {
+        TArray<const UEdGraphNode*> Pending = Pair.Value; TSet<const UEdGraphNode*> Seen;
+        while (!Pending.IsEmpty()) { const UEdGraphNode* Node = Pending.Pop(); if (Node == Pair.Key) return FString(); if (!Node || Seen.Contains(Node)) continue; Seen.Add(Node); if (const TArray<const UEdGraphNode*>* Children = Adjacency.Find(Node)) Pending.Append(*Children); }
+    }
+    NodeRows.Sort(); LinkRows.Sort();
+    for (const FString& Row : NodeRows) Revision = ExtendRevision(Revision, {TEXT("node"), Row});
+    for (const FString& Row : LinkRows) Revision = ExtendRevision(Revision, {TEXT("link"), Row});
     return Revision;
 }
 
@@ -1407,6 +1569,8 @@ FString ObjectContentRevision(const UObject* Object)
         for (const FEnhancedActionKeyMapping* Mapping : Mappings) Revision = ExtendRevision(Revision, {Mapping->Action ? Mapping->Action->GetPathName() : FString(), Mapping->Key.ToString()});
         return Revision;
     }
+    if (const UBlackboardData* Blackboard = Cast<UBlackboardData>(Object)) return BlackboardContentRevision(*Blackboard);
+    if (const UBehaviorTree* Tree = Cast<UBehaviorTree>(Object)) return BehaviorTreeContentRevision(*Tree);
     return AssetRevision(FAssetData(Object));
 }
 
@@ -1433,6 +1597,14 @@ bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJso
         if (Observation->GetStringField(TEXT("sessionId")) != Session || Observation->GetStringField(TEXT("revision")) != After) return false;
         Verification->SetBoolField(TEXT("accepted"), true); Verification->SetStringField(TEXT("beforeRevision"), Before); Verification->SetStringField(TEXT("afterRevision"), After);
         return Verified();
+    }
+    if (Operation == TEXT("play.ai_target_set"))
+    {
+        FString PawnId, KeyName, TargetId, AiSession; Args->TryGetStringField(TEXT("pawnId"), PawnId); Args->TryGetStringField(TEXT("keyName"), KeyName); Args->TryGetStringField(TEXT("targetActorId"), TargetId); Args->TryGetStringField(TEXT("sessionId"), AiSession); UWorld* RuntimeWorld = PieWorld(); if (!RuntimeWorld || AiSession != PlaySessionId) return false;
+        APawn* AiPawn = nullptr; AActor* AiTarget = nullptr; for (TActorIterator<AActor> It(RuntimeWorld); It; ++It) { if (!IsValid(*It)) continue; if (ActorId(**It) == PawnId) { if (AiPawn) return false; AiPawn = Cast<APawn>(*It); } if (ActorId(**It) == TargetId) { if (AiTarget) return false; AiTarget = *It; } }
+        AAIController* AiController = AiPawn ? Cast<AAIController>(AiPawn->GetController()) : nullptr; UBlackboardComponent* AiBlackboard = AiController ? AiController->GetBlackboardComponent() : nullptr; if (!AiPawn || !AiTarget || !AiBlackboard || AiBlackboard->GetValueAsObject(FName(*KeyName)) != AiTarget) return false;
+        FString ResultPawn, ResultTarget; Result->TryGetStringField(TEXT("pawnId"), ResultPawn); Result->TryGetStringField(TEXT("targetActorId"), ResultTarget); if (ResultPawn != PawnId || ResultTarget != TargetId) return false;
+        Verification->SetBoolField(TEXT("readbackMatched"), true); return Verified();
     }
     if (Operation == TEXT("play.screenshot"))
     {
@@ -1602,10 +1774,61 @@ bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJso
         UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *BlueprintId); UEdGraph* SourceGraph = nullptr; UEdGraphNode* SourceNode = nullptr; UEdGraph* TargetGraph = nullptr; UEdGraphNode* TargetNode = nullptr; UEdGraphPin* Source = Blueprint ? P11FindPin(*Blueprint, SourcePinId, SourceGraph, SourceNode) : nullptr; UEdGraphPin* TargetPin = Blueprint ? P11FindPin(*Blueprint, TargetPinId, TargetGraph, TargetNode) : nullptr;
         return Blueprint && Source && TargetPin && SourceNode && TargetNode && BlueprintId == RequestBlueprintId && SourcePinId == RequestSourcePinId && TargetPinId == RequestTargetPinId && SourceGraph == TargetGraph && P11AllowedConnection(*SourceNode, *Source, *TargetNode, *TargetPin) && Source->LinkedTo.Contains(TargetPin) && TargetPin->LinkedTo.Contains(Source) && Target == BlueprintId + TEXT("#") + SourcePinId + TEXT("#") + TargetPinId && BlueprintContentRevision(*Blueprint) == Revision && Verified();
     }
+    if (Operation == TEXT("blackboard.create"))
+    {
+        if (!Args.IsValid()) return false;
+        FString Path, ResultId; Args->TryGetStringField(TEXT("path"), Path); Result->TryGetStringField(TEXT("blackboardId"), ResultId); UBlackboardData* Asset = LoadObject<UBlackboardData>(nullptr, *ResultId);
+        return Asset && ResultId == Path + TEXT(".") + FPackageName::GetShortName(Path) && Target == ResultId && ObjectContentRevision(Asset) == Revision && Verified();
+    }
+    if (Operation == TEXT("blackboard.key_ensure"))
+    {
+        if (!Args.IsValid()) return false;
+        FString BlackboardId, KeyName, ResultId, ResultKey, ResultType; Args->TryGetStringField(TEXT("blackboardId"), BlackboardId); Args->TryGetStringField(TEXT("keyName"), KeyName); Result->TryGetStringField(TEXT("blackboardId"), ResultId); Result->TryGetStringField(TEXT("keyName"), ResultKey); Result->TryGetStringField(TEXT("keyType"), ResultType); UBlackboardData* Asset = LoadObject<UBlackboardData>(nullptr, *ResultId); const FBlackboardEntry* Entry = Asset ? Asset->Keys.FindByPredicate([&](const FBlackboardEntry& Candidate) { return Candidate.EntryName == FName(*KeyName); }) : nullptr; const UBlackboardKeyType_Object* Type = Entry ? Cast<UBlackboardKeyType_Object>(Entry->KeyType) : nullptr;
+        return Asset && Entry && Type && Type->BaseClass == AActor::StaticClass() && ResultId == BlackboardId && ResultKey == KeyName && ResultType == TEXT("Actor") && Target == BlackboardId + TEXT("#") + KeyName && ObjectContentRevision(Asset) == Revision && Verified();
+    }
+    if (Operation == TEXT("behavior_tree.create"))
+    {
+        if (!Args.IsValid()) return false;
+        FString Path, BlackboardId, ResultId, ResultBlackboardId; Args->TryGetStringField(TEXT("path"), Path); Args->TryGetStringField(TEXT("blackboardId"), BlackboardId); Result->TryGetStringField(TEXT("behaviorTreeId"), ResultId); Result->TryGetStringField(TEXT("blackboardId"), ResultBlackboardId); UBehaviorTree* Tree = LoadObject<UBehaviorTree>(nullptr, *ResultId); UBlackboardData* Blackboard = LoadObject<UBlackboardData>(nullptr, *BlackboardId); UBehaviorTreeGraph* Graph = Tree ? Cast<UBehaviorTreeGraph>(Tree->BTGraph) : nullptr; UBehaviorTreeGraphNode_Root* Root = nullptr; int32 RootCount = 0; if (Graph) for (UEdGraphNode* Node : Graph->Nodes) if (UBehaviorTreeGraphNode_Root* Candidate = Cast<UBehaviorTreeGraphNode_Root>(Node)) { Root = Candidate; ++RootCount; }
+        return Tree && Blackboard && Graph && Root && RootCount == 1 && Root->BlackboardAsset == Blackboard && ResultId == Path + TEXT(".") + FPackageName::GetShortName(Path) && ResultId == Target && ResultBlackboardId == Blackboard->GetPathName() && Tree->BlackboardAsset == Blackboard && ObjectContentRevision(Tree) == Revision && Verified();
+    }
     if (Operation == TEXT("blueprint.compile"))
     {
         UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *Target); FString Status; Result->TryGetStringField(TEXT("status"), Status);
         return Blueprint && BlueprintContentRevision(*Blueprint) == Revision && BlueprintStatus(*Blueprint) == Status && Blueprint->Status != BS_Error && Verified();
+    }
+    if (Operation == TEXT("ai.controller_configure"))
+    {
+        if (!Args.IsValid()) return false; FString BlueprintId, TreeId, ResultBlueprintId, ResultTreeId, Semantic; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("behaviorTreeId"), TreeId); Result->TryGetStringField(TEXT("blueprintId"), ResultBlueprintId); Result->TryGetStringField(TEXT("behaviorTreeId"), ResultTreeId); Result->TryGetStringField(TEXT("semantic"), Semantic); UBlueprint* Blueprint = P11LoadBlueprint(BlueprintId); UBehaviorTree* Tree = LoadObject<UBehaviorTree>(nullptr, *TreeId); return Blueprint && Tree && ResultBlueprintId == BlueprintId && ResultTreeId == TreeId && Semantic == TEXT("on_possess.run_behavior_tree") && P14ControllerContract(*Blueprint, Tree) && BlueprintContentRevision(*Blueprint) == Revision && Target == BlueprintId + TEXT("#ai-controller:") + TreeId && Verified();
+    }
+    if (Operation == TEXT("ai.pawn_configure"))
+    {
+        if (!Args.IsValid()) return false; FString BlueprintId, ControllerId, ResultBlueprintId, ResultControllerId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("controllerBlueprintId"), ControllerId); Result->TryGetStringField(TEXT("blueprintId"), ResultBlueprintId); Result->TryGetStringField(TEXT("controllerBlueprintId"), ResultControllerId); UBlueprint* Blueprint = P11LoadBlueprint(BlueprintId); UBlueprint* Controller = P11LoadBlueprint(ControllerId); const ACharacter* Defaults = Blueprint && Blueprint->GeneratedClass ? Cast<ACharacter>(Blueprint->GeneratedClass->GetDefaultObject()) : nullptr; return Blueprint && Controller && Controller->GeneratedClass && Defaults && ResultBlueprintId == BlueprintId && ResultControllerId == ControllerId && Defaults->AIControllerClass == Controller->GeneratedClass && Defaults->AutoPossessAI == EAutoPossessAI::PlacedInWorldOrSpawned && Defaults->GetCharacterMovement() && FMath::IsNearlyEqual(Defaults->GetCharacterMovement()->MaxWalkSpeed, 600.0f) && BlueprintContentRevision(*Blueprint) == Revision && Target == BlueprintId + TEXT("#ai-pawn") && Verified();
+    }
+    if (Operation == TEXT("navigation.bounds_ensure"))
+    {
+        if (!Args.IsValid()) return false; FString LevelId, AgentKey, ResultLevel, ResultAgent, BoundsId; Args->TryGetStringField(TEXT("levelId"), LevelId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Result->TryGetStringField(TEXT("levelId"), ResultLevel); Result->TryGetStringField(TEXT("agentKey"), ResultAgent); Result->TryGetStringField(TEXT("boundsId"), BoundsId); UWorld* BoundsWorld = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr; ANavMeshBoundsVolume* Volume = nullptr; if (BoundsWorld) for (TActorIterator<ANavMeshBoundsVolume> It(BoundsWorld); It; ++It) if (ActorId(*(*It)) == BoundsId) { Volume = *It; break; } return BoundsWorld && ResultLevel == LevelId && ResultAgent == AgentKey && Volume && Target == LevelId + TEXT("#nav-bounds:") + AgentKey && Volume->GetComponentsBoundingBox(true).IsValid && Verified();
+    }
+    if (Operation == TEXT("navigation.build"))
+    {
+        if (!Args.IsValid()) return false; FString BuildLevelId, BuildResultLevel, TicketId; Args->TryGetStringField(TEXT("levelId"), BuildLevelId); Result->TryGetStringField(TEXT("levelId"), BuildResultLevel); Result->TryGetStringField(TEXT("ticketId"), TicketId); return BuildResultLevel == BuildLevelId && P14NavigationTicketExists(TicketId) && Target == TicketId && Verified();
+    }
+    if (Operation == TEXT("behavior_tree.node_ensure") || Operation == TEXT("behavior_tree.connect"))
+    {
+        if (!Args.IsValid()) return false;
+        FString TreeId, ResultTreeId; Args->TryGetStringField(TEXT("behaviorTreeId"), TreeId); Result->TryGetStringField(TEXT("behaviorTreeId"), ResultTreeId);
+        UBehaviorTree* Tree = LoadObject<UBehaviorTree>(nullptr, *ResultTreeId);
+        if (!Tree || TreeId != ResultTreeId || Target != MetadataTarget(Operation, Result)) return false;
+        if (Operation == TEXT("behavior_tree.node_ensure"))
+        {
+            FString NodeId, NodeType; Args->TryGetStringField(TEXT("nodeId"), NodeId); Args->TryGetStringField(TEXT("nodeType"), NodeType);
+            UBehaviorTreeGraph* Graph = Cast<UBehaviorTreeGraph>(Tree->BTGraph); UEdGraphNode* Node = Graph ? P14FindBehaviorTreeNode(*Graph, NodeId) : nullptr;
+            return Node && Result->GetStringField(TEXT("nodeId")) == NodeId && Result->GetStringField(TEXT("nodeType")) == NodeType && Tree->GetPathName() == ResultTreeId && ObjectContentRevision(Tree) == Revision && Verified();
+        }
+        FString ParentId, ChildId; double RequestedIndex = -1; Args->TryGetStringField(TEXT("parentNodeId"), ParentId); Args->TryGetStringField(TEXT("childNodeId"), ChildId); Args->TryGetNumberField(TEXT("childIndex"), RequestedIndex); UBehaviorTreeGraph* Graph = Cast<UBehaviorTreeGraph>(Tree->BTGraph); UEdGraphNode* Parent = Graph ? P14FindBehaviorTreeNode(*Graph, ParentId) : nullptr; UEdGraphNode* Child = Graph ? P14FindBehaviorTreeNode(*Graph, ChildId) : nullptr;
+        if (!Parent || !Child || Result->GetStringField(TEXT("parentNodeId")) != ParentId || Result->GetStringField(TEXT("childNodeId")) != ChildId || Result->GetStringField(TEXT("linkId")) != ParentId + TEXT("->") + ChildId || Result->GetIntegerField(TEXT("childIndex")) != static_cast<int32>(RequestedIndex) || ObjectContentRevision(Tree) != Revision) return false;
+        TArray<UEdGraphNode*> Children; for (UEdGraphPin* Pin : Parent->Pins) if (Pin && Pin->Direction == EGPD_Output) for (UEdGraphPin* Linked : Pin->LinkedTo) if (Linked && Linked->GetOwningNode()) Children.Add(Linked->GetOwningNode()); Children.Sort([](const UEdGraphNode& Left, const UEdGraphNode& Right) { return Left.NodePosX == Right.NodePosX ? Left.NodeGuid.ToString() < Right.NodeGuid.ToString() : Left.NodePosX < Right.NodePosX; });
+        return Children.IsValidIndex(static_cast<int32>(RequestedIndex)) && Children[static_cast<int32>(RequestedIndex)] == Child && Verified();
     }
     return false;
 }
@@ -2027,6 +2250,7 @@ bool TryEnqueueGameThreadRequest(const TSharedRef<FGameThreadRequest>& Request);
 bool DrainGameThreadQueue(float DeltaSeconds);
 #include "MagiBlueprintAuthoring.inl"
 #include "MagiWidgetAuthoring.inl"
+#include "MagiAiNavigation.inl"
 
 FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, const TSharedPtr<FJsonObject>& Args, const FString& ExpectedRevision)
 {
@@ -2065,6 +2289,18 @@ FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, co
         const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
         Result->SetStringField(TEXT("sessionId"), PlaySessionId); Result->SetStringField(TEXT("state"), TEXT("stopped")); Result->SetBoolField(TEXT("changed"), true); Result->SetStringField(TEXT("revision"), PlayStatusResult()->GetStringField(TEXT("revision")));
         return PlayResponse(Id, Result, Operation);
+    }
+    if (IsP14AiNavigationOperation(Operation))
+    {
+        if (Operation == TEXT("play.ai_target_set") || Operation == TEXT("play.ai_observe"))
+        {
+            FString PlayError; if (!ValidPlaySession(Args, PlayError)) return ErrorResponse(Id, TEXT("unsafe_editor_state"), *PlayError);
+        }
+        else if (IsMutationOperation(Operation))
+        {
+            FString GateMessage; if (!MutationGate(GateMessage)) return ErrorResponse(Id, TEXT("unsafe_editor_state"), *GateMessage, true);
+        }
+        return HandleP14AiNavigationOperation(Id, Operation, Args, ExpectedRevision);
     }
     if (Operation.StartsWith(TEXT("play."))) { const FString Response = ReadPlayResponse(Id, Operation, Args); if (Operation == TEXT("play.status") && PieWorld()) PlayState = EPlayState::Running; return Response; }
     if (IsMutationOperation(Operation) && !IsPlayOperation(Operation))
@@ -3617,7 +3853,7 @@ bool ValidateGeneratedRuntimeContract()
             !IsOneOf(SaveBehavior, {TEXT("none"), TEXT("explicit"), TEXT("dirty-only")}) || \
             !IsOneOf(Transaction, {TEXT("none"), TEXT("atomic"), TEXT("non-atomic")}) || \
             !IsOneOf(Reversibility, {TEXT("none"), TEXT("source-control"), TEXT("destructive")}) || \
-            !IsOneOf(FailureReceipt, {FString(), TEXT("preserved-dirty")}) || States.IsEmpty() || Modules.IsEmpty()) { Valid = false; break; } \
+            !IsOneOf(FailureReceipt, {FString(), TEXT("preserved-dirty"), TEXT("terminal-ticket")}) || States.IsEmpty() || Modules.IsEmpty()) { Valid = false; break; } \
         for (const FString& State : States) if (!IsOneOf(State, {TEXT("editing"), TEXT("playing")})) { Valid = false; break; } \
         if (!Valid || (!Metadata->Mutates && (Metadata->Destructive || Idempotency != TEXT("read-only") || SaveBehavior != TEXT("none") || Transaction != TEXT("none") || Reversibility != TEXT("none") || Metadata->TargetFields[0] != 0)) || \
             (Metadata->Mutates && (Idempotency == TEXT("read-only") || Metadata->Readback[0] == 0 || Metadata->TargetFields[0] == 0)) || \
@@ -3628,8 +3864,10 @@ bool ValidateGeneratedRuntimeContract()
     #undef MAGI_AXI_VALIDATE_NATIVE
     const FMagiAxiCapabilityMetadata* Compile = CapabilityMetadata(TEXT("blueprint.compile"));
     const bool CompileContract = Compile && Compile->Mutates && !Compile->Destructive && FString(Compile->Idempotency) == TEXT("request-key") && FString(Compile->SaveBehavior) == TEXT("dirty-only") && FString(Compile->TransactionBehavior) == TEXT("non-atomic") && FString(Compile->Reversibility) == TEXT("source-control") && FString(Compile->AllowedEditorStates) == TEXT("editing") && FString(Compile->RequiredModules) == TEXT("UnrealEd|KismetCompiler") && FString(Compile->Readback) == TEXT("blueprint.view") && FString(Compile->TargetFields) == TEXT("id") && FString(Compile->FailureReceipt) == TEXT("preserved-dirty");
+    const FMagiAxiCapabilityMetadata* NavigationBuild = CapabilityMetadata(TEXT("navigation.build"));
+    const bool NavigationBuildContract = NavigationBuild && NavigationBuild->Mutates && !NavigationBuild->Destructive && FString(NavigationBuild->Idempotency) == TEXT("request-key") && FString(NavigationBuild->SaveBehavior) == TEXT("none") && FString(NavigationBuild->TransactionBehavior) == TEXT("non-atomic") && FString(NavigationBuild->Reversibility) == TEXT("none") && FString(NavigationBuild->Readback) == TEXT("navigation.status") && FString(NavigationBuild->TargetFields) == TEXT("ticketId") && FString(NavigationBuild->FailureReceipt) == TEXT("terminal-ticket");
     const bool LifecycleContract = IsGeneratedPublicOperation(TEXT("bridge.health")) && IsGeneratedPublicOperation(TEXT("bridge.describe")) && IsGeneratedPublicOperation(TEXT("editor.stop")) && !CapabilityMetadata(TEXT("bridge.health")) && !CapabilityMetadata(TEXT("bridge.describe")) && !CapabilityMetadata(TEXT("editor.stop")) && !IsGeneratedNativeCapability(TEXT("bridge.health")) && !IsGeneratedNativeCapability(TEXT("bridge.describe")) && !IsGeneratedNativeCapability(TEXT("editor.stop"));
-    return Valid && Count == MAGI_AXI_NATIVE_CAPABILITY_COUNT && CompileContract && LifecycleContract && IsGeneratedNativeCapability(TEXT("operation.view")) && !IsGeneratedPublicOperation(TEXT("not.catalogued"));
+    return Valid && Count == MAGI_AXI_NATIVE_CAPABILITY_COUNT && CompileContract && NavigationBuildContract && LifecycleContract && IsGeneratedNativeCapability(TEXT("operation.view")) && !IsGeneratedPublicOperation(TEXT("not.catalogued"));
 }
 void FMagiUnrealAXIModule::StartupModule()
 {
