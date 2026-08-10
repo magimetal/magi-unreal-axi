@@ -67,6 +67,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "NavigationSystem.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
+#include "NavMesh/RecastNavMesh.h"
 #include "Builders/CubeBuilder.h"
 #include "ActorFactories/ActorFactory.h"
 #include "NavigationPath.h"
@@ -1522,7 +1523,7 @@ static FString BehaviorTreeContentRevision(const UBehaviorTree& Tree)
                 if (!Type || Type->BaseClass != AActor::StaticClass()) return FString();
                 NodeType = TEXT("move_to"); KeyName = MoveTo->GetSelectedBlackboardKey().ToString();
             }
-            else if (const UBTTask_Wait* Wait = Cast<UBTTask_Wait>(Task->NodeInstance)) { if (Wait->GetClass() != UBTTask_Wait::StaticClass() || !FMath::IsNearlyEqual(Wait->WaitTime, 0.5f)) return FString(); NodeType = TEXT("wait"); WaitSeconds = FString::SanitizeFloat(Wait->WaitTime); }
+            else if (const UBTTask_Wait* Wait = Cast<UBTTask_Wait>(Task->NodeInstance)) { const float WaitTime = Wait->WaitTime.GetValue(static_cast<const UBehaviorTreeComponent*>(nullptr)); if (Wait->GetClass() != UBTTask_Wait::StaticClass() || !Wait->WaitTime.GetKey().IsNone() || !FMath::IsNearlyEqual(WaitTime, 0.5f)) return FString(); NodeType = TEXT("wait"); WaitSeconds = FString::SanitizeFloat(WaitTime); }
             else return FString();
         }
         for (const UEdGraphPin* Pin : Node->Pins) if (Pin && Pin->Direction == EGPD_Input) { if (Pin->LinkedTo.Num() > 1) return FString(); for (const UEdGraphPin* Link : Pin->LinkedTo) if (!Link || Link->Direction != EGPD_Output || !Link->LinkedTo.Contains(Pin)) return FString(); }
@@ -1608,7 +1609,7 @@ bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJso
         APawn* AiPawn = nullptr; AActor* AiTarget = nullptr; for (TActorIterator<AActor> It(RuntimeWorld); It; ++It) { if (!IsValid(*It)) continue; if (ActorId(**It) == PawnId) { if (AiPawn) return false; AiPawn = Cast<APawn>(*It); } if (ActorId(**It) == TargetId) { if (AiTarget) return false; AiTarget = *It; } }
         AAIController* AiController = AiPawn ? Cast<AAIController>(AiPawn->GetController()) : nullptr; UBlackboardComponent* AiBlackboard = AiController ? AiController->GetBlackboardComponent() : nullptr; if (!AiPawn || !AiTarget || !AiBlackboard || AiBlackboard->GetValueAsObject(FName(*KeyName)) != AiTarget) return false;
         FString ResultPawn, ResultTarget; Result->TryGetStringField(TEXT("pawnId"), ResultPawn); Result->TryGetStringField(TEXT("targetActorId"), ResultTarget); if (ResultPawn != PawnId || ResultTarget != TargetId) return false;
-        Verification->SetBoolField(TEXT("readbackMatched"), true); return Verified();
+        return Verified();
     }
     if (Operation == TEXT("play.screenshot"))
     {
@@ -3877,6 +3878,11 @@ void FMagiUnrealAXIModule::StartupModule()
 {
     UE_LOG(LogTemp, Display, TEXT("MAGI_UNREAL_AXI_FIXTURE_STARTUP"));
     if (IsRunningCommandlet()) return;
+    if (!FModuleManager::Get().LoadModule(TEXT("AIGraph")) || !FModuleManager::Get().LoadModule(TEXT("BehaviorTreeEditor")) || !FModuleManager::Get().LoadModule(TEXT("GameplayTasks")))
+    {
+        UE_LOG(LogTemp, Error, TEXT("MagiUnrealAXI required AI editor modules failed to load; startup refused"));
+        return;
+    }
     if (!ValidateGeneratedRuntimeContract())
     {
         UE_LOG(LogTemp, Error, TEXT("MagiUnrealAXI generated runtime contract invalid; startup refused"));
@@ -4066,32 +4072,41 @@ bool FMagiUnrealAXIP12SCSContracts::RunTest(const FString&)
     TestTrue(TEXT("bounded update readback matches request"), LeafNode && P12SCSRequestMatches(*LeafNode, Update));
     const TSharedPtr<FJsonObject> UpdateRepeat = Call(TEXT("blueprint.scs_component_update"), Update, AfterUpdate);
     TestTrue(TEXT("identical bounded update is no-op"), UpdateRepeat.IsValid() && !UpdateRepeat->GetObjectField(TEXT("result"))->GetBoolField(TEXT("changed")));
+    const TArray<TSharedPtr<FJsonValue>>* UpdateSavedPackages = nullptr;
+    TestTrue(TEXT("SCS update emits required savedPackages"), UpdatedEnvelope->GetObjectField(TEXT("result"))->TryGetArrayField(TEXT("savedPackages"), UpdateSavedPackages) && UpdateSavedPackages && UpdateSavedPackages->IsEmpty());
+    const TSharedRef<FJsonObject> BlockingUpdate = MakeShared<FJsonObject>();
+    BlockingUpdate->SetStringField(TEXT("blueprintId"), BlueprintId); BlockingUpdate->SetStringField(TEXT("variableGuid"), LeafGuid); BlockingUpdate->SetStringField(TEXT("collisionEnabled"), TEXT("QueryAndPhysics")); BlockingUpdate->SetStringField(TEXT("collisionProfile"), TEXT("BlockAll")); BlockingUpdate->SetArrayField(TEXT("boxExtent"), P12Vector(FVector(1000, 1000, 25)));
+    const TSharedPtr<FJsonObject> BlockingEnvelope = Call(TEXT("blueprint.scs_component_update"), BlockingUpdate, AfterUpdate);
+    TestTrue(TEXT("blocking floor SCS update succeeds"), BlockingEnvelope.IsValid() && BlockingEnvelope->GetStringField(TEXT("status")) == TEXT("ok"));
+    if (!BlockingEnvelope.IsValid() || BlockingEnvelope->GetStringField(TEXT("status")) != TEXT("ok")) return false;
+    const FString AfterBlockingUpdate = BlockingEnvelope->GetObjectField(TEXT("result"))->GetStringField(TEXT("revision"));
+    TestTrue(TEXT("blocking floor update readback matches request"), LeafNode && P12SCSRequestMatches(*LeafNode, BlockingUpdate));
 
     Update->SetArrayField(TEXT("location"), P12Vector(FVector(70, 80, 90)));
     GP11ForceAtomicFailure = true;
-    const TSharedPtr<FJsonObject> RollbackEnvelope = Call(TEXT("blueprint.scs_component_update"), Update, AfterUpdate);
+    const TSharedPtr<FJsonObject> RollbackEnvelope = Call(TEXT("blueprint.scs_component_update"), Update, AfterBlockingUpdate);
     GP11ForceAtomicFailure = false;
     TestEqual(TEXT("injected update failure is authoritative"), ErrorType(RollbackEnvelope), FString(TEXT("operation_failed")));
-    TestEqual(TEXT("injected update rollback restores revision"), BlueprintContentRevision(*Blueprint), AfterUpdate);
-    TestTrue(TEXT("injected update rollback restores component state"), LeafNode && Cast<USceneComponent>(LeafNode->ComponentTemplate) && Cast<USceneComponent>(LeafNode->ComponentTemplate)->GetRelativeLocation().Equals(FVector(10, 20, 30)) && Cast<UPrimitiveComponent>(LeafNode->ComponentTemplate)->GetCollisionProfileName() == FName(TEXT("OverlapAllDynamic")));
+    TestEqual(TEXT("injected update rollback restores revision"), BlueprintContentRevision(*Blueprint), AfterBlockingUpdate);
+    TestTrue(TEXT("injected update rollback restores component state"), LeafNode && Cast<USceneComponent>(LeafNode->ComponentTemplate) && Cast<USceneComponent>(LeafNode->ComponentTemplate)->GetRelativeLocation().Equals(FVector(10, 20, 30)) && Cast<UPrimitiveComponent>(LeafNode->ComponentTemplate)->GetCollisionProfileName() == FName(TEXT("BlockAll")));
 
     const TSharedRef<FJsonObject> RemoveRoot = MakeShared<FJsonObject>();
     RemoveRoot->SetStringField(TEXT("blueprintId"), BlueprintId); RemoveRoot->SetStringField(TEXT("variableGuid"), RootGuid); RemoveRoot->SetBoolField(TEXT("force"), true); RemoveRoot->SetBoolField(TEXT("dryRun"), false);
-    TestEqual(TEXT("non-leaf removal is conflict"), ErrorType(Call(TEXT("blueprint.scs_component_remove"), RemoveRoot, AfterUpdate)), FString(TEXT("conflict")));
+    TestEqual(TEXT("non-leaf removal is conflict"), ErrorType(Call(TEXT("blueprint.scs_component_remove"), RemoveRoot, AfterBlockingUpdate)), FString(TEXT("conflict")));
     const TSharedRef<FJsonObject> RemoveLeaf = MakeShared<FJsonObject>();
     RemoveLeaf->SetStringField(TEXT("blueprintId"), BlueprintId); RemoveLeaf->SetStringField(TEXT("variableGuid"), LeafGuid); RemoveLeaf->SetBoolField(TEXT("force"), true); RemoveLeaf->SetBoolField(TEXT("dryRun"), true);
     RemoveLeaf->SetBoolField(TEXT("dryRun"), false);
     GP11ForceAtomicFailure = true;
-    const TSharedPtr<FJsonObject> RemoveRollback = Call(TEXT("blueprint.scs_component_remove"), RemoveLeaf, AfterUpdate);
+    const TSharedPtr<FJsonObject> RemoveRollback = Call(TEXT("blueprint.scs_component_remove"), RemoveLeaf, AfterBlockingUpdate);
     GP11ForceAtomicFailure = false;
     TestEqual(TEXT("injected removal failure is authoritative"), ErrorType(RemoveRollback), FString(TEXT("operation_failed")));
     TestTrue(TEXT("injected removal rollback restores local hierarchy"), P12FindSCSNode(*Blueprint, LeafGuid) == LeafNode && P12ParentGuid(*Blueprint, *LeafNode) == RootGuid && LeafNode->ParentComponentOrVariableName.IsNone());
-    TestEqual(TEXT("injected removal rollback restores revision"), BlueprintContentRevision(*Blueprint), AfterUpdate);
+    TestEqual(TEXT("injected removal rollback restores revision"), BlueprintContentRevision(*Blueprint), AfterBlockingUpdate);
     RemoveLeaf->SetBoolField(TEXT("dryRun"), true);
     const TSharedPtr<FJsonObject> Preview = Call(TEXT("blueprint.scs_component_remove"), RemoveLeaf, FString());
     TestTrue(TEXT("leaf dry-run is side-effect free"), Preview.IsValid() && !Preview->GetObjectField(TEXT("result"))->GetBoolField(TEXT("changed")) && P12FindSCSNode(*Blueprint, LeafGuid));
     RemoveLeaf->SetBoolField(TEXT("dryRun"), false);
-    const TSharedPtr<FJsonObject> Removed = Call(TEXT("blueprint.scs_component_remove"), RemoveLeaf, AfterUpdate);
+    const TSharedPtr<FJsonObject> Removed = Call(TEXT("blueprint.scs_component_remove"), RemoveLeaf, AfterBlockingUpdate);
     TestTrue(TEXT("forced leaf removal succeeds"), Removed.IsValid() && Removed->GetStringField(TEXT("status")) == TEXT("ok") && Removed->GetObjectField(TEXT("result"))->GetBoolField(TEXT("changed")) && !P12FindSCSNode(*Blueprint, LeafGuid));
     return true;
 }

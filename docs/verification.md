@@ -1,6 +1,6 @@
 # Verification status
 
-Certified cell: Unreal Engine 5.8.1, changelist `56057345`, macOS arm64. M7 independent review: CLEAN. M8 hardened exact-artifact gate: PASS. P1.3 integrated gate: PASS.
+Certified cell: Unreal Engine 5.8.1, changelist `56057345`, macOS arm64. M7 independent review: CLEAN. M8 hardened exact-artifact gate: PASS. P1.4 integrated gate: PASS.
 
 ## Successful gates
 
@@ -28,11 +28,12 @@ cargo run --locked --bin xtask -- release check
 ./tests/unreal/certify-p1.2.sh
 ./tests/unreal/certify-m8-live.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
 ./tests/unreal/certify-p1.3.sh
+./tests/unreal/certify-p1.4.sh
 ```
 
-Rust gate: 46 library tests, 5 xtask tests, and 44 real-binary integration tests = 95 tests (`cargo test --all-targets --all-features --locked`, verified locally). Catalog check validates 55 records, generated static Rust/C++ schemas and registries, mutation safety metadata, semantic receipt bindings, and hash `7cd513c54122e73b4c0b5faaf8f3669f89819584822e10602017e9f41f19e05b`.
+Rust gate: 50 library tests, 6 xtask tests, and 44 real-binary integration tests = 100 tests (`cargo test --all-targets --all-features --locked`, verified locally). Catalog check validates 70 records, generated static Rust/C++ schemas and registries, mutation safety metadata, semantic receipt bindings, and hash `6161e017548d1e576b9bb8ecf42f75c69519b9d38e128c86c83611ff4fdd89de`.
 
-P1.0/P1.1 native/live certification and M8 exact-artifact regression remain historical passes. P1 remains active; P1.2 and P1.3 integrated certification pass exact 22-test regression plus 5 P1.3 tests, live UI state, and Blueprint-only compile/cook/package gates. P1.4–P1.6 remain not started.
+P1.0–P1.4 certification and M8 exact-artifact regression pass for the sole engine cell. P1.4 integrated certification includes the exact 27-test P1.3 regression plus six P1.4 tests, live AI navigation/reset, and Blueprint-only compile/cook/package gates. P1.5–P1.6 remain not started.
 
 ## Evidence paths
 
@@ -54,6 +55,7 @@ P1.0/P1.1 native/live certification and M8 exact-artifact regression remain hist
 - P1.1 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.1/native/evidence.CUX9X7`
 - P1.2 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.2/native/evidence.iY67AH`
 - P1.3 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.3/native/evidence.1kyPg7`
+- P1.4 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.4/native/evidence.to16qz`
 
 ## P1.0 certification
 
@@ -70,6 +72,10 @@ P1.2 adds exactly eight capabilities: `blueprint.interface_create`, `blueprint.i
 ## P1.3 certification
 
 P1.3 adds exactly seven capabilities: `widget.create`, `widget.tree_view`, `widget.child_ensure`, `widget.property_set`, `widget.event_ensure`, `widget.viewport_ensure`, and `play.ui_observe`. Integrated gate passes 27/27 Unreal automation, two-session `READY` → `ACTIVE` structured observation/reset, stale-session rejection, content-hashed confined screenshots with stable within-session dimensions, C0/C1 control-character and ancestor-symlink rejection, restart/no-op/invalid-input checks, universal plugin build, and Blueprint-only IoStore/Asset Registry/package verification. Evidence: `~/Library/Caches/magi-unreal-axi/p1.3/native/evidence.1kyPg7`.
+
+## P1.4 certification
+
+P1.4 adds exactly 15 AI/navigation capabilities: `navigation.bounds_ensure`, `navigation.build`, `navigation.status`, `navigation.path_query`, `blackboard.create`, `blackboard.key_ensure`, `blackboard.view`, `behavior_tree.create`, `behavior_tree.node_ensure`, `behavior_tree.connect`, `behavior_tree.view`, `ai.controller_configure`, `ai.pawn_configure`, `play.ai_target_set`, and `play.ai_observe`. Integrated gate passes exact 33/33 automation; universal `x86_64 arm64` plugin build; save/restart/no-op topology; geometry-backed reachable/nonpartial paths; real PIE possession; target arrival within 50 units/120 seconds; authored Wait; refreshed-target MoveTo progress; deterministic second-session reset; and Blueprint-only `.app`, IoStore, Asset Registry, inventory, receipt, source-integrity, and token gates. Evidence: `~/Library/Caches/magi-unreal-axi/p1.4/native/evidence.to16qz`.
 
 ## M3–M5 regression status
 
@@ -109,7 +115,7 @@ Cook copies a bounded, symlink-safe inventory from canonical project `Saved/Cook
 
 Evidence: `~/Library/Caches/magi-unreal-axi/m7/live/evidence.Ekd7HQ`.
 
-M7 acceptance is complete. UE 5.8.1/macOS arm64 support is certified through P1.3.
+M7 acceptance is complete. UE 5.8.1/macOS arm64 support is certified through P1.4.
 
 ## M8 certification
 

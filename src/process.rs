@@ -521,11 +521,16 @@ fn uat_invocation(project: &Path, engine: &EngineInfo, output: &Path, package: b
         "-archive".into(),
         format!("-archivedirectory={}", output.display()),
     ]);
+    let mut environment = dotnet_environment(engine);
+    if package {
+        // Xcode 26 can deadlock on Clang's diagnostic-only verbose output when its pipes fill.
+        environment.insert("CCC_OVERRIDE_OPTIONS".into(), "x-v".into());
+    }
     Invocation {
         executable: engine.uat.clone(),
         arguments,
         working_directory: project_root(project),
-        environment: dotnet_environment(engine),
+        environment,
         executes_project_code: true,
     }
 }

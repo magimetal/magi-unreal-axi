@@ -1,6 +1,6 @@
 # Capability catalog
 
-Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -- capabilities check` validates strict records, sorted unique IDs, closed bounded schemas, mutation safety metadata, receipt-compatible operation metadata, and generated Rust/C++ parity. Current catalog contains 55 records with SHA-256 `7cd513c54122e73b4c0b5faaf8f3669f89819584822e10602017e9f41f19e05b`. Runtime handshake rejects mismatch before operation transmission.
+Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -- capabilities check` validates strict records, sorted unique IDs, closed bounded schemas, mutation safety metadata, receipt-compatible operation metadata, and generated Rust/C++ parity. Current catalog contains 70 records with SHA-256 `6161e017548d1e576b9bb8ecf42f75c69519b9d38e128c86c83611ff4fdd89de`. Runtime handshake rejects mismatch before operation transmission.
 
 ## M6 surface
 
@@ -10,7 +10,7 @@ Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -
 - level settings: `level.settings`, `level.set_game_mode`
 - play: `play.start`, `play.status`, `play.observe`, `play.input`, `play.screenshot`, `play.stop`
 
-M6 added no Blueprint authoring; bounded authoring enters through P1.1, P1.2, and P1.3 below.
+M6 added no Blueprint authoring; bounded authoring enters through P1.1–P1.4 below.
 
 ## Contracts
 
@@ -43,6 +43,10 @@ P1.2 adds exactly `blueprint.interface_create`, `blueprint.interface_view`, `blu
 ## P1.3 widget-driven UI state
 
 P1.3 adds exactly `widget.create`, `widget.tree_view`, `widget.child_ensure`, `widget.property_set`, `widget.event_ensure`, `widget.viewport_ensure`, and `play.ui_observe`. Certified fixture proves fixed VerticalBox/TextBlock authoring, restart persistence and no-ops, `READY` → `ACTIVE`, two-PIE reset, stale-session rejection, confined content-hashed screenshots, and Blueprint-only CompileAllBlueprints/cook/package output. Integrated native/live certification passes exact 27/27 Unreal automation with the P1.2 22-test regression plus five P1.3 tests.
+
+## P1.4 AI navigation loop
+
+P1.4 adds exactly `navigation.bounds_ensure`, `navigation.build`, `navigation.status`, `navigation.path_query`, `blackboard.create`, `blackboard.key_ensure`, `blackboard.view`, `behavior_tree.create`, `behavior_tree.node_ensure`, `behavior_tree.connect`, `behavior_tree.view`, `ai.controller_configure`, `ai.pawn_configure`, `play.ai_target_set`, and `play.ai_observe`. Certified fixture proves geometry-backed reachable/nonpartial paths, saved and restart-stable authored identities, AI possession, target arrival within 50 units/120 seconds, authored Wait, refreshed-target MoveTo progress, and clean second-session runtime reset. Integrated certification passes exact 33/33 Unreal automation plus universal plugin and Blueprint-only `.app`/IoStore/Asset Registry/inventory/receipt/token gates.
 
 ## Examples
 

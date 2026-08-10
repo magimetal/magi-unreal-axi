@@ -1,7 +1,7 @@
 #pragma once
 
 #define MAGI_AXI_VERSION TEXT("0.1.0")
-#define MAGI_AXI_CATALOG_HASH TEXT("151a6d0087865e1ea7175cde56fd73825a9c95713ea7e9b615043b130ca5a691")
+#define MAGI_AXI_CATALOG_HASH TEXT("6161e017548d1e576b9bb8ecf42f75c69519b9d38e128c86c83611ff4fdd89de")
 #define MAGI_AXI_CATALOG_COUNT 70
 #define MAGI_AXI_NATIVE_CAPABILITY_COUNT 68
 #define MAGI_AXI_PUBLIC_OPERATION_COUNT 71
@@ -5711,7 +5711,7 @@ static bool MagiAxiValidateOutput(const FString& Operation, const TSharedRef<FJs
             if (!Value121.IsValid() || Value121->Type != EJson::String) return false;
             const FString Text122 = Value121->AsString();
             if (MagiAxiUnicodeScalarCount(Text122) > 128) return false;
-            if (Text122 != TEXT("OverlapAllDynamic")) return false;
+            if (Text122 != TEXT("OverlapAllDynamic") && Text122 != TEXT("BlockAll")) return false;
         }
         const TSharedPtr<FJsonValue> Value123 = Object31->TryGetField(TEXT("requestGenerateOverlapEvents"));
         if (Value123.IsValid())

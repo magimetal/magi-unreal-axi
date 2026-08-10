@@ -1789,18 +1789,21 @@ fn m7_uat_outputs_are_verified_protected_and_never_retried() {
     let project = harness.project("M7Uat", json!({}));
     let counter = harness.home.join("uat-count");
     let capture = harness.home.join("uat-args");
+    let ccc_capture = harness.home.join("uat-ccc-override");
     let uat = format!(
         r#"#!/bin/sh
 count=0; [ ! -f '{counter}' ] || count=$(cat '{counter}')
 count=$((count + 1)); printf '%s' "$count" > '{counter}'
 printf '%s\n' "$@" > '{capture}'
+printf '%s' "${{CCC_OVERRIDE_OPTIONS-}}" > '{ccc_capture}'
 out=""
 for arg in "$@"; do case "$arg" in -archivedirectory=*) out=${{arg#-archivedirectory=}};; esac; done
 case "$out" in *fail*) exit 7;; esac
 if [ -n "$out" ]; then mkdir -p "$out/Mac"; printf artifact > "$out/Mac/Game.app"; else mkdir -p Saved/Cooked/Mac; printf artifact > Saved/Cooked/Mac/Game.app; fi
 "#,
         counter = counter.display(),
-        capture = capture.display()
+        capture = capture.display(),
+        ccc_capture = ccc_capture.display(),
     );
     let engine = harness.fake_pipeline_engine("#!/bin/sh\nexit 0\n", "#!/bin/sh\nexit 0\n", &uat);
     let cook = harness.home.join("cook-output");
@@ -1843,6 +1846,7 @@ if [ -n "$out" ]; then mkdir -p "$out/Mac"; printf artifact > "$out/Mac/Game.app
             "-cook".to_string(),
         ]
     );
+    assert_eq!(fs::read_to_string(&ccc_capture).unwrap(), "");
     assert_eq!(
         fs::read_to_string(cook.join("Game.app")).unwrap(),
         "artifact"
@@ -1857,6 +1861,7 @@ if [ -n "$out" ]; then mkdir -p "$out/Mac"; printf artifact > "$out/Mac/Game.app
     let package_args = fs::read_to_string(&capture).unwrap();
     assert!(package_args.contains("-package"));
     assert!(package_args.contains("-pak"));
+    assert_eq!(fs::read_to_string(&ccc_capture).unwrap(), "x-v");
     assert!(
         json_output(&packaged)["artifacts"]
             .as_array()

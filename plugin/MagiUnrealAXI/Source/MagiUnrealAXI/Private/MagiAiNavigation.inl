@@ -121,6 +121,7 @@ static FString P14BehaviorTreeNodeType(const UEdGraphNode& Node);
 static UBehaviorTreeGraphNode_Root* P14BehaviorTreeRoot(UBehaviorTreeGraph& Graph);
 static bool P14BehaviorTreeReaches(UEdGraphNode& Start, UEdGraphNode& Wanted);
 static bool P14BehaviorTreeNodeIdValid(const FString& NodeId) { return !NodeId.IsEmpty() && NodeId != TEXT("root") && !NodeId.Contains(TEXT("\n")) && !NodeId.Contains(TEXT("\r")) && !NodeId.Contains(TEXT("->")); }
+static FString P14BehaviorTreeRuntimeNodeName(const FString& NodeId) { return TEXT("MagiAXI.NodeId:") + NodeId; }
 static bool P14BehaviorTreeSchemaValid(const UBehaviorTreeGraph& Graph) { return Graph.GetSchema() && Graph.GetSchema()->GetClass() == UEdGraphSchema_BehaviorTree::StaticClass(); }
 static UEdGraphNode* P14FindBehaviorTreeNode(UBehaviorTreeGraph& Graph, const FString& NodeId)
 {
@@ -179,7 +180,9 @@ static bool P14BehaviorTreeTopologyValid(UBehaviorTreeGraph& Graph, bool AllowEm
     for (UEdGraphNode* Node : Graph.Nodes)
     {
         if (!Node || Node == Root) continue;
-        if (NodeIds.Num() == 32 || !P14BehaviorTreeNodeIdValid(Node->NodeComment) || NodeIds.Contains(Node->NodeComment) || !P14BehaviorTreePinsValid(*Node, false) || P14BehaviorTreeNodeType(*Node).IsEmpty()) return false;
+        const UBehaviorTreeGraphNode* BehaviorNode = Cast<UBehaviorTreeGraphNode>(Node);
+        const UBTNode* RuntimeNode = BehaviorNode ? Cast<UBTNode>(BehaviorNode->NodeInstance) : nullptr;
+        if (NodeIds.Num() == 32 || !P14BehaviorTreeNodeIdValid(Node->NodeComment) || NodeIds.Contains(Node->NodeComment) || !P14BehaviorTreePinsValid(*Node, false) || P14BehaviorTreeNodeType(*Node).IsEmpty() || !RuntimeNode || RuntimeNode->GetNodeName() != P14BehaviorTreeRuntimeNodeName(Node->NodeComment)) return false;
         NodeIds.Add(Node->NodeComment);
     }
     for (UEdGraphNode* Parent : Graph.Nodes)
@@ -257,8 +260,8 @@ static bool P14BehaviorTreeRuntimeValid(const UBehaviorTree& Tree, UBehaviorTree
 static bool P14BehaviorTreeTaskValid(const UBehaviorTree& Tree, const UEdGraphNode& Node)
 {
     const UBehaviorTreeGraphNode_Task* Task = Cast<UBehaviorTreeGraphNode_Task>(&Node); if (!Task || !Task->NodeInstance) return false;
-    if (Task->NodeInstance->GetClass() == UBTTask_MoveTo::StaticClass()) { const UBTTask_MoveTo* MoveTo = Cast<UBTTask_MoveTo>(Task->NodeInstance); const FBlackboardKeySelector* Selector = MoveTo ? P14MoveToSelector(*const_cast<UBTTask_MoveTo*>(MoveTo)) : nullptr; return Selector && Selector->SelectedKeyName == FName(TEXT("TargetActor")) && Tree.BlackboardAsset && P14IsActorKey(*Tree.BlackboardAsset, Selector->SelectedKeyName); }
-    if (Task->NodeInstance->GetClass() == UBTTask_Wait::StaticClass()) { const UBTTask_Wait* Wait = Cast<UBTTask_Wait>(Task->NodeInstance); return Wait && FMath::IsNearlyEqual(Wait->WaitTime, 0.5f); }
+    if (Task->NodeInstance->GetClass() == UBTTask_MoveTo::StaticClass()) { const UBTTask_MoveTo* MoveTo = Cast<UBTTask_MoveTo>(Task->NodeInstance); const FBlackboardKeySelector* Selector = MoveTo ? P14MoveToSelector(*const_cast<UBTTask_MoveTo*>(MoveTo)) : nullptr; return Selector && Selector->SelectedKeyName == FName(TEXT("TargetActor")) && MoveTo->bTrackMovingGoal.GetKey().IsNone() && !MoveTo->bTrackMovingGoal.GetValue(static_cast<const UBehaviorTreeComponent*>(nullptr)) && Tree.BlackboardAsset && P14IsActorKey(*Tree.BlackboardAsset, Selector->SelectedKeyName); }
+    if (Task->NodeInstance->GetClass() == UBTTask_Wait::StaticClass()) { const UBTTask_Wait* Wait = Cast<UBTTask_Wait>(Task->NodeInstance); return Wait && Wait->WaitTime.GetKey().IsNone() && FMath::IsNearlyEqual(Wait->WaitTime.GetValue(static_cast<const UBehaviorTreeComponent*>(nullptr)), 0.5f); }
     return false;
 }
 
@@ -277,7 +280,7 @@ static TSharedRef<FJsonObject> P14BehaviorTreeNodeResult(UBehaviorTree& Tree, co
     {
         if (const UBTTask_MoveTo* MoveTo = Cast<UBTTask_MoveTo>(Task->NodeInstance)) Result->SetStringField(TEXT("keyName"), MoveTo->GetSelectedBlackboardKey().ToString());
         else Result->SetField(TEXT("keyName"), MakeShared<FJsonValueNull>());
-        if (const UBTTask_Wait* Wait = Cast<UBTTask_Wait>(Task->NodeInstance)) Result->SetNumberField(TEXT("waitSeconds"), Wait->WaitTime);
+        if (const UBTTask_Wait* Wait = Cast<UBTTask_Wait>(Task->NodeInstance)) Result->SetNumberField(TEXT("waitSeconds"), Wait->WaitTime.GetValue(static_cast<const UBehaviorTreeComponent*>(nullptr)));
         else Result->SetField(TEXT("waitSeconds"), MakeShared<FJsonValueNull>());
     }
     else
@@ -355,7 +358,7 @@ static FString P14BehaviorTree(const FString& Id, const FString& Operation, cons
         if (!P14BehaviorTreeRuntimeValid(*Tree, *Graph, true)) return ErrorResponse(Id, TEXT("conflict"), TEXT("behavior tree graph semantics are invalid"));
         const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("behaviorTreeId"), TreeId); Result->SetStringField(TEXT("blackboardId"), Tree->BlackboardAsset ? Tree->BlackboardAsset->GetPathName() : FString()); Result->SetStringField(TEXT("revision"), ObjectContentRevision(Tree)); TArray<TSharedPtr<FJsonValue>> Nodes, Links;
         TArray<UEdGraphNode*> OrderedNodes; for (UEdGraphNode* Node : Graph->Nodes) if (Node && !Cast<UBehaviorTreeGraphNode_Root>(Node) && !Node->NodeComment.IsEmpty()) OrderedNodes.Add(Node); OrderedNodes.Sort([](const UEdGraphNode& Left, const UEdGraphNode& Right) { return Left.NodeComment < Right.NodeComment; });
-        for (UEdGraphNode* Node : OrderedNodes) { const FString Type = P14BehaviorTreeNodeType(*Node); const TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>(); Row->SetStringField(TEXT("nodeId"), Node->NodeComment); Row->SetStringField(TEXT("nodeType"), Type); if (const UBehaviorTreeGraphNode_Task* Task = Cast<UBehaviorTreeGraphNode_Task>(Node)) { if (const UBTTask_MoveTo* MoveTo = Cast<UBTTask_MoveTo>(Task->NodeInstance)) Row->SetStringField(TEXT("keyName"), MoveTo->GetSelectedBlackboardKey().ToString()); else Row->SetField(TEXT("keyName"), MakeShared<FJsonValueNull>()); if (const UBTTask_Wait* Wait = Cast<UBTTask_Wait>(Task->NodeInstance)) Row->SetNumberField(TEXT("waitSeconds"), Wait->WaitTime); else Row->SetField(TEXT("waitSeconds"), MakeShared<FJsonValueNull>()); } else { Row->SetField(TEXT("keyName"), MakeShared<FJsonValueNull>()); Row->SetField(TEXT("waitSeconds"), MakeShared<FJsonValueNull>()); } Nodes.Add(MakeShared<FJsonValueObject>(Row)); }
+        for (UEdGraphNode* Node : OrderedNodes) { const FString Type = P14BehaviorTreeNodeType(*Node); const TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>(); Row->SetStringField(TEXT("nodeId"), Node->NodeComment); Row->SetStringField(TEXT("nodeType"), Type); if (const UBehaviorTreeGraphNode_Task* Task = Cast<UBehaviorTreeGraphNode_Task>(Node)) { if (const UBTTask_MoveTo* MoveTo = Cast<UBTTask_MoveTo>(Task->NodeInstance)) Row->SetStringField(TEXT("keyName"), MoveTo->GetSelectedBlackboardKey().ToString()); else Row->SetField(TEXT("keyName"), MakeShared<FJsonValueNull>()); if (const UBTTask_Wait* Wait = Cast<UBTTask_Wait>(Task->NodeInstance)) Row->SetNumberField(TEXT("waitSeconds"), Wait->WaitTime.GetValue(static_cast<const UBehaviorTreeComponent*>(nullptr))); else Row->SetField(TEXT("waitSeconds"), MakeShared<FJsonValueNull>()); } else { Row->SetField(TEXT("keyName"), MakeShared<FJsonValueNull>()); Row->SetField(TEXT("waitSeconds"), MakeShared<FJsonValueNull>()); } Nodes.Add(MakeShared<FJsonValueObject>(Row)); }
         TArray<UEdGraphNode*> OrderedParents; if (UBehaviorTreeGraphNode_Root* Root = P14BehaviorTreeRoot(*Graph)) OrderedParents.Add(Root); for (UEdGraphNode* Node : OrderedNodes) OrderedParents.Add(Node);
         for (UEdGraphNode* Parent : OrderedParents) { const FString ParentId = Cast<UBehaviorTreeGraphNode_Root>(Parent) ? TEXT("root") : Parent->NodeComment; const TArray<UEdGraphNode*> Children = P14BehaviorTreeChildren(*Parent); for (int32 Index = 0; Index < Children.Num(); ++Index) { const TSharedRef<FJsonObject> Link = MakeShared<FJsonObject>(); Link->SetStringField(TEXT("linkId"), ParentId + TEXT("->") + Children[Index]->NodeComment); Link->SetStringField(TEXT("parentNodeId"), ParentId); Link->SetStringField(TEXT("childNodeId"), Children[Index]->NodeComment); Link->SetNumberField(TEXT("childIndex"), Index); Links.Add(MakeShared<FJsonValueObject>(Link)); } }
         Links.Sort([](const TSharedPtr<FJsonValue>& Left, const TSharedPtr<FJsonValue>& Right) { return Left->AsObject()->GetStringField(TEXT("parentNodeId")) == Right->AsObject()->GetStringField(TEXT("parentNodeId")) ? Left->AsObject()->GetIntegerField(TEXT("childIndex")) < Right->AsObject()->GetIntegerField(TEXT("childIndex")) : Left->AsObject()->GetStringField(TEXT("parentNodeId")) < Right->AsObject()->GetStringField(TEXT("parentNodeId")); });
@@ -388,6 +391,7 @@ static FString P14BehaviorTree(const FString& Id, const FString& Operation, cons
                     if (!Selector) { MoveTo->MarkAsGarbage(); Node->MarkAsGarbage(); Tree->GetOutermost()->SetDirtyFlag(WasDirty); Transaction.Cancel(); return ErrorResponse(Id, TEXT("operation_failed"), TEXT("MoveTo Blackboard selector is unavailable")); }
                     Selector->SelectedKeyName = FName(TEXT("TargetActor"));
                     Selector->ResolveSelectedKey(*Tree->BlackboardAsset);
+                    MoveTo->bTrackMovingGoal = false;
                     Node->NodeInstance = MoveTo;
                 }
                 else { UBTTask_Wait* Wait = NewObject<UBTTask_Wait>(Node); Wait->WaitTime = 0.5f; Node->NodeInstance = Wait; }
@@ -396,6 +400,7 @@ static FString P14BehaviorTree(const FString& Id, const FString& Operation, cons
             Existing->CreateNewGuid();
             Existing->NodeGuid = P14BehaviorTreeGuid(*Tree, NodeId);
             Existing->NodeComment = NodeId;
+            CastChecked<UBTNode>(CastChecked<UBehaviorTreeGraphNode>(Existing)->NodeInstance)->NodeName = P14BehaviorTreeRuntimeNodeName(NodeId);
             Graph->AddNode(Existing, true, true);
             Existing->AllocateDefaultPins();
             Graph->NotifyGraphChanged();
@@ -616,7 +621,7 @@ static FString P14Navigation(const FString& Id, const FString& Operation, const 
         const bool HadWork = NavSys->IsThereAnywhereToBuildNavigation();
         FP14NavigationTicket Ticket; Ticket.OperationId = Id; Ticket.LevelId = LevelId; Ticket.WorldId = World->GetPathName(); Ticket.StartedAt = FPlatformTime::Seconds();
         const FString TicketId = FString::Printf(TEXT("nav-%s-%llu"), *Sha256(LevelId).Left(12), static_cast<unsigned long long>(++P14NavigationTicketCounter)); P14NavigationTickets.Add(TicketId, Ticket); NavSys->Build();
-        FP14NavigationTicket& Stored = P14NavigationTickets.FindChecked(TicketId); const bool Built = NavSys->GetDefaultNavDataInstance(FNavigationSystem::ECreateIfMissing::DontCreate) && NavSys->IsNavigationBuilt(World->GetWorldSettings()); Stored.State = Built ? TEXT("succeeded") : TEXT("failed"); if (!Built) Stored.Message = HadWork ? TEXT("navigation build did not produce usable navigation data") : TEXT("navigation data has no buildable bounds");
+        FP14NavigationTicket& Stored = P14NavigationTickets.FindChecked(TicketId); ARecastNavMesh* Recast = Cast<ARecastNavMesh>(NavSys->GetDefaultNavDataInstance(FNavigationSystem::ECreateIfMissing::DontCreate)); const bool Built = Recast && Recast->GetNumActiveTiles() > 0 && Recast->GetNavMeshBounds().IsValid && NavSys->IsNavigationBuilt(World->GetWorldSettings()); Stored.State = Built ? TEXT("succeeded") : TEXT("failed"); if (!Built) Stored.Message = HadWork ? TEXT("navigation build did not produce usable navigation data") : TEXT("navigation data has no buildable bounds");
         if (!Built) { SetReceipt(Id, Operation, P14NavigationBuildFailureResponse(TicketId, Stored), TEXT("failed")); Stored.FailureReceiptStored = true; }
         const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("levelId"), LevelId); Result->SetStringField(TEXT("ticketId"), TicketId); Result->SetStringField(TEXT("state"), TEXT("scheduled")); Result->SetBoolField(TEXT("changed"), HadWork); Result->SetStringField(TEXT("revision"), P14NavigationRevision(TicketId + TEXT("scheduled"))); return SuccessResponse(Id, Result, Operation, Args);
     }
@@ -630,7 +635,7 @@ static FString P14Navigation(const FString& Id, const FString& Operation, const 
     if (Operation == TEXT("navigation.path_query"))
     {
         FVector Start, Target; if (!Args->TryGetStringField(TEXT("levelId"), RequestedLevel) || !P14Vector(Args, TEXT("start"), Start) || !P14Vector(Args, TEXT("target"), Target)) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("levelId, start, and target are required"));
-        UNavigationPath* Path = UNavigationSystemV1::FindPathToLocationSynchronously(World, Start, Target); const bool HasPath = Path && Path->IsValid() && !Path->PathPoints.IsEmpty(); const bool Reached = HasPath && Path->PathPoints.Last().Equals(Target, 1.0f); TArray<TSharedPtr<FJsonValue>> Points; if (HasPath) for (int32 Index = 0; Index < FMath::Min(Path->PathPoints.Num(), 128); ++Index) Points.Add(MakeShared<FJsonValueArray>(P14VectorJson(Path->PathPoints[Index]))); const bool Partial = HasPath && !Reached; double Length = 0.0; if (HasPath) for (int32 Index = 1; Index < Path->PathPoints.Num(); ++Index) Length += FVector::Distance(Path->PathPoints[Index - 1], Path->PathPoints[Index]);
+        UNavigationPath* Path = UNavigationSystemV1::FindPathToLocationSynchronously(World, Start, Target); const bool HasPath = Path && Path->IsValid() && !Path->PathPoints.IsEmpty(); const bool Partial = HasPath && Path->IsPartial(); const bool Reached = HasPath && !Partial; TArray<TSharedPtr<FJsonValue>> Points; if (HasPath) for (int32 Index = 0; Index < FMath::Min(Path->PathPoints.Num(), 128); ++Index) Points.Add(MakeShared<FJsonValueArray>(P14VectorJson(Path->PathPoints[Index]))); double Length = 0.0; if (HasPath) for (int32 Index = 1; Index < Path->PathPoints.Num(); ++Index) Length += FVector::Distance(Path->PathPoints[Index - 1], Path->PathPoints[Index]);
         const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>(); Result->SetStringField(TEXT("levelId"), LevelId); Result->SetArrayField(TEXT("start"), P14VectorJson(Start)); Result->SetArrayField(TEXT("target"), P14VectorJson(Target)); Result->SetBoolField(TEXT("reachable"), Reached); Result->SetBoolField(TEXT("partial"), Partial); Result->SetNumberField(TEXT("pathLength"), Length); Result->SetArrayField(TEXT("points"), Points); Result->SetStringField(TEXT("revision"), P14NavigationRevision(LevelId + Start.ToString() + Target.ToString() + FString::SanitizeFloat(Length))); return SuccessResponse(Id, Result, Operation, Args);
     }
     return ErrorResponse(Id, TEXT("unsupported"), TEXT("unsupported navigation operation"));
@@ -649,6 +654,48 @@ FString HandleP14AiNavigationOperation(const FString& Id, const FString& Operati
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
+static AStaticMeshActor* P14NavigationFixture(FAutomationTestBase& Test, UWorld& World, const FString& Suffix)
+{
+    FActorSpawnParameters Parameters; Parameters.OverrideLevel = World.PersistentLevel; Parameters.ObjectFlags |= RF_Transactional; Parameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    AStaticMeshActor* Floor = World.SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), FVector(0.0f, 0.0f, -25.0f), FRotator::ZeroRotator, Parameters);
+    Test.TestNotNull(TEXT("navigation floor actor spawns"), Floor); if (!Floor) return nullptr;
+    Floor->Tags.Add(FName(*FString::Printf(TEXT("MagiAXI.NavFixture.%s"), *Suffix))); UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")); UStaticMeshComponent* Mesh = Floor->GetStaticMeshComponent();
+    const bool Configured = Cube && Mesh; if (Configured) { Mesh->SetMobility(EComponentMobility::Static); Mesh->SetStaticMesh(Cube); Mesh->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName); Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); Floor->SetActorScale3D(FVector(20.0f, 20.0f, 0.5f)); Mesh->SetCanEverAffectNavigation(true); Mesh->RecreatePhysicsState(); Floor->PostEditMove(true); Floor->PostEditChange(); UNavigationSystemV1::UpdateActorAndComponentsInNavOctree(*Floor); }
+    Test.TestTrue(TEXT("navigation floor uses blocking cube collision"), Configured && Mesh->CanEverAffectNavigation() && Mesh->GetCollisionEnabled() == ECollisionEnabled::QueryAndPhysics && Mesh->GetCollisionProfileName() == UCollisionProfile::BlockAll_ProfileName); return Configured ? Floor : nullptr;
+}
+
+static void P14CleanupNavigationFixture(FAutomationTestBase& Test, UWorld& World, AStaticMeshActor* Floor, const FString& Suffix, ARecastNavMesh* OriginalRecast, bool WasDirty)
+{
+    if (Floor) Test.TestTrue(TEXT("navigation floor fixture cleanup succeeds"), World.DestroyActor(Floor));
+    const FName OwnershipTag(*FString::Printf(TEXT("MagiAXI.NavBounds.p14-nav-floor-%s"), *Suffix));
+    for (TActorIterator<ANavMeshBoundsVolume> It(&World); It; ++It)
+        if (It->ActorHasTag(OwnershipTag)) { Test.TestTrue(TEXT("navigation bounds fixture cleanup succeeds"), World.DestroyActor(*It)); break; }
+    if (!OriginalRecast)
+        if (UNavigationSystemV1* NavSys = UNavigationSystemV1::GetNavigationSystem(&World))
+            if (ARecastNavMesh* GeneratedRecast = Cast<ARecastNavMesh>(NavSys->GetDefaultNavDataInstance(FNavigationSystem::ECreateIfMissing::DontCreate))) Test.TestTrue(TEXT("generated navigation data cleanup succeeds"), World.DestroyActor(GeneratedRecast));
+    if (World.GetOutermost()) World.GetOutermost()->SetDirtyFlag(WasDirty);
+}
+
+static bool P14NavigationEnsureFixtureBounds(FAutomationTestBase& Test, UWorld& World, const FString& Suffix)
+{
+    TSharedRef<FJsonObject> Args = MakeShared<FJsonObject>(); Args->SetStringField(TEXT("levelId"), World.GetOutermost()->GetName()); Args->SetStringField(TEXT("agentKey"), TEXT("p14-nav-floor-") + Suffix); Args->SetArrayField(TEXT("location"), P14VectorJson(FVector::ZeroVector)); Args->SetArrayField(TEXT("extent"), P14VectorJson(FVector(1000.0f, 1000.0f, 100.0f))); const FString Response = P14Navigation(TEXT("p14-nav-bounds-") + Suffix, TEXT("navigation.bounds_ensure"), Args, FString()); Test.TestTrue(TEXT("navigation bounds ensure succeeds"), ResponseStatusIsOk(Response)); return ResponseStatusIsOk(Response);
+}
+
+static bool P14NavigationBuildFixture(FAutomationTestBase& Test, UWorld& World, const FString& Suffix)
+{
+    TSharedRef<FJsonObject> Args = MakeShared<FJsonObject>(); Args->SetStringField(TEXT("levelId"), World.GetOutermost()->GetName()); const FString Response = P14Navigation(TEXT("p14-nav-build-") + Suffix, TEXT("navigation.build"), Args, FString()); Test.TestTrue(TEXT("navigation build succeeds"), ResponseStatusIsOk(Response)); if (!ResponseStatusIsOk(Response)) return false;
+    TSharedPtr<FJsonObject> Envelope; const TSharedPtr<FJsonObject>* Result = nullptr; const bool Parsed = FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Response), Envelope) && Envelope.IsValid() && Envelope->TryGetObjectField(TEXT("result"), Result) && Result && Result->IsValid(); if (!Parsed) return false; const FString TicketId = (*Result)->GetStringField(TEXT("ticketId")); TSharedRef<FJsonObject> StatusArgs = MakeShared<FJsonObject>(); StatusArgs->SetStringField(TEXT("ticketId"), TicketId); const FString Status = P14Navigation(TEXT("p14-nav-status-") + Suffix, TEXT("navigation.status"), StatusArgs, FString()); TSharedPtr<FJsonObject> StatusEnvelope; const TSharedPtr<FJsonObject>* StatusResult = nullptr; const bool StatusParsed = FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Status), StatusEnvelope) && StatusEnvelope.IsValid() && StatusEnvelope->TryGetObjectField(TEXT("result"), StatusResult) && StatusResult && StatusResult->IsValid(); Test.TestTrue(TEXT("navigation build status is terminal succeeded"), StatusParsed && (*StatusResult)->GetBoolField(TEXT("terminal")) && (*StatusResult)->GetStringField(TEXT("state")) == TEXT("succeeded")); return StatusParsed && (*StatusResult)->GetStringField(TEXT("state")) == TEXT("succeeded");
+}
+
+static bool P14NavigationFailureContracts(FAutomationTestBase& Test, UWorld& World)
+{
+    TSharedRef<FJsonObject> UnknownArgs = MakeShared<FJsonObject>(); UnknownArgs->SetStringField(TEXT("ticketId"), TEXT("p14-unknown-ticket")); const FString Unknown = P14Navigation(TEXT("p14-nav-unknown"), TEXT("navigation.status"), UnknownArgs, FString()); Test.TestTrue(TEXT("unknown navigation ticket is rejected"), Unknown.Contains(TEXT("not_found")));
+    const FString OperationId = TEXT("p14-nav-fabricated-failure"); const FString TicketId = TEXT("p14-nav-failure-ticket"); RemoveLedger(OperationId); P14NavigationTickets.Remove(TicketId); FP14NavigationTicket Failure; Failure.OperationId = OperationId; Failure.LevelId = World.GetOutermost()->GetName(); Failure.WorldId = World.GetPathName(); Failure.State = TEXT("failed"); Failure.Message = TEXT("fabricated terminal navigation failure"); Failure.StartedAt = FPlatformTime::Seconds(); P14NavigationTickets.Add(TicketId, Failure);
+    TSharedRef<FJsonObject> StatusArgs = MakeShared<FJsonObject>(); StatusArgs->SetStringField(TEXT("ticketId"), TicketId); const FString First = P14Navigation(TEXT("p14-nav-failure-status"), TEXT("navigation.status"), StatusArgs, FString()); const FString Second = P14Navigation(TEXT("p14-nav-failure-status-repeat"), TEXT("navigation.status"), StatusArgs, FString()); TSharedPtr<FJsonObject> FirstEnvelope, SecondEnvelope; const TSharedPtr<FJsonObject>* FirstResult = nullptr; const TSharedPtr<FJsonObject>* SecondResult = nullptr; const bool Parsed = FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(First), FirstEnvelope) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Second), SecondEnvelope) && FirstEnvelope.IsValid() && SecondEnvelope.IsValid() && FirstEnvelope->TryGetObjectField(TEXT("result"), FirstResult) && SecondEnvelope->TryGetObjectField(TEXT("result"), SecondResult) && FirstResult && SecondResult && FirstResult->IsValid() && SecondResult->IsValid(); Test.TestTrue(TEXT("terminal failure status responses parse"), Parsed);
+    const bool Immutable = Parsed && (*FirstResult)->GetBoolField(TEXT("terminal")) && (*FirstResult)->GetStringField(TEXT("state")) == TEXT("failed") && (*SecondResult)->GetStringField(TEXT("state")) == (*FirstResult)->GetStringField(TEXT("state")) && (*SecondResult)->GetStringField(TEXT("revision")) == (*FirstResult)->GetStringField(TEXT("revision")); Test.TestTrue(TEXT("terminal failure status is immutable"), Immutable); FLedgerRecord* Record = FindLedger(OperationId); const bool Finalized = Record && Record->State == TEXT("failed") && Record->Response.Contains(TEXT("navigation_build_failed")); Test.TestTrue(TEXT("terminal navigation failure finalizes ledger"), Finalized); const FString TerminalResponse = Record ? Record->Response : FString(); SetReceipt(OperationId, TEXT("navigation.build"), TEXT("stale completion"), TEXT("completed")); Record = FindLedger(OperationId); const bool Protected = Record && Record->State == TEXT("failed") && Record->Response == TerminalResponse; Test.TestTrue(TEXT("stale queue completion cannot overwrite terminal failure"), Protected);
+    TSharedRef<FJsonObject> ViewArgs = MakeShared<FJsonObject>(); ViewArgs->SetStringField(TEXT("id"), OperationId); const FString View = ReadResponseOnGameThread(TEXT("p14-nav-failure-view"), TEXT("operation.view"), ViewArgs); TSharedPtr<FJsonObject> ViewEnvelope; const TSharedPtr<FJsonObject>* ViewResult = nullptr; const bool Viewed = FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(View), ViewEnvelope) && ViewEnvelope.IsValid() && ViewEnvelope->TryGetObjectField(TEXT("result"), ViewResult) && ViewResult && ViewResult->IsValid() && (*ViewResult)->GetStringField(TEXT("state")) == TEXT("failed"); Test.TestTrue(TEXT("operation.view exposes terminal navigation failure"), ResponseStatusIsOk(View) && Viewed); P14NavigationTickets.Remove(TicketId); RemoveLedger(OperationId); return Unknown.Contains(TEXT("not_found")) && Immutable && Finalized && Protected && Viewed;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagiUnrealAXIP14BehaviorTreeContracts, "MagiUnrealAXI.P14.BehaviorTreeContracts", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FMagiUnrealAXIP14BehaviorTreeContracts::RunTest(const FString&)
 {
@@ -669,7 +716,8 @@ bool FMagiUnrealAXIP14BehaviorTreeContracts::RunTest(const FString&)
     DelimiterNode->SetStringField(TEXT("nodeId"), TEXT("bad\nid")); TestTrue(TEXT("node ID newline is rejected"), Dispatch(TEXT("p14-bt-newline"), TEXT("behavior_tree.node_ensure"), DelimiterNode, StableRevision).Contains(TEXT("invalid_input")));
     GP11ForceAtomicFailure = true; const FString Rollback = Connect(*Tree, TEXT("loop"), TEXT("wait"), 0, TEXT("p14-bt-rollback")); GP11ForceAtomicFailure = false; TestTrue(TEXT("forced ordered-link failure rejects"), Rollback.Contains(TEXT("operation_failed"))); TestEqual(TEXT("forced ordered-link failure restores revision"), ObjectContentRevision(Tree), StableRevision); const TArray<UEdGraphNode*> Restored = Loop ? P14BehaviorTreeChildren(*Loop) : TArray<UEdGraphNode*>(); TestTrue(TEXT("forced ordered-link failure restores runtime order"), Restored.Num() == 2 && Restored[0] == Move && Restored[1] == Wait);
     TSharedRef<FJsonObject> OversizedLink = MakeShared<FJsonObject>(); OversizedLink->SetStringField(TEXT("behaviorTreeId"), Tree->GetPathName()); OversizedLink->SetStringField(TEXT("parentNodeId"), FString::ChrN(1024, TEXT('a'))); OversizedLink->SetStringField(TEXT("childNodeId"), FString::ChrN(1024, TEXT('b'))); OversizedLink->SetNumberField(TEXT("childIndex"), 0); TestTrue(TEXT("link identity exceeding output bound rejects before mutation"), Dispatch(TEXT("p14-bt-link-bound"), TEXT("behavior_tree.connect"), OversizedLink, StableRevision).Contains(TEXT("invalid_input"))); TestEqual(TEXT("link bound rejection preserves revision"), ObjectContentRevision(Tree), StableRevision);
-    UBehaviorTreeGraphNode_Task* WaitGraphNode = Cast<UBehaviorTreeGraphNode_Task>(Wait); UBTTask_Wait* WaitTask = WaitGraphNode ? Cast<UBTTask_Wait>(WaitGraphNode->NodeInstance) : nullptr; TestNotNull(TEXT("Wait task is available for malformed persistence check"), WaitTask); if (WaitTask) { WaitTask->WaitTime = 1.0f; TestTrue(TEXT("malformed persisted Wait has no revision"), ObjectContentRevision(Tree).IsEmpty()); TestTrue(TEXT("view rejects malformed persisted Wait"), Dispatch(TEXT("p14-bt-malformed-wait"), TEXT("behavior_tree.view"), ViewArgs).Contains(TEXT("conflict"))); WaitTask->WaitTime = 0.5f; TestEqual(TEXT("restoring Wait semantics restores revision"), ObjectContentRevision(Tree), StableRevision); }
+    UBehaviorTreeGraphNode_Task* WaitGraphNode = Cast<UBehaviorTreeGraphNode_Task>(Wait); UBTTask_Wait* WaitTask = WaitGraphNode ? Cast<UBTTask_Wait>(WaitGraphNode->NodeInstance) : nullptr; TestNotNull(TEXT("Wait task is available for malformed persistence check"), WaitTask); if (WaitTask) { WaitTask->WaitTime = 1.0f; TestTrue(TEXT("malformed persisted Wait has no revision"), ObjectContentRevision(Tree).IsEmpty()); TestTrue(TEXT("view rejects malformed persisted Wait"), Dispatch(TEXT("p14-bt-malformed-wait"), TEXT("behavior_tree.view"), ViewArgs).Contains(TEXT("conflict"))); WaitTask->WaitTime = 0.5f; WaitTask->WaitTime.SetKey(FName(TEXT("DynamicWait"))); TestTrue(TEXT("Blackboard-bound Wait has no revision"), ObjectContentRevision(Tree).IsEmpty()); TestTrue(TEXT("view rejects Blackboard-bound Wait"), Dispatch(TEXT("p14-bt-dynamic-wait"), TEXT("behavior_tree.view"), ViewArgs).Contains(TEXT("conflict"))); WaitTask->WaitTime.SetKey(NAME_None); TestEqual(TEXT("restoring Wait semantics restores revision"), ObjectContentRevision(Tree), StableRevision); }
+    UBehaviorTreeGraphNode_Task* MoveGraphNode = Cast<UBehaviorTreeGraphNode_Task>(Move); UBTTask_MoveTo* MoveTask = MoveGraphNode ? Cast<UBTTask_MoveTo>(MoveGraphNode->NodeInstance) : nullptr; TestNotNull(TEXT("MoveTo task is available for malformed persistence check"), MoveTask); if (MoveTask) { MoveTask->bTrackMovingGoal.SetKey(FName(TEXT("DynamicTracking"))); TestTrue(TEXT("Blackboard-bound MoveTo tracking has no revision"), ObjectContentRevision(Tree).IsEmpty()); TestTrue(TEXT("view rejects Blackboard-bound MoveTo tracking"), Dispatch(TEXT("p14-bt-dynamic-tracking"), TEXT("behavior_tree.view"), ViewArgs).Contains(TEXT("conflict"))); MoveTask->bTrackMovingGoal.SetKey(NAME_None); TestEqual(TEXT("restoring MoveTo semantics restores revision"), ObjectContentRevision(Tree), StableRevision); }
     UBTCompositeNode* RuntimeRoot = Tree->RootNode; Tree->RootNode = nullptr; TestTrue(TEXT("stale runtime root has no revision"), ObjectContentRevision(Tree).IsEmpty()); TestTrue(TEXT("view rejects stale runtime root"), Dispatch(TEXT("p14-bt-stale-root"), TEXT("behavior_tree.view"), ViewArgs).Contains(TEXT("conflict"))); Tree->RootNode = RuntimeRoot; TestEqual(TEXT("restoring runtime root restores revision"), ObjectContentRevision(Tree), StableRevision);
     UEdGraphPin* MoveInput = Move ? P14BehaviorTreeInput(*Move) : nullptr; UEdGraphPin* LoopOutput = Loop ? P14BehaviorTreeOutput(*Loop) : nullptr; TestTrue(TEXT("linked pins exist for malformed reciprocity check"), MoveInput && LoopOutput); if (MoveInput && LoopOutput) { MoveInput->LinkedTo.Reset(); TestTrue(TEXT("non-reciprocal persisted link has no revision"), ObjectContentRevision(Tree).IsEmpty()); TestTrue(TEXT("view rejects non-reciprocal persisted link"), Dispatch(TEXT("p14-bt-one-way-link"), TEXT("behavior_tree.view"), ViewArgs).Contains(TEXT("conflict"))); MoveInput->LinkedTo.Add(LoopOutput); TestEqual(TEXT("restoring reciprocal link restores revision"), ObjectContentRevision(Tree), StableRevision); }
     return true;
@@ -731,8 +779,8 @@ public:
         if (Pawn && Target && !Context->Initialized)
         {
             FActorSpawnParameters Spawn; Spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn; AAIController* Controller = World->SpawnActor<AAIController>(AAIController::StaticClass(), Pawn->GetActorLocation(), FRotator::ZeroRotator, Spawn); Context->Test->TestNotNull(TEXT("real PIE AIController spawns"), Controller);
-            UBlackboardComponent* BlackboardComponent = nullptr; const bool Possessed = Controller && (Controller->Possess(Pawn), Pawn->GetController() == Controller); const bool BlackboardReady = Controller && Controller->UseBlackboard(Context->Blackboard, BlackboardComponent); const bool TreeRunning = Controller && Controller->RunBehaviorTree(Context->Tree); Context->Test->TestTrue(TEXT("real PIE AIController possesses pawn"), Possessed); Context->Test->TestTrue(TEXT("real PIE Blackboard initializes"), BlackboardReady && BlackboardComponent); Context->Test->TestTrue(TEXT("real PIE Behavior Tree starts"), TreeRunning);
-            TSharedRef<FJsonObject> TargetArgs = MakeShared<FJsonObject>(); TargetArgs->SetStringField(TEXT("sessionId"), Context->SessionId); TargetArgs->SetStringField(TEXT("pawnId"), Context->PawnId); TargetArgs->SetStringField(TEXT("keyName"), TEXT("TargetActor")); TargetArgs->SetStringField(TEXT("targetActorId"), Context->TargetId); const FString TargetResponse = ReadResponseOnGameThread(TEXT("p14-pie-target-set"), TEXT("play.ai_target_set"), TargetArgs); Context->Test->TestTrue(*FString::Printf(TEXT("public target set succeeds in real PIE: %s"), *TargetResponse), ResponseStatusIsOk(TargetResponse));
+            UBlackboardComponent* BlackboardComponent = nullptr; const bool Possessed = Controller && (Controller->Possess(Pawn), Pawn->GetController() == Controller); const bool BlackboardReady = Controller && Controller->UseBlackboard(Context->Blackboard, BlackboardComponent); const bool TreeRunning = Controller && Controller->RunBehaviorTree(Context->Tree); UBehaviorTreeComponent* Behavior = Controller ? Cast<UBehaviorTreeComponent>(Controller->GetBrainComponent()) : nullptr; Context->Test->TestTrue(TEXT("real PIE AIController possesses pawn"), Possessed); Context->Test->TestTrue(TEXT("real PIE Blackboard initializes"), BlackboardReady && BlackboardComponent); Context->Test->TestTrue(TEXT("real PIE Behavior Tree starts"), TreeRunning && Behavior && Behavior->IsRunning());
+            TSharedRef<FJsonObject> TargetArgs = MakeShared<FJsonObject>(); TargetArgs->SetStringField(TEXT("sessionId"), Context->SessionId); TargetArgs->SetStringField(TEXT("pawnId"), Context->PawnId); TargetArgs->SetStringField(TEXT("keyName"), TEXT("TargetActor")); TargetArgs->SetStringField(TEXT("targetActorId"), Context->TargetId); GP11ForceAtomicFailure = true; const FString RunningFailure = ReadResponseOnGameThread(TEXT("p14-pie-target-running-failure"), TEXT("play.ai_target_set"), TargetArgs); GP11ForceAtomicFailure = false; Context->Test->TestTrue(TEXT("forced target failure while running is authoritative"), RunningFailure.Contains(TEXT("operation_failed"))); Context->Test->TestTrue(TEXT("forced target failure restores running tree and target"), Behavior && Behavior->IsRunning() && BlackboardComponent && BlackboardComponent->GetValueAsObject(FName(TEXT("TargetActor"))) == nullptr); if (Behavior) Behavior->PauseLogic(TEXT("P1.4 atomic rollback test")); Context->Test->TestTrue(TEXT("Behavior Tree pauses with retained root for non-running rollback contract"), Behavior && Behavior->IsPaused() && !Behavior->IsRunning() && Behavior->GetRootTree() == Context->Tree); GP11ForceAtomicFailure = true; const FString PausedFailure = ReadResponseOnGameThread(TEXT("p14-pie-target-paused-failure"), TEXT("play.ai_target_set"), TargetArgs); GP11ForceAtomicFailure = false; Context->Test->TestTrue(TEXT("forced target failure while paused is authoritative"), PausedFailure.Contains(TEXT("operation_failed")) && !PausedFailure.Contains(TEXT("prior runtime state could not be restored"))); Context->Test->TestTrue(TEXT("forced target failure preserves paused tree and target"), Behavior && Behavior->IsPaused() && !Behavior->IsRunning() && Behavior->GetRootTree() == Context->Tree && BlackboardComponent && BlackboardComponent->GetValueAsObject(FName(TEXT("TargetActor"))) == nullptr); if (Behavior) Behavior->ResumeLogic(TEXT("P1.4 atomic rollback test complete")); Context->Test->TestTrue(TEXT("Behavior Tree resumes after rollback contract"), Behavior && Behavior->IsRunning()); const FString TargetResponse = ReadResponseOnGameThread(TEXT("p14-pie-target-set"), TEXT("play.ai_target_set"), TargetArgs); Context->Test->TestTrue(*FString::Printf(TEXT("public target set succeeds in real PIE: %s"), *TargetResponse), ResponseStatusIsOk(TargetResponse));
             Context->Initialized = true; Context->Deadline = FPlatformTime::Seconds() + 15.0;
             return false;
         }
@@ -780,32 +828,14 @@ bool FMagiUnrealAXIP14AiControllerContracts::RunTest(const FString&)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagiUnrealAXIP14NavigationBuildContracts, "MagiUnrealAXI.P14.NavigationBuildContracts", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FMagiUnrealAXIP14NavigationBuildContracts::RunTest(const FString&)
 {
-    UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr; TestNotNull(TEXT("editor world exists"), World); if (!World || !World->GetOutermost()) return false;
-    const FString LevelId = World->GetOutermost()->GetName(); TSharedRef<FJsonObject> Unknown = MakeShared<FJsonObject>(); Unknown->SetStringField(TEXT("ticketId"), TEXT("p14-unknown-ticket")); const FString UnknownResponse = P14Navigation(TEXT("p14-nav-unknown"), TEXT("navigation.status"), Unknown, FString()); TestTrue(TEXT("unknown ticket is rejected"), UnknownResponse.Contains(TEXT("not_found")));
-    TSharedRef<FJsonObject> BuildArgs = MakeShared<FJsonObject>(); BuildArgs->SetStringField(TEXT("levelId"), LevelId); const FString Response = P14Navigation(TEXT("p14-nav-build"), TEXT("navigation.build"), BuildArgs, FString()); TestTrue(TEXT("real navigation build is scheduled"), ResponseStatusIsOk(Response));
-    TSharedPtr<FJsonObject> ParsedBuild; const TSharedRef<TJsonReader<>> BuildReader = TJsonReaderFactory<>::Create(Response); const TSharedPtr<FJsonObject>* BuildResult = nullptr; TestTrue(TEXT("build response parses"), FJsonSerializer::Deserialize(BuildReader, ParsedBuild) && ParsedBuild.IsValid() && ParsedBuild->TryGetObjectField(TEXT("result"), BuildResult) && BuildResult && BuildResult->IsValid()); if (!BuildResult || !BuildResult->IsValid()) return false; const FString TicketId = (*BuildResult)->GetStringField(TEXT("ticketId"));
-    FP14NavigationTicket* BuiltTicket = P14NavigationTickets.Find(TicketId); TestNotNull(TEXT("navigation ticket is retained"), BuiltTicket); if (!BuiltTicket) return false;
-    if (BuiltTicket->State == TEXT("failed"))
-    {
-        FLedgerRecord* BeforePoll = FindLedger(TEXT("p14-nav-build"));
-        TestTrue(TEXT("terminal failure finalizes ledger before status polling"), BeforePoll && BeforePoll->State == TEXT("failed") && BeforePoll->Response.Contains(TEXT("navigation_build_failed")));
-        const FString TerminalResponse = BeforePoll ? BeforePoll->Response : FString();
-        TSharedRef<FJsonObject> ViewArgs = MakeShared<FJsonObject>(); ViewArgs->SetStringField(TEXT("id"), TEXT("p14-nav-build"));
-        const FString BeforePollView = ReadResponseOnGameThread(TEXT("p14-nav-operation-view"), TEXT("operation.view"), ViewArgs);
-        TSharedPtr<FJsonObject> ParsedView; const TSharedPtr<FJsonObject>* ViewedReceipt = nullptr; const TSharedRef<TJsonReader<>> ViewReader = TJsonReaderFactory<>::Create(BeforePollView); const bool ViewFailed = FJsonSerializer::Deserialize(ViewReader, ParsedView) && ParsedView.IsValid() && ParsedView->TryGetObjectField(TEXT("result"), ViewedReceipt) && ViewedReceipt && ViewedReceipt->IsValid() && (*ViewedReceipt)->GetStringField(TEXT("state")) == TEXT("failed"); TestTrue(TEXT("operation.view exposes terminal failure before status polling"), ResponseStatusIsOk(BeforePollView) && ViewFailed);
-        SetReceipt(TEXT("p14-nav-build"), TEXT("navigation.build"), Response, TEXT("completed"));
-        FLedgerRecord* AfterStaleCompletion = FindLedger(TEXT("p14-nav-build"));
-        TestTrue(TEXT("queue completion cannot overwrite terminal failure"), AfterStaleCompletion && AfterStaleCompletion->State == TEXT("failed") && AfterStaleCompletion->Response == TerminalResponse);
-    }
-    TSharedRef<FJsonObject> StatusArgs = MakeShared<FJsonObject>(); StatusArgs->SetStringField(TEXT("ticketId"), TicketId); const FString FirstStatus = P14Navigation(TEXT("p14-nav-status"), TEXT("navigation.status"), StatusArgs, FString()); const FString SecondStatus = P14Navigation(TEXT("p14-nav-status-repeat"), TEXT("navigation.status"), StatusArgs, FString()); TSharedPtr<FJsonObject> ParsedFirst, ParsedSecond; const TSharedRef<TJsonReader<>> FirstReader = TJsonReaderFactory<>::Create(FirstStatus); const TSharedRef<TJsonReader<>> SecondReader = TJsonReaderFactory<>::Create(SecondStatus); const TSharedPtr<FJsonObject>* FirstResult = nullptr; const TSharedPtr<FJsonObject>* SecondResult = nullptr; TestTrue(TEXT("terminal status responses parse"), FJsonSerializer::Deserialize(FirstReader, ParsedFirst) && FJsonSerializer::Deserialize(SecondReader, ParsedSecond) && ParsedFirst.IsValid() && ParsedSecond.IsValid() && ParsedFirst->TryGetObjectField(TEXT("result"), FirstResult) && ParsedSecond->TryGetObjectField(TEXT("result"), SecondResult) && FirstResult && SecondResult && FirstResult->IsValid() && SecondResult->IsValid()); if (!FirstResult || !SecondResult || !FirstResult->IsValid() || !SecondResult->IsValid()) return false; TestTrue(TEXT("navigation ticket is terminal after synchronous build"), (*FirstResult)->GetBoolField(TEXT("terminal"))); TestEqual(TEXT("terminal ticket state is immutable"), (*SecondResult)->GetStringField(TEXT("state")), (*FirstResult)->GetStringField(TEXT("state"))); TestEqual(TEXT("terminal ticket revision is immutable"), (*SecondResult)->GetStringField(TEXT("revision")), (*FirstResult)->GetStringField(TEXT("revision"))); if ((*FirstResult)->GetStringField(TEXT("state")) == TEXT("failed")) { FLedgerRecord* Record = FindLedger(TEXT("p14-nav-build")); TestTrue(TEXT("terminal failure replaces build ledger receipt"), Record && Record->State == TEXT("failed") && Record->Response.Contains(TEXT("navigation_build_failed"))); }
-    return true;
+    UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr; TestNotNull(TEXT("editor world exists"), World); if (!World || !World->GetOutermost()) return false; const bool WasDirty = World->GetOutermost()->IsDirty(); UNavigationSystemV1* NavSys = UNavigationSystemV1::GetNavigationSystem(World); ARecastNavMesh* OriginalRecast = NavSys ? Cast<ARecastNavMesh>(NavSys->GetDefaultNavDataInstance(FNavigationSystem::ECreateIfMissing::DontCreate)) : nullptr; const bool FailureContracts = P14NavigationFailureContracts(*this, *World); AStaticMeshActor* Floor = P14NavigationFixture(*this, *World, TEXT("build")); const bool FixtureReady = Floor && P14NavigationEnsureFixtureBounds(*this, *World, TEXT("build")); const bool Built = FixtureReady && P14NavigationBuildFixture(*this, *World, TEXT("build")); P14CleanupNavigationFixture(*this, *World, Floor, TEXT("build"), OriginalRecast, WasDirty); return FailureContracts && Built;
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMagiUnrealAXIP14NavigationPathContracts, "MagiUnrealAXI.P14.NavigationPathContracts", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FMagiUnrealAXIP14NavigationPathContracts::RunTest(const FString&)
 {
-    UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr; TestNotNull(TEXT("editor world exists"), World); if (!World || !World->GetOutermost()) return false;
-    TSharedRef<FJsonObject> Args = MakeShared<FJsonObject>(); Args->SetStringField(TEXT("levelId"), World->GetOutermost()->GetName()); Args->SetArrayField(TEXT("start"), P14VectorJson(FVector::ZeroVector)); Args->SetArrayField(TEXT("target"), P14VectorJson(FVector(100.0f, 0.0f, 0.0f))); const FString Response = P14Navigation(TEXT("p14-nav-path"), TEXT("navigation.path_query"), Args, FString()); TestTrue(TEXT("synchronous path query returns real result"), ResponseStatusIsOk(Response));
-    return true;
+    UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr; TestNotNull(TEXT("editor world exists"), World); if (!World || !World->GetOutermost()) return false; const bool WasDirty = World->GetOutermost()->IsDirty(); UNavigationSystemV1* NavSys = UNavigationSystemV1::GetNavigationSystem(World); ARecastNavMesh* OriginalRecast = NavSys ? Cast<ARecastNavMesh>(NavSys->GetDefaultNavDataInstance(FNavigationSystem::ECreateIfMissing::DontCreate)) : nullptr; AStaticMeshActor* Floor = P14NavigationFixture(*this, *World, TEXT("path")); const bool FixtureReady = Floor && P14NavigationEnsureFixtureBounds(*this, *World, TEXT("path")); const bool Built = FixtureReady && P14NavigationBuildFixture(*this, *World, TEXT("path")); bool ValidPath = false;
+    if (Built) { TSharedRef<FJsonObject> Args = MakeShared<FJsonObject>(); Args->SetStringField(TEXT("levelId"), World->GetOutermost()->GetName()); Args->SetArrayField(TEXT("start"), P14VectorJson(FVector::ZeroVector)); Args->SetArrayField(TEXT("target"), P14VectorJson(FVector(100.0f, 0.0f, 0.0f))); const FString Response = P14Navigation(TEXT("p14-nav-path"), TEXT("navigation.path_query"), Args, FString()); TSharedPtr<FJsonObject> Envelope; const TSharedPtr<FJsonObject>* Result = nullptr; const bool Parsed = ResponseStatusIsOk(Response) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Response), Envelope) && Envelope.IsValid() && Envelope->TryGetObjectField(TEXT("result"), Result) && Result && Result->IsValid(); ValidPath = Parsed && (*Result)->GetBoolField(TEXT("reachable")) && !(*Result)->GetBoolField(TEXT("partial")) && (*Result)->GetNumberField(TEXT("pathLength")) > 0.0 && (*Result)->GetArrayField(TEXT("points")).Num() >= 2; TestTrue(*FString::Printf(TEXT("navigation path is reachable nonpartial and positive: %s"), *Response), ValidPath); }
+    P14CleanupNavigationFixture(*this, *World, Floor, TEXT("path"), OriginalRecast, WasDirty); return Built && ValidPath;
 }
 #endif
 
@@ -863,9 +893,12 @@ static FString P14AiObservation(const FString& Id, const FString& Operation, con
         AActor* Target = P14RuntimeActorByStableId(*World, TargetId, TargetAmbiguous);
         if (TargetAmbiguous) return ErrorResponse(Id, TEXT("conflict"), TEXT("targetActorId resolves to multiple PIE actors"));
         if (!Target) return ErrorResponse(Id, TEXT("not_found"), TEXT("targetActorId was not found in PIE world"));
-
         UObject* PriorValue = Blackboard->GetValueAsObject(Key);
         const bool Changed = PriorValue != Target;
+        UBehaviorTreeComponent* Behavior = Cast<UBehaviorTreeComponent>(Controller->GetBrainComponent());
+        UBehaviorTree* Tree = Behavior ? Behavior->GetRootTree() : nullptr;
+        const bool WasRunning = Behavior && Behavior->IsRunning();
+        const bool NeedsRestart = Behavior && Tree && (Changed || !WasRunning);
         if (Changed) Blackboard->SetValueAsObject(Key, Target);
         const bool ReadbackMatches = Blackboard->GetValueAsObject(Key) == Target;
 #if WITH_DEV_AUTOMATION_TESTS
@@ -876,14 +909,22 @@ static FString P14AiObservation(const FString& Id, const FString& Operation, con
         if (!ReadbackMatches || ForcedFailure)
         {
             if (Changed) Blackboard->SetValueAsObject(Key, PriorValue);
-            if (Changed && Blackboard->GetValueAsObject(Key) != PriorValue) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("Blackboard target readback failed and prior value could not be restored"));
+            const bool ValueRestored = !Changed || Blackboard->GetValueAsObject(Key) == PriorValue;
+            const bool RuntimeRestored = !Behavior || (Behavior->IsRunning() == WasRunning && Behavior->GetRootTree() == Tree);
+            if (!ValueRestored || !RuntimeRestored) return ErrorResponse(Id, TEXT("operation_failed"), TEXT("Blackboard target readback failed and prior runtime state could not be restored"));
             return ErrorResponse(Id, TEXT("operation_failed"), TEXT("Blackboard target readback failed"));
         }
 
-        UBehaviorTreeComponent* Behavior = Cast<UBehaviorTreeComponent>(Controller->GetBrainComponent());
         bool Restarted = false;
-        if (Behavior && (Changed || !Behavior->IsRunning()))
-            if (UBehaviorTree* Tree = Behavior->GetCurrentTree()) Restarted = Controller->RunBehaviorTree(Tree);
+        if (NeedsRestart)
+        {
+            if (WasRunning)
+            {
+                Behavior->RestartTree(EBTRestartMode::ForceReevaluateRootNode);
+                Restarted = Behavior->IsRunning() && Behavior->GetRootTree() == Tree;
+            }
+            else Restarted = Controller->RunBehaviorTree(Tree) && Behavior->IsRunning() && Behavior->GetRootTree() == Tree;
+        }
 
         const FVector TargetLocation = Target->GetActorLocation();
         const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
@@ -939,23 +980,32 @@ static FString P14AiObservation(const FString& Id, const FString& Operation, con
     UBehaviorTree* Tree = Behavior ? Behavior->GetCurrentTree() : nullptr;
     if (Tree) Result->SetStringField(TEXT("behaviorTreeId"), Tree->GetPathName()); else P14Null(Result, TEXT("behaviorTreeId"));
     TArray<TSharedPtr<FJsonValue>> ActiveNodeIds;
-    if (Tree && Behavior && Behavior->IsRunning() && Behavior->GetActiveNode())
+    if (Tree && Behavior && Behavior->IsRunning())
     {
         const UBTNode* ActiveNode = Behavior->GetActiveNode();
         const UBTNode* TemplateNode = Behavior->FindTemplateNode(ActiveNode);
         if (!TemplateNode) TemplateNode = ActiveNode;
-        if (UBehaviorTreeGraph* Graph = Cast<UBehaviorTreeGraph>(Tree->BTGraph))
+        FString ActiveNodeId = TemplateNode ? TemplateNode->GetNodeName() : FString();
+        const bool HasAuthoredIdentity = ActiveNodeId.RemoveFromStart(TEXT("MagiAXI.NodeId:"));
+        if (TemplateNode && HasAuthoredIdentity && P14BehaviorTreeNodeIdValid(ActiveNodeId))
         {
-            UEdGraphNode* Match = nullptr;
-            for (UEdGraphNode* GraphNode : Graph->Nodes)
+            bool AuthoredMatch = false;
+            if (UBehaviorTreeGraph* Graph = Cast<UBehaviorTreeGraph>(Tree->BTGraph))
             {
-                const UBehaviorTreeGraphNode* BehaviorNode = Cast<UBehaviorTreeGraphNode>(GraphNode);
-                const UBTNode* AuthoredNode = BehaviorNode ? Cast<UBTNode>(BehaviorNode->NodeInstance) : nullptr;
-                if (!AuthoredNode || (AuthoredNode != TemplateNode && (AuthoredNode->GetExecutionIndex() != TemplateNode->GetExecutionIndex() || AuthoredNode->GetClass() != TemplateNode->GetClass()))) continue;
-                if (Match) { Match = nullptr; break; }
-                Match = GraphNode;
+                int32 MatchCount = 0;
+                for (UEdGraphNode* GraphNode : Graph->Nodes)
+                {
+                    const UBehaviorTreeGraphNode* BehaviorNode = Cast<UBehaviorTreeGraphNode>(GraphNode);
+                    const UBTNode* AuthoredNode = BehaviorNode ? Cast<UBTNode>(BehaviorNode->NodeInstance) : nullptr;
+                    if (GraphNode && AuthoredNode && GraphNode->NodeComment == ActiveNodeId && AuthoredNode->GetClass() == TemplateNode->GetClass()) ++MatchCount;
+                }
+                AuthoredMatch = MatchCount == 1;
             }
-            if (Match && !Match->NodeComment.IsEmpty()) ActiveNodeIds.Add(MakeShared<FJsonValueString>(Match->NodeComment));
+            else
+            {
+                AuthoredMatch = TemplateNode->GetTreeAsset() == Tree;
+            }
+            if (AuthoredMatch) ActiveNodeIds.Add(MakeShared<FJsonValueString>(ActiveNodeId));
         }
     }
     Result->SetArrayField(TEXT("activeNodeIds"), ActiveNodeIds);

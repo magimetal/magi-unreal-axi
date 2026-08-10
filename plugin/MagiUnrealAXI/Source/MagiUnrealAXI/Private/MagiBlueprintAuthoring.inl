@@ -528,7 +528,7 @@ FString P12ParentGuid(UBlueprint& Blueprint, USCS_Node& Node)
     return Parent ? CanonicalGuid(Parent->VariableGuid) : FString();
 }
 
-TSharedRef<FJsonObject> P12SCSResult(UBlueprint& Blueprint, const FString& VariableGuid, bool Changed, TOptional<bool> DryRun = {})
+TSharedRef<FJsonObject> P12SCSResult(UBlueprint& Blueprint, const FString& VariableGuid, bool Changed, TOptional<bool> DryRun = {}, bool IncludeSavedPackages = false)
 {
     const TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
     Result->SetStringField(TEXT("blueprintId"), Blueprint.GetPathName());
@@ -536,6 +536,7 @@ TSharedRef<FJsonObject> P12SCSResult(UBlueprint& Blueprint, const FString& Varia
     Result->SetBoolField(TEXT("changed"), Changed);
     if (DryRun.IsSet()) Result->SetBoolField(TEXT("dryRun"), DryRun.GetValue());
     Result->SetArrayField(TEXT("dirtyPackages"), Blueprint.GetOutermost() && Blueprint.GetOutermost()->IsDirty() ? TArray<TSharedPtr<FJsonValue>>{MakeShared<FJsonValueString>(Blueprint.GetOutermost()->GetName())} : TArray<TSharedPtr<FJsonValue>>{});
+    if (IncludeSavedPackages) Result->SetArrayField(TEXT("savedPackages"), {});
     Result->SetStringField(TEXT("revision"), BlueprintContentRevision(Blueprint));
     return Result;
 }
@@ -832,7 +833,7 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
         if (!Scene || (WantsPrimitive && !Primitive) || (Args->HasField(TEXT("boxExtent")) && !Box) || (Args->HasField(TEXT("sphereRadius")) && !Sphere)) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("requested SCS field is incompatible with component class"));
         const bool HasSemanticUpdate = Args->HasField(TEXT("location")) || Args->HasField(TEXT("rotation")) || Args->HasField(TEXT("scale")) || Args->HasField(TEXT("collisionEnabled")) || Args->HasField(TEXT("collisionProfile")) || Args->HasField(TEXT("generateOverlapEvents")) || Args->HasField(TEXT("simulatePhysics")) || Args->HasField(TEXT("gravityEnabled")) || Args->HasField(TEXT("massOverride")) || Args->HasField(TEXT("boxExtent")) || Args->HasField(TEXT("sphereRadius"));
         if (!HasSemanticUpdate) return ErrorResponse(Id, TEXT("invalid_input"), TEXT("SCS update requires at least one semantic field"));
-        if (P12SCSRequestMatches(*Node, Args)) return SuccessResponse(Id, P12SCSResult(*Blueprint, VariableGuid, false), Operation, Args);
+        if (P12SCSRequestMatches(*Node, Args)) return SuccessResponse(Id, P12SCSResult(*Blueprint, VariableGuid, false, {}, true), Operation, Args);
         const bool WasDirty = Blueprint->GetOutermost() && Blueprint->GetOutermost()->IsDirty(); const EBlueprintStatus BeforeStatus = Blueprint->Status; const FString BeforeRevision = BlueprintContentRevision(*Blueprint); const FP12SCSState Before = P12CaptureSCSState(*Node);
         FScopedTransaction Transaction(NSLOCTEXT("MagiUnrealAXI", "P12UpdateSCS", "Magi AXI Update SCS Component")); Blueprint->Modify(); Node->Modify(); if (Node->ComponentTemplate) Node->ComponentTemplate->Modify();
         const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
@@ -852,7 +853,7 @@ FString HandleP11BlueprintOperation(const FString& Id, const FString& Operation,
             return P11FailedAtomicResponse(Id, Operation, Args, BlueprintId, BeforeRevision, Observed, Verified, P11DirtyPackages(*Blueprint, false), Verified ? Message : TEXT("SCS component update rollback verification failed"));
         };
         if (!P12SCSRequestMatches(*Node, Args) || BlueprintContentRevision(*Blueprint) == BeforeRevision) return Rollback(TEXT("SCS component update readback failed"));
-        const FString Response = P11AtomicResponse(Id, SuccessResponse(Id, P12SCSResult(*Blueprint, VariableGuid, true), Operation, Args));
+        const FString Response = P11AtomicResponse(Id, SuccessResponse(Id, P12SCSResult(*Blueprint, VariableGuid, true, {}, true), Operation, Args));
         return ResponseStatusIsOk(Response) ? Response : Rollback(TEXT("SCS component update postcondition failed"));
 
     }

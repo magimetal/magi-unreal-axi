@@ -632,6 +632,33 @@ fn require_expected_revision(revision: Option<&str>, operation: &str) -> Result<
     }
     Ok(())
 }
+fn operation_requires_revision(id: &str) -> bool {
+    matches!(
+        id,
+        "asset.save"
+            | "blueprint.compile"
+            | "blueprint.event_ensure"
+            | "blueprint.node_ensure"
+            | "blueprint.pin_default_set"
+            | "blueprint.pin_connect"
+            | "component.add"
+            | "component.update"
+            | "level.set_game_mode"
+            | "blueprint.interface_ensure"
+            | "blueprint.scs_component_ensure"
+            | "blueprint.scs_component_update"
+            | "widget.child_ensure"
+            | "widget.property_set"
+            | "widget.event_ensure"
+            | "widget.viewport_ensure"
+            | "blackboard.key_ensure"
+            | "behavior_tree.node_ensure"
+            | "behavior_tree.connect"
+            | "ai.controller_configure"
+            | "ai.pawn_configure"
+    )
+}
+
 fn execute_capability(
     id: &str,
     input: Value,
@@ -656,26 +683,7 @@ fn execute_capability_with_options(
 ) -> Result<Value, AppError> {
     require_expected_revision(options.expected_revision.as_deref(), id)?;
     let args = capability::validate_input(id, input.clone())?;
-    if matches!(
-        id,
-        "asset.save"
-            | "blueprint.compile"
-            | "blueprint.event_ensure"
-            | "blueprint.node_ensure"
-            | "blueprint.pin_default_set"
-            | "blueprint.pin_connect"
-            | "component.add"
-            | "component.update"
-            | "level.set_game_mode"
-            | "blueprint.interface_ensure"
-            | "blueprint.scs_component_ensure"
-            | "blueprint.scs_component_update"
-            | "widget.child_ensure"
-            | "widget.property_set"
-            | "widget.event_ensure"
-            | "widget.viewport_ensure"
-    ) && options.expected_revision.is_none()
-    {
+    if operation_requires_revision(id) && options.expected_revision.is_none() {
         return Err(AppError::usage(
             "expected_revision_required",
             format!("{id} requires --expected-revision"),
@@ -1004,5 +1012,27 @@ mod tests {
                 .format,
             Some(Format::Json)
         );
+    }
+
+    #[test]
+    fn p14_post_create_mutations_require_revisions() {
+        for id in [
+            "blackboard.key_ensure",
+            "behavior_tree.node_ensure",
+            "behavior_tree.connect",
+            "ai.controller_configure",
+            "ai.pawn_configure",
+        ] {
+            assert!(operation_requires_revision(id), "{id}");
+        }
+        for id in [
+            "blackboard.create",
+            "behavior_tree.create",
+            "navigation.bounds_ensure",
+            "navigation.build",
+            "play.ai_target_set",
+        ] {
+            assert!(!operation_requires_revision(id), "{id}");
+        }
     }
 }
