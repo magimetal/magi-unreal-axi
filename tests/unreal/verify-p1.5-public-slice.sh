@@ -10,8 +10,10 @@ editor="$engine_root/Engine/Binaries/Mac/UnrealEditor-Cmd"
 work=${P15_PUBLIC_WORKSPACE:-$(mktemp -d /tmp/magi-p15-public.XXXXXX)}
 project_dir="$work/MagiUnrealAXIFixture"
 project="$project_dir/MagiUnrealAXIFixture.uproject"
-filter=MagiUnrealAXI.P15.PublicCreateGraphViewPersistence
+filter=MagiUnrealAXI.P15.Public
 oracle="$project_dir/Saved/Automation/MagiP15PublicCreateGraphViewOracle.json"
+graph_oracle="$project_dir/Saved/Automation/MagiP15PublicGraphOracle.json"
+character_oracle="$project_dir/Saved/Automation/MagiP15PublicCharacterOracle.json"
 
 fail() {
   local status=$?
@@ -39,16 +41,19 @@ run_session() {
     "-ExecCmds=Automation RunTests $filter" '-TestExit=Automation Test Queue Empty' \
     "-ReportOutputPath=$report" "-log=$work/$label.log" >"$work/$label.stdout" 2>&1
   jq -e --arg filter "$filter" '
-    .succeeded == 1 and .succeededWithWarnings == 0 and .failed == 0 and
-    .notRun == 0 and .inProcess == 0 and (.tests | length) == 1 and
-    .tests[0].fullTestPath == $filter and .tests[0].state == "Success" and
-    .tests[0].warnings == 0 and .tests[0].errors == 0
+    .succeeded == 4 and .succeededWithWarnings == 0 and .failed == 0 and
+    .notRun == 0 and .inProcess == 0 and (.tests | length) == 4 and
+    (all(.tests[]; (.fullTestPath | startswith($filter)) and .state == "Success" and .warnings == 0 and .errors == 0))
   ' "$report/index.json" >/dev/null
 }
 
 run_session first
 [[ -f "$oracle" ]]
+[[ -f "$graph_oracle" ]]
+[[ -f "$character_oracle" ]]
 cp "$oracle" "$work/first-session-oracle.json"
+cp "$graph_oracle" "$work/first-session-graph-oracle.json"
+cp "$character_oracle" "$work/first-session-character-oracle.json"
 jq -e '
   (.revision | test("^[0-9a-f]{64}$")) and
   (.generatedClass | endswith("ABP_MagiP15Public_C")) and
@@ -56,6 +61,8 @@ jq -e '
 ' "$oracle" >/dev/null
 run_session second
 cmp "$work/first-session-oracle.json" "$oracle"
+cmp "$work/first-session-graph-oracle.json" "$graph_oracle"
+cmp "$work/first-session-character-oracle.json" "$character_oracle"
 
 trap - EXIT
 printf '%s\n' "$work" >/tmp/magi-p15-last-public-workspace

@@ -110,8 +110,8 @@ First complete loop:
 Broad action count is not success. A smaller set that completes and verifies this loop is more valuable than hundreds of shallow handlers.
 
 ## 3. Sources and implementation policy
-- Current 50 library, 6 xtask, and 44 real-binary integration tests pass: 100 Rust tests total.
-- Full Unreal automation passes exact 33/33 through P1.4, including six P1.4 native registrations.
+- Current 55 library, 6 xtask, and 44 real-binary integration tests pass: 105 Rust tests total.
+- Full Unreal automation passes exact 38/38 through P1.5. All five P1.5 tests are zero-warning; five prior regression tests retain an exact 10-warning baseline.
 
 Implementation must re-read current versions before public contract is frozen:
 
@@ -974,7 +974,7 @@ Completed fixture loop:
 - Deferred `play.input` success until next-tick `play.observe` readback; receipts validate exact project/editor/operation/target identity plus declared transaction, reversibility, persistence, and safety metadata.
 - Compiled valid Blueprint as stable no-op on repeat and returned structured graph/node diagnostics for invalid Blueprint. Blueprint authoring remains excluded.
 - Built source-backed fixture project successfully. This proves `project build` for M6 fixture; full build/test/cook/package pipeline normalization remains M7.
-- Canonical catalog contains 70 records with SHA-256 `6161e017548d1e576b9bb8ecf42f75c69519b9d38e128c86c83611ff4fdd89de`. P1.1–P1.4 implementation and integrated certification are complete.
+- Canonical catalog contains 79 records with SHA-256 `a1f1906449ba158584f4b07f0adc0cccb4dba27df12f371e04aadb88452aae8f`. P1.1–P1.5 implementation and integrated certification are complete.
 
 Acceptance:
 
@@ -1020,7 +1020,7 @@ Fixture order:
 3. `ai-navigation-loop`
 4. `animation-state-loop`
 
-P1.4 is complete. It adds exactly 15 AI/navigation operations spanning NavMesh bounds/build/status/path query, Blackboard and Behavior Tree authoring/view, AI Controller/pawn configuration, runtime target mutation, and structured AI observation. Certification proves save/restart/no-op identity, geometry-backed reachable paths, real PIE possession, target arrival within 50 units/120 seconds, authored Wait, refreshed-target MoveTo progress, deterministic second-session reset, 33/33 automation, universal plugin output, and Blueprint-only `.app`/IoStore/Asset Registry gates. Evidence: `~/Library/Caches/magi-unreal-axi/p1.4/native/evidence.to16qz`. P1.5–P1.6 remain not started; P1 remains active.
+P1.5 is complete. It adds exactly nine animation operations spanning Animation Blueprint creation, Character binding/readback, graph/state-machine/state/transition/variable authoring, and structured runtime animation observation. Certification proves owned seed identity and exact Skeleton compatibility, deterministic graph identities, atomic rollback, stale revisions, revision-preserving no-ops, compile/save/restart, real PIE idle → moving → idle, all nine operation cells, universal plugin output, and Blueprint-only `.app`/IoStore/Asset Registry gates. Full automation passes 38/38: all five P1.5 tests have zero warnings, while prior regressions retain an exact 10-warning baseline. Evidence: `~/Library/Caches/magi-unreal-axi/p1.5/native/latest`. P1.6 has not started; P1 remains active.
 
 ### M7 — Production pipeline
 
@@ -1077,7 +1077,7 @@ Acceptance:
 - [x] README, help, skill, capability docs, protocol docs, and generated artifacts agree.
 - [x] Refreshed release artifact installs CLI and matching plugin without external repository under current hardened gate.
 - [x] Refreshed clean install proves checksum/archive/codesign, home, agent setup, plugin setup, full automation, editor health, read, mutation, restart persistence, build, uninstall, and token non-disclosure.
-- [x] Supported engine/platform matrix contains only UE 5.8.1/macOS arm64, certified through P1.4.
+- [x] Supported engine/platform matrix contains only UE 5.8.1/macOS arm64, certified through P1.5.
 
 ## 11. Capability expansion order
 
@@ -1207,7 +1207,7 @@ For each record success, CLI calls, Unreal calls, output tokens, avoidable follo
 - Source plugin remains fallback only when required build toolchain is verified.
 - Capability describe output reports certified, runtime-available, and unavailable states separately.
 
-Installed Unreal Engine 5.8.1 (`56057345`) on macOS arm64 is certified through P1.4 for native plugin build/load, authenticated interactive lifecycle, catalogued editor reads and safe mutations, bounded Blueprint/widget/AI navigation construction, interface/SCS interaction gameplay, UI and AI observation, explicit persistence, PIE input/observation/screenshot/stop/reset, Blueprint diagnostics, C++ fixture build/editor proof, exact 33/33 automation, Blueprint-only `.app`/IoStore/Asset Registry package output, agent integration, exact-artifact clean installation, protected destinations, bounded logs, and durable process summaries.
+Installed Unreal Engine 5.8.1 (`56057345`) on macOS arm64 is certified through P1.5 for native plugin build/load, authenticated interactive lifecycle, catalogued editor reads and safe mutations, bounded Blueprint/widget/AI navigation/animation construction, interface/SCS interaction gameplay, UI/AI/animation observation, explicit persistence, PIE input/observation/screenshot/stop/reset, Blueprint diagnostics, C++ fixture build/editor proof, exact 38/38 automation with five zero-warning P1.5 tests and an exact 10-warning prior-regression baseline, Blueprint-only `.app`/IoStore/Asset Registry package output, agent integration, exact-artifact clean installation, protected destinations, bounded logs, and durable process summaries.
 
 ## 15. Release and dependency policy
 

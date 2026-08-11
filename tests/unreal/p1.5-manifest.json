@@ -1,0 +1,69 @@
+{
+  "phase": "P1.5",
+  "engine": {"version": "5.8.1", "changelist": 56057345, "hostArchitecture": "arm64"},
+  "catalog": {"count": 79, "sha256": "a1f1906449ba158584f4b07f0adc0cccb4dba27df12f371e04aadb88452aae8f"},
+  "seed": {"glbSha256": "e5127ab92df4d7414e8a78191513b9b6ad1cde3ef699fb2a2a7f04e035f3f286", "provenance": "tests/unreal/p1.5-seed-provenance.json"},
+  "plugin": {"binary": "libUnrealEditor-MagiUnrealAXI.dylib", "requiredArchitectures": ["arm64", "x86_64"], "sourceRoot": "plugin/MagiUnrealAXI/Source"},
+  "cli": {"binary": "target/release/magi-unreal-axi"},
+  "fixture": {
+    "name": "animation-state-loop",
+    "level": "/Game/MagiP15/P15Animation",
+    "animationBlueprint": "/Game/MagiP15/ABP_P15Animation",
+    "character": "/Game/MagiP15/BP_P15Character",
+    "skeleton": "/Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed_Skeleton.magi-p15-owned-seed_Skeleton",
+    "skeletalMesh": "/Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed.magi-p15-owned-seed",
+    "idle": "/Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seedIdle.magi-p15-owned-seedIdle",
+    "moving": "/Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seedMoving.magi-p15-owned-seedMoving"
+  },
+  "nativeTests": [
+    "MagiUnrealAXI.P15.AnimationAuthoringSpike",
+    "MagiUnrealAXI.P15.PublicCharacterBindingPersistence",
+    "MagiUnrealAXI.P15.PublicCreateGraphViewPersistence",
+    "MagiUnrealAXI.P15.PublicGraphAuthoringPersistence",
+    "MagiUnrealAXI.P15.PublicRuntimeAnimationObserve"
+  ],
+  "p14RegressionTests": ["MagiUnrealAXI.Bridge.AdversarialFrames", "MagiUnrealAXI.Bridge.Authentication", "MagiUnrealAXI.Bridge.AuthenticationLimit", "MagiUnrealAXI.Bridge.QueueBounds", "MagiUnrealAXI.Bridge.ResponseIdentity", "MagiUnrealAXI.LiveFixture.DirtyPackage", "MagiUnrealAXI.LiveFixture.ReadData", "MagiUnrealAXI.M6.BlueprintDiagnosticsContract", "MagiUnrealAXI.M6.ComponentWorldSettingsContracts", "MagiUnrealAXI.M6.PlayReceiptContracts", "MagiUnrealAXI.Mutation.ActorUpdateDelete", "MagiUnrealAXI.Mutation.LevelOperations", "MagiUnrealAXI.Mutation.UnsafeStates", "MagiUnrealAXI.Read.CatalogContract", "MagiUnrealAXI.Read.PaginationContract", "MagiUnrealAXI.Runtime.GeneratedMetadataAndIdentity", "MagiUnrealAXI.P11.BlueprintConstructionKernel", "MagiUnrealAXI.P11.RevisionBudgetHelpers", "MagiUnrealAXI.Protocol.CanonicalCursorParser", "MagiUnrealAXI.P12.SCSContracts", "MagiUnrealAXI.P12.InterfaceContracts", "MagiUnrealAXI.P12.ComponentObservation", "MagiUnrealAXI.P13.WidgetCoreContracts", "MagiUnrealAXI.P13.WidgetCoreRollback", "MagiUnrealAXI.P13.WidgetEventContracts", "MagiUnrealAXI.P13.WidgetViewportContracts", "MagiUnrealAXI.P13.UiObserveContracts", "MagiUnrealAXI.P14.BehaviorTreeContracts", "MagiUnrealAXI.P14.BlackboardContracts", "MagiUnrealAXI.P14.AiObserveContracts", "MagiUnrealAXI.P14.AiControllerContracts", "MagiUnrealAXI.P14.NavigationBuildContracts", "MagiUnrealAXI.P14.NavigationPathContracts"],
+  "knownRegressionWarnings": [
+    {"test": "MagiUnrealAXI.P14.AiObserveContracts", "warnings": 3},
+    {"test": "MagiUnrealAXI.P14.BehaviorTreeContracts", "warnings": 2},
+    {"test": "MagiUnrealAXI.P14.BlackboardContracts", "warnings": 1},
+    {"test": "MagiUnrealAXI.P14.NavigationBuildContracts", "warnings": 3},
+    {"test": "MagiUnrealAXI.Read.CatalogContract", "warnings": 1}
+  ],
+  "automationTests": ["MagiUnrealAXI.Bridge.AdversarialFrames", "MagiUnrealAXI.Bridge.Authentication", "MagiUnrealAXI.Bridge.AuthenticationLimit", "MagiUnrealAXI.Bridge.QueueBounds", "MagiUnrealAXI.Bridge.ResponseIdentity", "MagiUnrealAXI.LiveFixture.DirtyPackage", "MagiUnrealAXI.LiveFixture.ReadData", "MagiUnrealAXI.M6.BlueprintDiagnosticsContract", "MagiUnrealAXI.M6.ComponentWorldSettingsContracts", "MagiUnrealAXI.M6.PlayReceiptContracts", "MagiUnrealAXI.Mutation.ActorUpdateDelete", "MagiUnrealAXI.Mutation.LevelOperations", "MagiUnrealAXI.Mutation.UnsafeStates", "MagiUnrealAXI.Read.CatalogContract", "MagiUnrealAXI.Read.PaginationContract", "MagiUnrealAXI.Runtime.GeneratedMetadataAndIdentity", "MagiUnrealAXI.P11.BlueprintConstructionKernel", "MagiUnrealAXI.P11.RevisionBudgetHelpers", "MagiUnrealAXI.Protocol.CanonicalCursorParser", "MagiUnrealAXI.P12.SCSContracts", "MagiUnrealAXI.P12.InterfaceContracts", "MagiUnrealAXI.P12.ComponentObservation", "MagiUnrealAXI.P13.WidgetCoreContracts", "MagiUnrealAXI.P13.WidgetCoreRollback", "MagiUnrealAXI.P13.WidgetEventContracts", "MagiUnrealAXI.P13.WidgetViewportContracts", "MagiUnrealAXI.P13.UiObserveContracts", "MagiUnrealAXI.P14.BehaviorTreeContracts", "MagiUnrealAXI.P14.BlackboardContracts", "MagiUnrealAXI.P14.AiObserveContracts", "MagiUnrealAXI.P14.AiControllerContracts", "MagiUnrealAXI.P14.NavigationBuildContracts", "MagiUnrealAXI.P14.NavigationPathContracts", "MagiUnrealAXI.P15.AnimationAuthoringSpike", "MagiUnrealAXI.P15.PublicCharacterBindingPersistence", "MagiUnrealAXI.P15.PublicCreateGraphViewPersistence", "MagiUnrealAXI.P15.PublicGraphAuthoringPersistence", "MagiUnrealAXI.P15.PublicRuntimeAnimationObserve"],
+  "operationCertificationCells": [
+    {"operation": "animation_blueprint.create", "cell": "5.8.1-macos-arm64-56057345"},
+    {"operation": "animation.character_configure", "cell": "5.8.1-macos-arm64-56057345"},
+    {"operation": "animation.character_view", "cell": "5.8.1-macos-arm64-56057345"},
+    {"operation": "animation.graph_view", "cell": "5.8.1-macos-arm64-56057345"},
+    {"operation": "animation.state_ensure", "cell": "5.8.1-macos-arm64-56057345"},
+    {"operation": "animation.state_machine_ensure", "cell": "5.8.1-macos-arm64-56057345"},
+    {"operation": "animation.transition_ensure", "cell": "5.8.1-macos-arm64-56057345"},
+    {"operation": "animation.variable_ensure", "cell": "5.8.1-macos-arm64-56057345"},
+    {"operation": "play.animation_observe", "cell": "5.8.1-macos-arm64-56057345"}
+  ],
+  "liveAssertions": ["owned-seed-only", "author-animation-assets-through-typed-public-cli", "compile-save-restart-exact-readback", "idempotent-noops-preserve-revisions", "verified-mutation-receipts", "real-pie-idle-moving-idle-public-automation", "blueprint-only-cook-package", "iostore-asset-registry-owned-content", "token-and-source-inventory-gates"],
+  "pipeline": {"blueprintOnly": true, "compileAllBlueprints": true, "cook": true, "package": true},
+  "packageAssertions": {
+    "contentRoots": ["MagiP15", "MagiP15Seed"],
+    "animationBlueprint": {"file": "MagiP15/ABP_P15Animation.uasset", "object": "/Game/MagiP15/ABP_P15Animation.ABP_P15Animation", "generatedRuntime": "ABP_P15Animation_C"},
+    "character": {"file": "MagiP15/BP_P15Character.uasset", "object": "/Game/MagiP15/BP_P15Character.BP_P15Character", "generatedRuntime": "BP_P15Character_C"},
+    "map": {"file": "MagiP15/P15Animation.umap", "package": "/Game/MagiP15/P15Animation"},
+    "seedFiles": [
+      "MagiP15Seed/magi-p15-owned-seed/Materials/MagiP15SeedMaterial.uasset",
+      "MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed.uasset",
+      "MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seedIdle.uasset",
+      "MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seedMoving.uasset",
+      "MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed_PhysicsAsset.uasset",
+      "MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed_Skeleton.uasset"
+    ],
+    "seedObjects": [
+      "/Game/MagiP15Seed/magi-p15-owned-seed/Materials/MagiP15SeedMaterial.MagiP15SeedMaterial",
+      "/Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed.magi-p15-owned-seed",
+      "/Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seedIdle.magi-p15-owned-seedIdle",
+      "/Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seedMoving.magi-p15-owned-seedMoving",
+      "/Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed_PhysicsAsset.magi-p15-owned-seed_PhysicsAsset",
+      "/Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed_Skeleton.magi-p15-owned-seed_Skeleton"
+    ]
+  }
+}

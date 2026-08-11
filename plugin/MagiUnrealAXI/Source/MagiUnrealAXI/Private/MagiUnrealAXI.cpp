@@ -26,6 +26,11 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
+#include "Animation/AnimNode_StateMachine.h"
+#include "Animation/AnimStateMachineTypes.h"
+#include "Engine/SkeletalMesh.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
 #include "AnimGraphNode_Root.h"
 #include "AnimGraphNode_SequencePlayer.h"
 #include "AnimGraphNode_StateMachine.h"
@@ -1014,6 +1019,9 @@ TSharedRef<FJsonObject> P13TreeResult(UWidgetBlueprint& Blueprint);
 bool IsP15AnimationOperation(const FString& Operation);
 static UAnimBlueprint* P15LoadAnimationBlueprint(const FString& Id);
 static bool P15RootReadback(UAnimBlueprint& Blueprint, USkeleton*& Skeleton, UAnimationGraph*& Graph, UAnimGraphNode_Root*& Root);
+static bool P15SemanticGraphReadback(UAnimBlueprint& Blueprint, TArray<TSharedPtr<FJsonValue>>& Variables, TArray<TSharedPtr<FJsonValue>>& Machines);
+static FString P15CharacterMeshId(const UBlueprint& Blueprint, const USkeletalMeshComponent& Mesh);
+static bool P15CharacterBindingMatches(UBlueprint& CharacterBlueprint, USkeletalMesh& SkeletalMesh, UAnimBlueprint& AnimationBlueprint, USkeletalMeshComponent*& Mesh);
 bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJsonObject>& Result, const FString& Target, const TSharedRef<FJsonObject>& Verification, const TSharedPtr<FJsonObject>& Args = nullptr);
 UBlueprint* P11LoadBlueprint(const FString& Id);
 static bool P13ViewportReadback(UBlueprint& Blueprint, UEdGraph& Graph, const FString& AgentKey, UClass* WidgetClass, UEdGraphNode*& Begin, UEdGraphNode*& Input, UK2Node_CreateWidget*& Create, UK2Node_CallFunction*& Add, UK2Node_CallFunction*& Enable, UK2Node_CallFunction*& Activate);
@@ -1269,6 +1277,11 @@ FString BlueprintContentRevision(const UBlueprint& Blueprint)
         return true;
     };
     if (!RevisionFieldsWithinBounds({BlueprintPath, Blueprint.ParentClass ? Blueprint.ParentClass->GetPathName() : FString(), FString::FromInt(static_cast<int32>(Blueprint.BlueprintType))})) return FString();
+    if (const UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(&Blueprint))
+    {
+        if (!RevisionFieldsWithinBounds({AnimBlueprint->TargetSkeleton ? AnimBlueprint->TargetSkeleton->GetPathName() : FString()})) return FString();
+        RevisionCanonicalBytes += 1;
+    }
     int32 PreflightNodes = 0, PreflightPins = 0, PreflightLinks = 0;
     for (const UEdGraph* Graph : Graphs)
     {
@@ -1313,6 +1326,11 @@ FString BlueprintContentRevision(const UBlueprint& Blueprint)
     }
     if (const AStaticMeshActor* Defaults = Blueprint.GeneratedClass ? Cast<AStaticMeshActor>(Blueprint.GeneratedClass->GetDefaultObject()) : nullptr)
         if (!RevisionFieldsWithinBounds({FString::FromInt(static_cast<int32>(Defaults->GetStaticMeshComponent()->Mobility))})) return FString();
+    if (const ACharacter* Defaults = Blueprint.GeneratedClass ? Cast<ACharacter>(Blueprint.GeneratedClass->GetDefaultObject()) : nullptr)
+    {
+        const USkeletalMeshComponent* Mesh = Defaults->GetMesh(); const USkeletalMesh* SkeletalMesh = Mesh ? Mesh->GetSkeletalMeshAsset() : nullptr; const USkeleton* Skeleton = SkeletalMesh ? SkeletalMesh->GetSkeleton() : nullptr; const UClass* AnimClass = Mesh ? Mesh->AnimClass.Get() : nullptr;
+        if (!Mesh || !RevisionFieldsWithinBounds({Mesh->GetName(), SkeletalMesh ? SkeletalMesh->GetPathName() : FString(), Skeleton ? Skeleton->GetPathName() : FString(), FString::FromInt(static_cast<int32>(Mesh->GetAnimationMode())), AnimClass ? AnimClass->GetPathName() : FString()})) return FString();
+    }
     if (!P11RevisionCountWithinBounds(Blueprint.NewVariables.Num(), P11MaxRevisionVariables) ||
         !P11RevisionCountWithinBounds(Blueprint.ImplementedInterfaces.Num(), P11MaxRevisionInterfaces)) return FString();
     for (const FBPVariableDescription& Variable : Blueprint.NewVariables)
@@ -1343,8 +1361,14 @@ FString BlueprintContentRevision(const UBlueprint& Blueprint)
     }
     Graphs.Sort([&Blueprint](const UEdGraph& Left, const UEdGraph& Right) { return BlueprintGraphIdentity(Blueprint, Left) < BlueprintGraphIdentity(Blueprint, Right); });
     FString Revision = Sha256(CanonicalRow({BlueprintPath, Blueprint.ParentClass ? Blueprint.ParentClass->GetPathName() : FString(), FString::FromInt(static_cast<int32>(Blueprint.BlueprintType))}));
+    if (const UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(&Blueprint)) Revision = ExtendRevision(Revision, {TEXT("targetSkeleton"), AnimBlueprint->TargetSkeleton ? AnimBlueprint->TargetSkeleton->GetPathName() : FString()});
     if (const AStaticMeshActor* Defaults = Blueprint.GeneratedClass ? Cast<AStaticMeshActor>(Blueprint.GeneratedClass->GetDefaultObject()) : nullptr)
         Revision = ExtendRevision(Revision, {TEXT("staticMeshMobility"), FString::FromInt(static_cast<int32>(Defaults->GetStaticMeshComponent()->Mobility))});
+    if (const ACharacter* Defaults = Blueprint.GeneratedClass ? Cast<ACharacter>(Blueprint.GeneratedClass->GetDefaultObject()) : nullptr)
+    {
+        const USkeletalMeshComponent* Mesh = Defaults->GetMesh(); const USkeletalMesh* SkeletalMesh = Mesh ? Mesh->GetSkeletalMeshAsset() : nullptr; const USkeleton* Skeleton = SkeletalMesh ? SkeletalMesh->GetSkeleton() : nullptr; const UClass* AnimClass = Mesh ? Mesh->AnimClass.Get() : nullptr;
+        if (!Mesh) return FString(); Revision = ExtendRevision(Revision, {TEXT("characterMesh"), Mesh->GetName(), SkeletalMesh ? SkeletalMesh->GetPathName() : FString(), Skeleton ? Skeleton->GetPathName() : FString(), FString::FromInt(static_cast<int32>(Mesh->GetAnimationMode())), AnimClass ? AnimClass->GetPathName() : FString()});
+    }
     int32 RevisionNodes = 0, RevisionPins = 0, RevisionLinks = 0;
     for (const UEdGraph* Graph : Graphs)
     {
@@ -1716,6 +1740,55 @@ bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJso
         if (!Blueprint || BlueprintId != Path + TEXT(".") + FPackageName::GetShortName(Path) || Target != BlueprintId || Args->GetStringField(TEXT("skeletonId")) != SkeletonId || !P15RootReadback(*Blueprint, Skeleton, Graph, Root) || !Skeleton || Skeleton->GetPathName() != SkeletonId || BlueprintContentRevision(*Blueprint) != Revision) return false;
         const FString ExpectedGraphId = BlueprintId + TEXT("#graph:other:") + Graph->GraphGuid.ToString(EGuidFormats::DigitsWithHyphens).ToLower();
         return GeneratedClass == Blueprint->GeneratedClass->GetPathName() && AnimGraphId == ExpectedGraphId && RootNodeId == ExpectedGraphId + TEXT("#node:") + Root->NodeGuid.ToString(EGuidFormats::DigitsWithHyphens).ToLower() && Verified();
+    }
+    if (Operation == TEXT("animation.character_configure"))
+    {
+        if (!Args.IsValid()) return false; FString CharacterBlueprintId, SkeletalMeshId, AnimationBlueprintId, ResultCharacterId, ResultMeshId, ResultSkeletalMeshId, ResultSkeletonId, ResultAnimationBlueprintId, ResultAnimClass, ResultMode; Args->TryGetStringField(TEXT("characterBlueprintId"), CharacterBlueprintId); Args->TryGetStringField(TEXT("skeletalMeshId"), SkeletalMeshId); Args->TryGetStringField(TEXT("animationBlueprintId"), AnimationBlueprintId); Result->TryGetStringField(TEXT("characterBlueprintId"), ResultCharacterId); Result->TryGetStringField(TEXT("meshComponentId"), ResultMeshId); Result->TryGetStringField(TEXT("skeletalMeshId"), ResultSkeletalMeshId); Result->TryGetStringField(TEXT("skeletonId"), ResultSkeletonId); Result->TryGetStringField(TEXT("animationBlueprintId"), ResultAnimationBlueprintId); Result->TryGetStringField(TEXT("animClass"), ResultAnimClass); Result->TryGetStringField(TEXT("animationMode"), ResultMode); UBlueprint* CharacterBlueprint = P11LoadBlueprint(CharacterBlueprintId); USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(StaticLoadObject(UObject::StaticClass(), nullptr, *SkeletalMeshId, nullptr, LOAD_NoWarn)); UAnimBlueprint* AnimationBlueprint = P15LoadAnimationBlueprint(AnimationBlueprintId); USkeletalMeshComponent* Mesh = nullptr; if (!CharacterBlueprint || !SkeletalMesh || !AnimationBlueprint || !P15CharacterBindingMatches(*CharacterBlueprint, *SkeletalMesh, *AnimationBlueprint, Mesh) || BlueprintContentRevision(*CharacterBlueprint) != Revision) return false; return ResultCharacterId == CharacterBlueprintId && ResultMeshId == P15CharacterMeshId(*CharacterBlueprint, *Mesh) && ResultSkeletalMeshId == SkeletalMeshId && ResultSkeletonId == SkeletalMesh->GetSkeleton()->GetPathName() && ResultAnimationBlueprintId == AnimationBlueprintId && ResultAnimClass == AnimationBlueprint->GeneratedClass->GetPathName() && ResultMode == TEXT("AnimationBlueprint") && Target == CharacterBlueprintId + TEXT("#animation-character") && Verified();
+    }
+    if (Operation == TEXT("animation.variable_ensure") || Operation == TEXT("animation.state_machine_ensure") || Operation == TEXT("animation.state_ensure") || Operation == TEXT("animation.transition_ensure"))
+    {
+        if (!Args.IsValid()) return false;
+        FString BlueprintId;
+        if (!Result->TryGetStringField(TEXT("animationBlueprintId"), BlueprintId)) return false;
+        UAnimBlueprint* Blueprint = P15LoadAnimationBlueprint(BlueprintId);
+        TArray<TSharedPtr<FJsonValue>> Variables;
+        TArray<TSharedPtr<FJsonValue>> Machines;
+        if (!Blueprint || BlueprintContentRevision(*Blueprint) != Revision || !P15SemanticGraphReadback(*Blueprint, Variables, Machines)) return false;
+        TSharedPtr<FJsonObject> Expected;
+        if (Operation == TEXT("animation.variable_ensure"))
+        {
+            FString Wanted; Result->TryGetStringField(TEXT("variableId"), Wanted);
+            for (const TSharedPtr<FJsonValue>& Value : Variables) if (Value.IsValid() && Value->AsObject() && Value->AsObject()->GetStringField(TEXT("variableId")) == Wanted) { Expected = Value->AsObject(); break; }
+        }
+        else
+        {
+            const TCHAR* Key = Operation == TEXT("animation.state_machine_ensure") ? TEXT("stateMachineId") : Operation == TEXT("animation.state_ensure") ? TEXT("stateId") : TEXT("transitionId");
+            FString Wanted; Result->TryGetStringField(Key, Wanted);
+            for (const TSharedPtr<FJsonValue>& Value : Machines) if (Value.IsValid() && Value->AsObject())
+            {
+                const TSharedPtr<FJsonObject> Machine = Value->AsObject();
+                if (Operation == TEXT("animation.state_machine_ensure") && Machine->GetStringField(TEXT("stateMachineId")) == Wanted) { Expected = Machine; break; }
+                const TCHAR* ArrayName = Operation == TEXT("animation.state_ensure") ? TEXT("states") : TEXT("transitions"); const TArray<TSharedPtr<FJsonValue>>* Rows = nullptr;
+                if (Machine->TryGetArrayField(ArrayName, Rows) && Rows) for (const TSharedPtr<FJsonValue>& Row : *Rows) if (Row.IsValid() && Row->AsObject() && Row->AsObject()->GetStringField(Key) == Wanted) { Expected = Row->AsObject(); Expected->SetStringField(TEXT("stateMachineId"), Machine->GetStringField(TEXT("stateMachineId"))); break; }
+                if (Expected.IsValid()) break;
+            }
+        }
+        if (!Expected.IsValid()) return false;
+        Expected->SetStringField(TEXT("animationBlueprintId"), BlueprintId);
+        for (const auto& Pair : Result->Values)
+        {
+            if (Pair.Key == TEXT("changed") || Pair.Key == TEXT("dirtyPackages") || Pair.Key == TEXT("savedPackages") || Pair.Key == TEXT("revision")) continue;
+            if (!Pair.Value.IsValid() || !Expected->HasField(Pair.Key)) return false;
+            if (Pair.Value->Type == EJson::String && Expected->GetStringField(Pair.Key) != Pair.Value->AsString()) return false;
+            if (Pair.Value->Type == EJson::Boolean && Expected->GetBoolField(Pair.Key) != Pair.Value->AsBool()) return false;
+        }
+        FString ExpectedTarget;
+        if (Operation == TEXT("animation.variable_ensure")) ExpectedTarget = BlueprintId + TEXT("#variable:") + Args->GetStringField(TEXT("name"));
+        else if (Operation == TEXT("animation.state_machine_ensure")) ExpectedTarget = BlueprintId + TEXT("#state-machine:") + Args->GetStringField(TEXT("name"));
+        else if (Operation == TEXT("animation.state_ensure")) ExpectedTarget = BlueprintId + TEXT("#") + Args->GetStringField(TEXT("stateMachineId")) + TEXT("#state:") + Args->GetStringField(TEXT("name"));
+        else ExpectedTarget = BlueprintId + TEXT("#") + Args->GetStringField(TEXT("stateMachineId")) + TEXT("#") + Args->GetStringField(TEXT("fromStateId")) + TEXT("#") + Args->GetStringField(TEXT("toStateId"));
+        Verification->SetStringField(TEXT("readback"), TEXT("animation.graph_view"));
+        return Target == ExpectedTarget && Verified();
     }
     if (Operation == TEXT("blueprint.create"))
     {
@@ -2316,7 +2389,7 @@ FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, co
     }
     if (IsP15AnimationOperation(Operation))
     {
-        if (Operation == TEXT("animation_blueprint.create"))
+        if (IsMutationOperation(Operation))
         {
             FString GateMessage;
             if (!MutationGate(GateMessage)) return ErrorResponse(Id, TEXT("unsafe_editor_state"), *GateMessage, true);

@@ -1,6 +1,6 @@
 # Verification status
 
-Certified cell: Unreal Engine 5.8.1, changelist `56057345`, macOS arm64. M7 independent review: CLEAN. M8 hardened exact-artifact gate: PASS. P1.4 integrated gate: PASS.
+Certified cell: Unreal Engine 5.8.1, changelist `56057345`, macOS arm64. M7 independent review: CLEAN. M8 hardened exact-artifact gate: PASS. P1.5 integrated gate: PASS.
 
 ## Successful gates
 
@@ -29,11 +29,12 @@ cargo run --locked --bin xtask -- release check
 ./tests/unreal/certify-m8-live.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
 ./tests/unreal/certify-p1.3.sh
 ./tests/unreal/certify-p1.4.sh
+./tests/unreal/certify-p1.5.sh
 ```
 
-Rust gate: 50 library tests, 6 xtask tests, and 44 real-binary integration tests = 100 tests (`cargo test --all-targets --all-features --locked`, verified locally). Catalog check validates 70 records, generated static Rust/C++ schemas and registries, mutation safety metadata, semantic receipt bindings, and hash `6161e017548d1e576b9bb8ecf42f75c69519b9d38e128c86c83611ff4fdd89de`.
+Rust gate: 55 library tests, 6 xtask tests, and 44 real-binary integration tests = 105 tests (`cargo test --all-targets --all-features --locked`, verified locally). Catalog check validates 79 records, generated static Rust/C++ schemas and registries, mutation safety metadata, semantic receipt bindings, and current full-file hash `a1f1906449ba158584f4b07f0adc0cccb4dba27df12f371e04aadb88452aae8f`.
 
-P1.0–P1.4 certification and M8 exact-artifact regression pass for the sole engine cell. P1.4 integrated certification includes the exact 27-test P1.3 regression plus six P1.4 tests, live AI navigation/reset, and Blueprint-only compile/cook/package gates. P1.5–P1.6 remain not started.
+P1.0–P1.5 certification and M8 exact-artifact regression pass for the sole engine cell. P1.5 integrated certification includes the exact 33-test P1.4 regression plus five zero-warning P1.5 tests. Full automation passes 38/38 with 10 known pre-existing regression warnings; this is not an overall zero-warning result. P1.6 has not started, so P1 remains active.
 
 ## Evidence paths
 
@@ -56,6 +57,7 @@ P1.0–P1.4 certification and M8 exact-artifact regression pass for the sole eng
 - P1.2 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.2/native/evidence.iY67AH`
 - P1.3 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.3/native/evidence.1kyPg7`
 - P1.4 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.4/native/evidence.to16qz`
+- P1.5 integrated native/live: `~/Library/Caches/magi-unreal-axi/p1.5/native/latest`
 
 ## P1.0 certification
 
@@ -76,6 +78,12 @@ P1.3 adds exactly seven capabilities: `widget.create`, `widget.tree_view`, `widg
 ## P1.4 certification
 
 P1.4 adds exactly 15 AI/navigation capabilities: `navigation.bounds_ensure`, `navigation.build`, `navigation.status`, `navigation.path_query`, `blackboard.create`, `blackboard.key_ensure`, `blackboard.view`, `behavior_tree.create`, `behavior_tree.node_ensure`, `behavior_tree.connect`, `behavior_tree.view`, `ai.controller_configure`, `ai.pawn_configure`, `play.ai_target_set`, and `play.ai_observe`. Integrated gate passes exact 33/33 automation; universal `x86_64 arm64` plugin build; save/restart/no-op topology; geometry-backed reachable/nonpartial paths; real PIE possession; target arrival within 50 units/120 seconds; authored Wait; refreshed-target MoveTo progress; deterministic second-session reset; and Blueprint-only `.app`, IoStore, Asset Registry, inventory, receipt, source-integrity, and token gates. Evidence: `~/Library/Caches/magi-unreal-axi/p1.4/native/evidence.to16qz`.
+
+## P1.5 certification
+
+P1.5 adds exactly nine capabilities: `animation_blueprint.create`, `animation.character_configure`, `animation.character_view`, `animation.graph_view`, `animation.variable_ensure`, `animation.state_machine_ensure`, `animation.state_ensure`, `animation.transition_ensure`, and `play.animation_observe`. The gate verifies repository-owned seed GLB SHA-256 `e5127ab92df4d7414e8a78191513b9b6ad1cde3ef699fb2a2a7f04e035f3f286`, exact shared Skeleton compatibility, animation-specific authoring APIs, deterministic graph identities, atomic rollback, stale revisions, revision-preserving no-ops, compile/save/restart, and real PIE idle → moving → idle. It passes 38/38 automation; all five P1.5 tests have zero warnings, while five prior regression tests retain an exact 10-warning baseline. Universal `x86_64 arm64` plugin build, verified mutation receipts, Blueprint-only `.app`, IoStore, Asset Registry owned content, source-integrity, and token gates pass.
+
+Current catalog has 79 records and full-file SHA-256 `a1f1906449ba158584f4b07f0adc0cccb4dba27df12f371e04aadb88452aae8f`. Latest retained successful evidence path is recorded in `~/Library/Caches/magi-unreal-axi/p1.5/native/latest`.
 
 ## M3–M5 regression status
 
@@ -115,7 +123,7 @@ Cook copies a bounded, symlink-safe inventory from canonical project `Saved/Cook
 
 Evidence: `~/Library/Caches/magi-unreal-axi/m7/live/evidence.Ekd7HQ`.
 
-M7 acceptance is complete. UE 5.8.1/macOS arm64 support is certified through P1.4.
+M7 acceptance is complete. UE 5.8.1/macOS arm64 support is certified through P1.5.
 
 ## M8 certification
 

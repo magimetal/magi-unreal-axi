@@ -1,6 +1,6 @@
 # Capability catalog
 
-Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -- capabilities check` validates strict records, sorted unique IDs, closed bounded schemas, mutation safety metadata, receipt-compatible operation metadata, and generated Rust/C++ parity. Current catalog contains 70 records with SHA-256 `6161e017548d1e576b9bb8ecf42f75c69519b9d38e128c86c83611ff4fdd89de`. Runtime handshake rejects mismatch before operation transmission.
+Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -- capabilities check` validates strict records, sorted unique IDs, closed bounded schemas, mutation safety metadata, receipt-compatible operation metadata, and generated Rust/C++ parity. Current catalog contains 79 records with full-file SHA-256 `a1f1906449ba158584f4b07f0adc0cccb4dba27df12f371e04aadb88452aae8f`. Runtime handshake rejects mismatch before operation transmission.
 
 ## M6 surface
 
@@ -10,7 +10,7 @@ Canonical source: `capabilities/catalog.json`. `cargo run --locked --bin xtask -
 - level settings: `level.settings`, `level.set_game_mode`
 - play: `play.start`, `play.status`, `play.observe`, `play.input`, `play.screenshot`, `play.stop`
 
-M6 added no Blueprint authoring; bounded authoring enters through P1.1–P1.4 below.
+M6 added no Blueprint authoring; bounded authoring enters through P1.1–P1.5 below.
 
 ## Contracts
 
@@ -47,6 +47,12 @@ P1.3 adds exactly `widget.create`, `widget.tree_view`, `widget.child_ensure`, `w
 ## P1.4 AI navigation loop
 
 P1.4 adds exactly `navigation.bounds_ensure`, `navigation.build`, `navigation.status`, `navigation.path_query`, `blackboard.create`, `blackboard.key_ensure`, `blackboard.view`, `behavior_tree.create`, `behavior_tree.node_ensure`, `behavior_tree.connect`, `behavior_tree.view`, `ai.controller_configure`, `ai.pawn_configure`, `play.ai_target_set`, and `play.ai_observe`. Certified fixture proves geometry-backed reachable/nonpartial paths, saved and restart-stable authored identities, AI possession, target arrival within 50 units/120 seconds, authored Wait, refreshed-target MoveTo progress, and clean second-session runtime reset. Integrated certification passes exact 33/33 Unreal automation plus universal plugin and Blueprint-only `.app`/IoStore/Asset Registry/inventory/receipt/token gates.
+
+## P1.5 Animation Blueprint state
+
+P1.5 adds exactly nine operations: `animation_blueprint.create`, `animation.character_configure`, `animation.character_view`, `animation.graph_view`, `animation.variable_ensure`, `animation.state_machine_ensure`, `animation.state_ensure`, `animation.transition_ensure`, and `play.animation_observe`. The seven original animation operations use animation-specific graph/schema APIs; the two character operations bind and inspect Character mesh/AnimBP defaults. The fixture uses repository-owned seed GLB SHA-256 `e5127ab92df4d7414e8a78191513b9b6ad1cde3ef699fb2a2a7f04e035f3f286`, validates one exact Skeleton across SkeletalMesh and both sequences, and exposes deterministic graph, variable, state-machine, state, transition, and node identities. Certification proves atomic failure rollback, stale-revision rejection, revision-preserving no-ops, compile/save/restart identity, real PIE idle → moving → idle, verified receipts, universal plugin output, Blueprint-only `.app`/IoStore/Asset Registry owned content, source integrity, and token absence. Full automation passes 38/38; all five P1.5 tests pass with zero warnings, while regressions retain 10 known pre-existing warnings.
+
+P1.5 is complete. P1.6 has not started, so P1 remains active.
 
 ## Examples
 

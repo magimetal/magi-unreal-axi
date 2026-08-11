@@ -1,6 +1,6 @@
 # Native bridge protocol v1
 
-Certified target: Unreal Engine 5.8.1 on macOS arm64 through P1.4. Transport is TCP bound only to `127.0.0.1` on an OS-selected port. No remote-host override exists.
+Certified target: Unreal Engine 5.8.1 on macOS arm64 through P1.5. Transport is TCP bound only to `127.0.0.1` on an OS-selected port. No remote-host override exists.
 
 M8 adds agent integration, documentation, packaging, and release gates only. It does not expand protocol v1, catalog operations, framing, authentication, or runtime semantics.
 
@@ -29,13 +29,13 @@ Plugin creates current-user `0700` directories and atomically writes `0600` regu
 
 Discovery identifies protocol/plugin version, PID plus kernel process-start identity, canonical project path/ID, engine version, loopback host/port, session nonce, and start time. CLI validates owner, type, symlink status, permissions, project/session identity, and process identity before authentication. First frame includes exact protocol, token, canonical project, PID/process start, nonce, and CLI version. Plugin compares token in constant time; 64 failures within 10 seconds temporarily close handshake admission.
 
-Successful handshake repeats runtime identity and generated `catalogHash`. Current 70-record hash is `6161e017548d1e576b9bb8ecf42f75c69519b9d38e128c86c83611ff4fdd89de`. CLI rejects identity or hash mismatch before operation dispatch. Token never enters discovery, responses, errors, logs, receipts, or retained evidence.
+Successful handshake repeats runtime identity and generated `catalogHash`. Current 79-record hash is `a1f1906449ba158584f4b07f0adc0cccb4dba27df12f371e04aadb88452aae8f`. CLI rejects identity or hash mismatch before operation dispatch. Token never enters discovery, responses, errors, logs, receipts, or retained evidence.
 
 ## Operations
 
 Bootstrap operations: `bridge.health`, `bridge.describe`, `editor.stop`.
 
-Catalogued operations through P1.4:
+Catalogued operations through P1.5:
 
 - M4 reads: `editor.status`, `level.current`, `level.list`, `actor.list`, `actor.view`, `asset.list`, `asset.view`
 - M5 mutations/lookup: `level.create`, `level.open`, `level.save`, `actor.spawn`, `actor.update_transform`, `actor.delete`, `operation.view`
@@ -48,6 +48,7 @@ Catalogued operations through P1.4:
 - P1.2 interaction: `blueprint.interface_create`, `blueprint.interface_view`, `blueprint.interface_ensure`, `blueprint.scs_view`, `blueprint.scs_component_ensure`, `blueprint.scs_component_update`, `blueprint.scs_component_remove`, `play.component_observe`
 - P1.3 widget/UI: `widget.create`, `widget.tree_view`, `widget.child_ensure`, `widget.property_set`, `widget.event_ensure`, `widget.viewport_ensure`, `play.ui_observe`
 - P1.4 AI/navigation: `navigation.bounds_ensure`, `navigation.build`, `navigation.status`, `navigation.path_query`, `blackboard.create`, `blackboard.key_ensure`, `blackboard.view`, `behavior_tree.create`, `behavior_tree.node_ensure`, `behavior_tree.connect`, `behavior_tree.view`, `ai.controller_configure`, `ai.pawn_configure`, `play.ai_target_set`, `play.ai_observe`
+- P1.5 animation: `animation_blueprint.create`, `animation.character_configure`, `animation.character_view`, `animation.graph_view`, `animation.state_ensure`, `animation.state_machine_ensure`, `animation.transition_ensure`, `animation.variable_ensure`, `play.animation_observe`
 
 Request envelope:
 
@@ -79,7 +80,7 @@ No rollback or saved persistence is claimed. Exit status is 1; inspect `operatio
 - `play.input` captures canonical observation revision before input, accepts input on game thread, and defers completion to next tick. Success includes accepted flag, before/after revisions, truthful changed flag, and matched `play.observe` readback.
 - `play.stop` calls `EndPlayMap` synchronously, refuses success while PIE still exists, and verifies `play.status` stopped revision in receipt.
 - `play.screenshot` stays under project `Saved/MagiUnrealAXI/Screenshots`, requires `.png`, rejects path/symlink escape, validates file/signature, and reports width/height bounded to 1–16384. Binary bytes never enter protocol output.
-- `blueprint.compile` returns structured `blueprint_compile_failed` details with bounded error/warning totals and graph/node context when available. P1.1, P1.2, and P1.3 authoring remains limited to catalogued allowlists.
+- `blueprint.compile` returns structured `blueprint_compile_failed` details with bounded error/warning totals and graph/node context when available. P1.1–P1.5 authoring remains limited to catalogued allowlists.
 
 ## Lists, threading, and teardown
 
