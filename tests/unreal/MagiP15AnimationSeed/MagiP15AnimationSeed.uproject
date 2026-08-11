@@ -1,0 +1,10 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.8",
+  "Category": "Magi",
+  "Description": "Owned, reproducible P1.5 animation seed materialization project.",
+  "Plugins": [
+    {"Name": "PythonScriptPlugin", "Enabled": true},
+    {"Name": "Interchange", "Enabled": true}
+  ]
+}

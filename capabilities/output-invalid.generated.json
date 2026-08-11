@@ -5283,6 +5283,548 @@
     }
   },
   {
+    "operation": "animation_blueprint.create",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "animation_blueprint.create",
+    "case": "root-not-closed",
+    "result": {
+      "animationBlueprintId": "x",
+      "skeletonId": "x",
+      "generatedClass": "x",
+      "animGraphId": "x",
+      "rootNodeId": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.character_configure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "animation.character_configure",
+    "case": "root-not-closed",
+    "result": {
+      "characterBlueprintId": "x",
+      "meshComponentId": "x",
+      "skeletalMeshId": "x",
+      "skeletonId": "x",
+      "animationMode": "AnimationBlueprint",
+      "animationBlueprintId": "x",
+      "animClass": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.character_view",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "animation.character_view",
+    "case": "root-not-closed",
+    "result": {
+      "characterBlueprintId": "x",
+      "meshComponentId": "x",
+      "skeletalMeshId": null,
+      "skeletonId": null,
+      "animationMode": "AnimationBlueprint",
+      "animationBlueprintId": null,
+      "animClass": null,
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.graph_view",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "animation.graph_view",
+    "case": "root-not-closed",
+    "result": {
+      "animationBlueprintId": "x",
+      "skeletonId": "x",
+      "generatedClass": "x",
+      "animGraphId": "x",
+      "rootNodeId": "x",
+      "variables": [],
+      "stateMachines": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.state_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "animation.state_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "animationBlueprintId": "x",
+      "stateMachineId": "x",
+      "stateId": "x",
+      "stateGraphId": "x",
+      "resultNodeId": "x",
+      "sequencePlayerNodeId": "x",
+      "name": "idle",
+      "sequenceId": "x",
+      "skeletonId": "x",
+      "initial": false,
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.state_machine_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "animation.state_machine_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "animationBlueprintId": "x",
+      "stateMachineId": "x",
+      "stateMachineGraphId": "x",
+      "entryNodeId": "x",
+      "name": "locomotion",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.transition_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "animation.transition_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "animationBlueprintId": "x",
+      "stateMachineId": "x",
+      "transitionId": "x",
+      "transitionGraphId": "x",
+      "resultNodeId": "x",
+      "variableGetterNodeId": "x",
+      "comparisonNodeId": "x",
+      "fromStateId": "x",
+      "toStateId": "x",
+      "expression": "Speed > 10",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.variable_ensure",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "animation.variable_ensure",
+    "case": "root-not-closed",
+    "result": {
+      "animationBlueprintId": "x",
+      "variableId": "x",
+      "bindingId": "x",
+      "name": "Speed",
+      "type": "float",
+      "source": "owner_planar_speed",
+      "updateGraphId": "x",
+      "eventNodeId": "x",
+      "ownerNodeId": "x",
+      "velocityNodeId": "x",
+      "planarSpeedNodeId": "x",
+      "setterNodeId": "x",
+      "changed": false,
+      "dirtyPackages": [],
+      "savedPackages": [],
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.animation_observe",
+    "case": "missing-required",
+    "result": {}
+  },
+  {
+    "operation": "play.animation_observe",
+    "case": "root-not-closed",
+    "result": {
+      "sessionId": "x",
+      "characterId": "x",
+      "meshComponentId": "x",
+      "skeletalMeshId": "x",
+      "skeletonId": "x",
+      "animationBlueprintId": "x",
+      "animClass": "x",
+      "animationInstanceId": "x",
+      "stateMachineId": "x",
+      "speed": 0.0,
+      "ownerPlanarSpeed": 0.0,
+      "stateWeights": [
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        },
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        }
+      ],
+      "activeStateId": "x",
+      "activeStateName": "idle",
+      "activeTransition": {
+        "active": false,
+        "transitionId": null,
+        "fromStateId": null,
+        "toStateId": null,
+        "elapsedFraction": null
+      },
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.animation_observe",
+    "case": "numeric-below-minimum@speed",
+    "result": {
+      "sessionId": "x",
+      "characterId": "x",
+      "meshComponentId": "x",
+      "skeletalMeshId": "x",
+      "skeletonId": "x",
+      "animationBlueprintId": "x",
+      "animClass": "x",
+      "animationInstanceId": "x",
+      "stateMachineId": "x",
+      "speed": -1.0,
+      "ownerPlanarSpeed": 0.0,
+      "stateWeights": [
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        },
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        }
+      ],
+      "activeStateId": "x",
+      "activeStateName": "idle",
+      "activeTransition": {
+        "active": false,
+        "transitionId": null,
+        "fromStateId": null,
+        "toStateId": null,
+        "elapsedFraction": null
+      },
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.animation_observe",
+    "case": "numeric-above-maximum@speed",
+    "result": {
+      "sessionId": "x",
+      "characterId": "x",
+      "meshComponentId": "x",
+      "skeletalMeshId": "x",
+      "skeletonId": "x",
+      "animationBlueprintId": "x",
+      "animClass": "x",
+      "animationInstanceId": "x",
+      "stateMachineId": "x",
+      "speed": 100001.0,
+      "ownerPlanarSpeed": 0.0,
+      "stateWeights": [
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        },
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        }
+      ],
+      "activeStateId": "x",
+      "activeStateName": "idle",
+      "activeTransition": {
+        "active": false,
+        "transitionId": null,
+        "fromStateId": null,
+        "toStateId": null,
+        "elapsedFraction": null
+      },
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.animation_observe",
+    "case": "numeric-below-minimum@ownerPlanarSpeed",
+    "result": {
+      "sessionId": "x",
+      "characterId": "x",
+      "meshComponentId": "x",
+      "skeletalMeshId": "x",
+      "skeletonId": "x",
+      "animationBlueprintId": "x",
+      "animClass": "x",
+      "animationInstanceId": "x",
+      "stateMachineId": "x",
+      "speed": 0.0,
+      "ownerPlanarSpeed": -1.0,
+      "stateWeights": [
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        },
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        }
+      ],
+      "activeStateId": "x",
+      "activeStateName": "idle",
+      "activeTransition": {
+        "active": false,
+        "transitionId": null,
+        "fromStateId": null,
+        "toStateId": null,
+        "elapsedFraction": null
+      },
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.animation_observe",
+    "case": "numeric-above-maximum@ownerPlanarSpeed",
+    "result": {
+      "sessionId": "x",
+      "characterId": "x",
+      "meshComponentId": "x",
+      "skeletalMeshId": "x",
+      "skeletonId": "x",
+      "animationBlueprintId": "x",
+      "animClass": "x",
+      "animationInstanceId": "x",
+      "stateMachineId": "x",
+      "speed": 0.0,
+      "ownerPlanarSpeed": 100001.0,
+      "stateWeights": [
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        },
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        }
+      ],
+      "activeStateId": "x",
+      "activeStateName": "idle",
+      "activeTransition": {
+        "active": false,
+        "transitionId": null,
+        "fromStateId": null,
+        "toStateId": null,
+        "elapsedFraction": null
+      },
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.animation_observe",
+    "case": "numeric-below-minimum@stateWeights.0.weight",
+    "result": {
+      "sessionId": "x",
+      "characterId": "x",
+      "meshComponentId": "x",
+      "skeletalMeshId": "x",
+      "skeletonId": "x",
+      "animationBlueprintId": "x",
+      "animClass": "x",
+      "animationInstanceId": "x",
+      "stateMachineId": "x",
+      "speed": 0.0,
+      "ownerPlanarSpeed": 0.0,
+      "stateWeights": [
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": -1.0
+        },
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        }
+      ],
+      "activeStateId": "x",
+      "activeStateName": "idle",
+      "activeTransition": {
+        "active": false,
+        "transitionId": null,
+        "fromStateId": null,
+        "toStateId": null,
+        "elapsedFraction": null
+      },
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.animation_observe",
+    "case": "numeric-above-maximum@stateWeights.0.weight",
+    "result": {
+      "sessionId": "x",
+      "characterId": "x",
+      "meshComponentId": "x",
+      "skeletalMeshId": "x",
+      "skeletonId": "x",
+      "animationBlueprintId": "x",
+      "animClass": "x",
+      "animationInstanceId": "x",
+      "stateMachineId": "x",
+      "speed": 0.0,
+      "ownerPlanarSpeed": 0.0,
+      "stateWeights": [
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 2.0
+        },
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        }
+      ],
+      "activeStateId": "x",
+      "activeStateName": "idle",
+      "activeTransition": {
+        "active": false,
+        "transitionId": null,
+        "fromStateId": null,
+        "toStateId": null,
+        "elapsedFraction": null
+      },
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.animation_observe",
+    "case": "numeric-below-minimum@activeTransition.elapsedFraction",
+    "result": {
+      "sessionId": "x",
+      "characterId": "x",
+      "meshComponentId": "x",
+      "skeletalMeshId": "x",
+      "skeletonId": "x",
+      "animationBlueprintId": "x",
+      "animClass": "x",
+      "animationInstanceId": "x",
+      "stateMachineId": "x",
+      "speed": 0.0,
+      "ownerPlanarSpeed": 0.0,
+      "stateWeights": [
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        },
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        }
+      ],
+      "activeStateId": "x",
+      "activeStateName": "idle",
+      "activeTransition": {
+        "active": false,
+        "transitionId": null,
+        "fromStateId": null,
+        "toStateId": null,
+        "elapsedFraction": -1.0
+      },
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "operation": "play.animation_observe",
+    "case": "numeric-above-maximum@activeTransition.elapsedFraction",
+    "result": {
+      "sessionId": "x",
+      "characterId": "x",
+      "meshComponentId": "x",
+      "skeletalMeshId": "x",
+      "skeletonId": "x",
+      "animationBlueprintId": "x",
+      "animClass": "x",
+      "animationInstanceId": "x",
+      "stateMachineId": "x",
+      "speed": 0.0,
+      "ownerPlanarSpeed": 0.0,
+      "stateWeights": [
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        },
+        {
+          "stateId": "x",
+          "name": "idle",
+          "weight": 0.0
+        }
+      ],
+      "activeStateId": "x",
+      "activeStateName": "idle",
+      "activeTransition": {
+        "active": false,
+        "transitionId": null,
+        "fromStateId": null,
+        "toStateId": null,
+        "elapsedFraction": 2.0
+      },
+      "revision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
     "operation": "actor.list",
     "case": "missing-list-id",
     "result": {

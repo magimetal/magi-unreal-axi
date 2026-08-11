@@ -656,6 +656,11 @@ fn operation_requires_revision(id: &str) -> bool {
             | "behavior_tree.connect"
             | "ai.controller_configure"
             | "ai.pawn_configure"
+            | "animation.character_configure"
+            | "animation.state_ensure"
+            | "animation.state_machine_ensure"
+            | "animation.transition_ensure"
+            | "animation.variable_ensure"
     )
 }
 
@@ -1015,13 +1020,18 @@ mod tests {
     }
 
     #[test]
-    fn p14_post_create_mutations_require_revisions() {
+    fn p14_and_p15_post_create_mutations_require_revisions() {
         for id in [
             "blackboard.key_ensure",
             "behavior_tree.node_ensure",
             "behavior_tree.connect",
             "ai.controller_configure",
             "ai.pawn_configure",
+            "animation.character_configure",
+            "animation.state_machine_ensure",
+            "animation.state_ensure",
+            "animation.transition_ensure",
+            "animation.variable_ensure",
         ] {
             assert!(operation_requires_revision(id), "{id}");
         }
@@ -1031,6 +1041,10 @@ mod tests {
             "navigation.bounds_ensure",
             "navigation.build",
             "play.ai_target_set",
+            "animation_blueprint.create",
+            "animation.character_view",
+            "animation.graph_view",
+            "play.animation_observe",
         ] {
             assert!(!operation_requires_revision(id), "{id}");
         }

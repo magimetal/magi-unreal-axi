@@ -1291,5 +1291,94 @@
       "inputKey": "E",
       "zOrder": 1
     }
+  },
+  {
+    "operation": "animation_blueprint.create",
+    "case": "input-root-not-closed",
+    "args": {
+      "path": "x",
+      "skeletonId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.character_configure",
+    "case": "input-root-not-closed",
+    "args": {
+      "characterBlueprintId": "x",
+      "skeletalMeshId": "x",
+      "animationBlueprintId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.character_view",
+    "case": "input-root-not-closed",
+    "args": {
+      "characterBlueprintId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.graph_view",
+    "case": "input-root-not-closed",
+    "args": {
+      "animationBlueprintId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.state_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "animationBlueprintId": "x",
+      "stateMachineId": "x",
+      "name": "idle",
+      "sequenceId": "x",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.state_machine_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "animationBlueprintId": "x",
+      "name": "locomotion",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.transition_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "animationBlueprintId": "x",
+      "stateMachineId": "x",
+      "fromStateId": "x",
+      "toStateId": "x",
+      "expression": "Speed > 10",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "animation.variable_ensure",
+    "case": "input-root-not-closed",
+    "args": {
+      "animationBlueprintId": "x",
+      "name": "Speed",
+      "type": "float",
+      "source": "owner_planar_speed",
+      "unknown": true
+    }
+  },
+  {
+    "operation": "play.animation_observe",
+    "case": "input-root-not-closed",
+    "args": {
+      "sessionId": "x",
+      "characterId": "x",
+      "animationBlueprintId": "x",
+      "stateMachineId": "x",
+      "unknown": true
+    }
   }
 ]

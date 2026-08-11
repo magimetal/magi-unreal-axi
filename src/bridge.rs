@@ -686,6 +686,12 @@ fn exchange_selected_args(
             | "widget.property_set"
             | "widget.event_ensure"
             | "widget.viewport_ensure"
+            | "animation_blueprint.create"
+            | "animation.character_configure"
+            | "animation.state_machine_ensure"
+            | "animation.state_ensure"
+            | "animation.transition_ensure"
+            | "animation.variable_ensure"
     ) && matches!(error.kind.as_str(), "operation_failed" | "outcome_unknown")
     {
         let receipt = response
@@ -830,6 +836,55 @@ fn validate_failed_atomic_receipt(
             let path = args["path"].as_str().ok_or_else(|| outcome_unknown(id))?;
             format!("{path}.{}", path.rsplit('/').next().unwrap_or_default())
         }
+        "animation_blueprint.create" => {
+            let path = args["path"].as_str().ok_or_else(|| outcome_unknown(id))?;
+            format!("{path}.{}", path.rsplit('/').next().unwrap_or_default())
+        }
+        "animation.character_configure" => format!(
+            "{}#animation-character",
+            args["characterBlueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?
+        ),
+        "animation.state_machine_ensure" => format!(
+            "{}#state-machine:{}",
+            args["animationBlueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["name"].as_str().ok_or_else(|| outcome_unknown(id))?
+        ),
+        "animation.state_ensure" => format!(
+            "{}#{}#state:{}",
+            args["animationBlueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["stateMachineId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["name"].as_str().ok_or_else(|| outcome_unknown(id))?
+        ),
+        "animation.transition_ensure" => format!(
+            "{}#{}#{}#{}",
+            args["animationBlueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["stateMachineId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["fromStateId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["toStateId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?
+        ),
+        "animation.variable_ensure" => format!(
+            "{}#variable:{}",
+            args["animationBlueprintId"]
+                .as_str()
+                .ok_or_else(|| outcome_unknown(id))?,
+            args["name"].as_str().ok_or_else(|| outcome_unknown(id))?
+        ),
         "widget.child_ensure" => {
             let blueprint = args["blueprintId"]
                 .as_str()
@@ -946,8 +1001,10 @@ fn validate_failed_atomic_receipt(
     let unknown = error.kind == "outcome_unknown";
     let valid = capability::canonical_revision;
     let absent_revision = format!("{:x}", Sha256::digest(format!("{target}\nabsent")));
-    let expected_before = if matches!(operation, "blueprint.create" | "blueprint.interface_create")
-    {
+    let expected_before = if matches!(
+        operation,
+        "blueprint.create" | "blueprint.interface_create" | "animation_blueprint.create"
+    ) {
         absent_revision.clone()
     } else if operation == "widget.create" {
         if before == absent_revision || (before == observed && !receipt.changed) {
@@ -996,6 +1053,56 @@ fn validate_failed_atomic_receipt(
         && (verification["requestPath"] != args["path"]
             || verification["requestParentClass"] != args["parentClass"])
     {
+        return Err(outcome_unknown(id));
+    }
+    if operation == "animation_blueprint.create"
+        && (verification["requestPath"] != args["path"]
+            || verification["requestSkeletonId"] != args["skeletonId"])
+    {
+        return Err(outcome_unknown(id));
+    }
+    let p15_failed_request_matches = match operation {
+        "animation.character_configure" => [
+            ("requestCharacterBlueprintId", "characterBlueprintId"),
+            ("requestSkeletalMeshId", "skeletalMeshId"),
+            ("requestAnimationBlueprintId", "animationBlueprintId"),
+        ]
+        .iter()
+        .all(|(receipt, argument)| verification.get(*receipt) == args.get(*argument)),
+        "animation.state_machine_ensure" => [
+            ("requestAnimationBlueprintId", "animationBlueprintId"),
+            ("requestName", "name"),
+        ]
+        .iter()
+        .all(|(receipt, argument)| verification.get(*receipt) == args.get(*argument)),
+        "animation.state_ensure" => [
+            ("requestAnimationBlueprintId", "animationBlueprintId"),
+            ("requestStateMachineId", "stateMachineId"),
+            ("requestName", "name"),
+            ("requestSequenceId", "sequenceId"),
+        ]
+        .iter()
+        .all(|(receipt, argument)| verification.get(*receipt) == args.get(*argument)),
+        "animation.transition_ensure" => [
+            ("requestAnimationBlueprintId", "animationBlueprintId"),
+            ("requestStateMachineId", "stateMachineId"),
+            ("requestFromStateId", "fromStateId"),
+            ("requestToStateId", "toStateId"),
+            ("requestExpression", "expression"),
+        ]
+        .iter()
+        .all(|(receipt, argument)| verification.get(*receipt) == args.get(*argument)),
+        "animation.variable_ensure" => [
+            ("requestAnimationBlueprintId", "animationBlueprintId"),
+            ("requestName", "name"),
+            ("requestType", "type"),
+            ("requestSource", "source"),
+        ]
+        .iter()
+        .all(|(receipt, argument)| verification.get(*receipt) == args.get(*argument)),
+        _ => true,
+    };
+    if !p15_failed_request_matches {
         return Err(outcome_unknown(id));
     }
     if operation == "blueprint.interface_create"
@@ -1361,6 +1468,39 @@ fn validate_receipt_with_replay(
             args["levelId"].as_str().unwrap_or_default(),
             args["agentKey"].as_str().unwrap_or_default()
         ),
+        "animation_blueprint.create" => {
+            let path = args["path"].as_str().unwrap_or_default();
+            path.rsplit_once('/')
+                .map(|(_, name)| format!("{path}.{name}"))
+                .unwrap_or_default()
+        }
+        "animation.character_configure" => format!(
+            "{}#animation-character",
+            args["characterBlueprintId"].as_str().unwrap_or_default()
+        ),
+        "animation.state_machine_ensure" => format!(
+            "{}#state-machine:{}",
+            args["animationBlueprintId"].as_str().unwrap_or_default(),
+            args["name"].as_str().unwrap_or_default()
+        ),
+        "animation.state_ensure" => format!(
+            "{}#{}#state:{}",
+            args["animationBlueprintId"].as_str().unwrap_or_default(),
+            args["stateMachineId"].as_str().unwrap_or_default(),
+            args["name"].as_str().unwrap_or_default()
+        ),
+        "animation.transition_ensure" => format!(
+            "{}#{}#{}#{}",
+            args["animationBlueprintId"].as_str().unwrap_or_default(),
+            args["stateMachineId"].as_str().unwrap_or_default(),
+            args["fromStateId"].as_str().unwrap_or_default(),
+            args["toStateId"].as_str().unwrap_or_default()
+        ),
+        "animation.variable_ensure" => format!(
+            "{}#variable:{}",
+            args["animationBlueprintId"].as_str().unwrap_or_default(),
+            args["name"].as_str().unwrap_or_default()
+        ),
         "navigation.build" => result["ticketId"].as_str().unwrap_or_default().to_owned(),
         "blackboard.key_ensure" => format!(
             "{}#{}",
@@ -1565,6 +1705,69 @@ fn validate_receipt_with_replay(
                 && verification.get("requestPawnId") == args.get("pawnId")
                 && verification.get("requestKeyName") == args.get("keyName")
                 && verification.get("requestTargetActorId") == args.get("targetActorId")
+        }
+        "animation_blueprint.create" => {
+            let path = args.get("path").and_then(Value::as_str);
+            let expected_id = path.and_then(|path| {
+                path.rsplit_once('/')
+                    .map(|(_, name)| format!("{path}.{name}"))
+            });
+            expected_id.as_deref() == result.get("animationBlueprintId").and_then(Value::as_str)
+                && result.get("skeletonId") == args.get("skeletonId")
+                && verification.get("requestPath") == args.get("path")
+                && verification.get("requestSkeletonId") == args.get("skeletonId")
+        }
+        "animation.character_configure" => {
+            result.get("characterBlueprintId") == args.get("characterBlueprintId")
+                && result.get("skeletalMeshId") == args.get("skeletalMeshId")
+                && result.get("animationBlueprintId") == args.get("animationBlueprintId")
+                && verification.get("requestCharacterBlueprintId")
+                    == args.get("characterBlueprintId")
+                && verification.get("requestSkeletalMeshId") == args.get("skeletalMeshId")
+                && verification.get("requestAnimationBlueprintId")
+                    == args.get("animationBlueprintId")
+        }
+        "animation.state_machine_ensure" => {
+            result.get("animationBlueprintId") == args.get("animationBlueprintId")
+                && result.get("name") == args.get("name")
+                && verification.get("requestAnimationBlueprintId")
+                    == args.get("animationBlueprintId")
+                && verification.get("requestName") == args.get("name")
+        }
+        "animation.state_ensure" => {
+            result.get("animationBlueprintId") == args.get("animationBlueprintId")
+                && result.get("stateMachineId") == args.get("stateMachineId")
+                && result.get("name") == args.get("name")
+                && result.get("sequenceId") == args.get("sequenceId")
+                && verification.get("requestAnimationBlueprintId")
+                    == args.get("animationBlueprintId")
+                && verification.get("requestStateMachineId") == args.get("stateMachineId")
+                && verification.get("requestName") == args.get("name")
+                && verification.get("requestSequenceId") == args.get("sequenceId")
+        }
+        "animation.transition_ensure" => {
+            result.get("animationBlueprintId") == args.get("animationBlueprintId")
+                && result.get("stateMachineId") == args.get("stateMachineId")
+                && result.get("fromStateId") == args.get("fromStateId")
+                && result.get("toStateId") == args.get("toStateId")
+                && result.get("expression") == args.get("expression")
+                && verification.get("requestAnimationBlueprintId")
+                    == args.get("animationBlueprintId")
+                && verification.get("requestStateMachineId") == args.get("stateMachineId")
+                && verification.get("requestFromStateId") == args.get("fromStateId")
+                && verification.get("requestToStateId") == args.get("toStateId")
+                && verification.get("requestExpression") == args.get("expression")
+        }
+        "animation.variable_ensure" => {
+            result.get("animationBlueprintId") == args.get("animationBlueprintId")
+                && result.get("name") == args.get("name")
+                && result.get("type") == args.get("type")
+                && result.get("source") == args.get("source")
+                && verification.get("requestAnimationBlueprintId")
+                    == args.get("animationBlueprintId")
+                && verification.get("requestName") == args.get("name")
+                && verification.get("requestType") == args.get("type")
+                && verification.get("requestSource") == args.get("source")
         }
         "blueprint.interface_ensure" => {
             result.get("blueprintId") == args.get("blueprintId")
@@ -2659,6 +2862,83 @@ mod tests {
     }
 
     #[test]
+    fn p15_failed_receipt_is_validated_through_response_handling() {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let discovery = fake_discovery(listener.local_addr().unwrap().port());
+        let server_identity = discovery.clone();
+        let before = "b".repeat(64);
+        let server_before = before.clone();
+        let worker = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let _ = read_frame(
+                &mut stream,
+                MAX_REQUEST,
+                Instant::now() + Duration::from_secs(1),
+            )
+            .unwrap();
+            write_frame(
+                &mut stream,
+                &json!({"protocol":PROTOCOL,"status":"ok","pluginVersion":VERSION,"pid":server_identity.pid,"processStart":server_identity.process_start,"sessionNonce":server_identity.session_nonce,"catalogHash":CATALOG_HASH}),
+                Instant::now() + Duration::from_secs(1),
+            )
+            .unwrap();
+            let request: Value = serde_json::from_slice(
+                &read_frame(
+                    &mut stream,
+                    MAX_REQUEST,
+                    Instant::now() + Duration::from_secs(1),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            let id = request["id"].as_str().unwrap();
+            let target = "/Game/ABP.ABP#variable:Speed";
+            write_frame(
+                &mut stream,
+                &json!({
+                    "protocol":PROTOCOL,"id":id,"status":"error",
+                    "error":{"type":"operation_failed","message":"rolled back","retryable":true,"dirtyPackageCount":0,"dirtyPackages":[]},
+                    "receipt":{
+                        "operationId":id,"operation":"animation.variable_ensure","state":"failed",
+                        "projectId":server_identity.project_id,"editorPid":server_identity.pid,
+                        "target":target,"changed":false,"transaction":"atomic","reversibility":"source-control",
+                        "dirtyPackages":[],"savedPackages":[],"revision":server_before,"persistence":"unchanged",
+                        "verification":{
+                            "readback":"animation.graph_view","target":target,"matched":true,
+                            "beforeRevision":server_before,"observedRevision":server_before,"observedStatus":"error",
+                            "requestAnimationBlueprintId":"/Game/ABP.ABP","requestName":"Speed",
+                            "requestType":"float","requestSource":"owner_planar_speed"
+                        }
+                    }
+                }),
+                Instant::now() + Duration::from_secs(1),
+            )
+            .unwrap();
+        });
+        let session = private_session();
+        let error = exchange_selected_args(
+            session.path(),
+            &discovery,
+            "animation.variable_ensure",
+            json!({"animationBlueprintId":"/Game/ABP.ABP","name":"Speed","type":"float","source":"owner_planar_speed"}),
+            &ExecutionOptions {
+                expected_revision: Some(before),
+                idempotency_key: None,
+            },
+            Instant::now() + Duration::from_secs(1),
+        )
+        .unwrap_err();
+        assert_eq!(error.reason, "operation_failed");
+        assert_eq!(
+            error
+                .receipt()
+                .and_then(|receipt| receipt["operation"].as_str()),
+            Some("animation.variable_ensure")
+        );
+        worker.join().unwrap();
+    }
+
+    #[test]
     fn validate_p12_receipts_bind_blueprint_requests() {
         let discovery = fake_discovery(0);
         let revision = "a".repeat(64);
@@ -2947,6 +3227,150 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn validate_p15_receipts_bind_all_animation_requests_and_results() {
+        let revision = "a".repeat(64);
+        let cases = vec![
+            (
+                "animation_blueprint.create",
+                json!({"path":"/Game/ABP","skeletonId":"/Game/Skeleton.Skeleton"}),
+                json!({"animationBlueprintId":"/Game/ABP.ABP","skeletonId":"/Game/Skeleton.Skeleton","changed":true,"dirtyPackages":["/Game/ABP"],"savedPackages":[],"revision":revision}),
+                "/Game/ABP.ABP".to_owned(),
+                json!({"requestPath":"/Game/ABP","requestSkeletonId":"/Game/Skeleton.Skeleton"}),
+            ),
+            (
+                "animation.character_configure",
+                json!({"characterBlueprintId":"/Game/Char.Char","skeletalMeshId":"/Game/Mesh.Mesh","animationBlueprintId":"/Game/ABP.ABP"}),
+                json!({"characterBlueprintId":"/Game/Char.Char","meshComponentId":"mesh","skeletalMeshId":"/Game/Mesh.Mesh","animationBlueprintId":"/Game/ABP.ABP","changed":true,"dirtyPackages":["/Game/Char"],"savedPackages":[],"revision":revision}),
+                "/Game/Char.Char#animation-character".to_owned(),
+                json!({"requestCharacterBlueprintId":"/Game/Char.Char","requestSkeletalMeshId":"/Game/Mesh.Mesh","requestAnimationBlueprintId":"/Game/ABP.ABP"}),
+            ),
+            (
+                "animation.state_machine_ensure",
+                json!({"animationBlueprintId":"/Game/ABP.ABP","name":"locomotion"}),
+                json!({"animationBlueprintId":"/Game/ABP.ABP","stateMachineId":"machine","name":"locomotion","changed":true,"dirtyPackages":["/Game/ABP"],"savedPackages":[],"revision":revision}),
+                "/Game/ABP.ABP#state-machine:locomotion".to_owned(),
+                json!({"requestAnimationBlueprintId":"/Game/ABP.ABP","requestName":"locomotion"}),
+            ),
+            (
+                "animation.state_ensure",
+                json!({"animationBlueprintId":"/Game/ABP.ABP","stateMachineId":"machine","name":"idle","sequenceId":"/Game/Idle.Idle"}),
+                json!({"animationBlueprintId":"/Game/ABP.ABP","stateMachineId":"machine","stateId":"idle-state","name":"idle","sequenceId":"/Game/Idle.Idle","changed":true,"dirtyPackages":["/Game/ABP"],"savedPackages":[],"revision":revision}),
+                "/Game/ABP.ABP#machine#state:idle".to_owned(),
+                json!({"requestAnimationBlueprintId":"/Game/ABP.ABP","requestStateMachineId":"machine","requestName":"idle","requestSequenceId":"/Game/Idle.Idle"}),
+            ),
+            (
+                "animation.transition_ensure",
+                json!({"animationBlueprintId":"/Game/ABP.ABP","stateMachineId":"machine","fromStateId":"idle-state","toStateId":"moving-state","expression":"Speed > 10"}),
+                json!({"animationBlueprintId":"/Game/ABP.ABP","stateMachineId":"machine","transitionId":"idle-moving","fromStateId":"idle-state","toStateId":"moving-state","expression":"Speed > 10","changed":true,"dirtyPackages":["/Game/ABP"],"savedPackages":[],"revision":revision}),
+                "/Game/ABP.ABP#machine#idle-state#moving-state".to_owned(),
+                json!({"requestAnimationBlueprintId":"/Game/ABP.ABP","requestStateMachineId":"machine","requestFromStateId":"idle-state","requestToStateId":"moving-state","requestExpression":"Speed > 10"}),
+            ),
+            (
+                "animation.variable_ensure",
+                json!({"animationBlueprintId":"/Game/ABP.ABP","name":"Speed","type":"float","source":"owner_planar_speed"}),
+                json!({"animationBlueprintId":"/Game/ABP.ABP","variableId":"speed-variable","bindingId":"speed-binding","name":"Speed","type":"float","source":"owner_planar_speed","changed":true,"dirtyPackages":["/Game/ABP"],"savedPackages":[],"revision":revision}),
+                "/Game/ABP.ABP#variable:Speed".to_owned(),
+                json!({"requestAnimationBlueprintId":"/Game/ABP.ABP","requestName":"Speed","requestType":"float","requestSource":"owner_planar_speed"}),
+            ),
+        ];
+        for (operation, args, result, target, requests) in &cases {
+            let mut receipt = receipt_fixture(operation, result.clone(), true);
+            receipt.target = target.clone();
+            receipt.verification["target"] = json!(target);
+            for (field, value) in requests.as_object().unwrap() {
+                receipt.verification[field] = value.clone();
+            }
+            assert!(
+                validate_receipt(operation, "id", &receipt, result, args, &fake_discovery(0))
+                    .is_ok(),
+                "{operation}"
+            );
+            let first_request = requests.as_object().unwrap().keys().next().unwrap();
+            receipt.verification[first_request] = json!("tampered");
+            assert!(
+                validate_receipt(operation, "id", &receipt, result, args, &fake_discovery(0))
+                    .is_err(),
+                "{operation} accepted tampered receipt"
+            );
+        }
+        let error = BridgeOperationError {
+            kind: "operation_failed".into(),
+            message: "rolled back".into(),
+            retryable: true,
+            dirty_package_count: Some(0),
+            dirty_packages: Some(vec![]),
+            error_count: None,
+            warning_count: None,
+            diagnostics: None,
+            current_revision: None,
+        };
+        let discovery = fake_discovery(0);
+        for (operation, args, _, target, requests) in &cases {
+            let before = if *operation == "animation_blueprint.create" {
+                format!("{:x}", Sha256::digest(format!("{target}\nabsent")))
+            } else {
+                "b".repeat(64)
+            };
+            let mut receipt = Receipt {
+                operation_id: "failed-id".into(),
+                operation: (*operation).into(),
+                state: "failed".into(),
+                project_id: discovery.project_id.clone(),
+                editor_pid: discovery.pid,
+                target: target.clone(),
+                changed: false,
+                transaction: "atomic".into(),
+                reversibility: "source-control".into(),
+                dirty_packages: vec![],
+                saved_packages: vec![],
+                revision: before.clone(),
+                persistence: "unchanged".into(),
+                verification: json!({
+                    "readback":metadata(operation).unwrap().readback.unwrap(),
+                    "target":target,"matched":true,"beforeRevision":before,
+                    "observedRevision":before,"observedStatus":"error"
+                }),
+            };
+            for (field, value) in requests.as_object().unwrap() {
+                receipt.verification[field] = value.clone();
+            }
+            let options = ExecutionOptions {
+                expected_revision: (*operation != "animation_blueprint.create")
+                    .then(|| before.clone()),
+                idempotency_key: None,
+            };
+            assert!(
+                validate_failed_atomic_receipt(
+                    operation,
+                    "failed-id",
+                    args,
+                    &options,
+                    &receipt,
+                    &error,
+                    &discovery
+                )
+                .is_ok(),
+                "{operation} failed receipt"
+            );
+            let first_request = requests.as_object().unwrap().keys().next().unwrap();
+            receipt.verification[first_request] = json!("tampered");
+            assert!(
+                validate_failed_atomic_receipt(
+                    operation,
+                    "failed-id",
+                    args,
+                    &options,
+                    &receipt,
+                    &error,
+                    &discovery
+                )
+                .is_err(),
+                "{operation} accepted tampered failed receipt"
+            );
+        }
     }
 
     fn receipt_fixture(operation: &str, result: Value, matched: bool) -> Receipt {

@@ -6,7 +6,7 @@ public class MagiUnrealAXI : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         PublicDependencyModuleNames.AddRange(new[] { "Core" });
-        PrivateDependencyModuleNames.AddRange(new[] { "Core", "CoreUObject", "Engine", "Json", "Networking", "Sockets", "UnrealEd", "MainFrame", "AssetRegistry", "Slate", "EnhancedInput", "InputCore", "ApplicationCore", "KismetCompiler", "BlueprintGraph", "UMG", "UMGEditor", "AIModule", "NavigationSystem", "GameplayTasks", "AIGraph", "BehaviorTreeEditor" });
+        PrivateDependencyModuleNames.AddRange(new[] { "Core", "CoreUObject", "Engine", "Json", "Networking", "Sockets", "UnrealEd", "MainFrame", "AssetRegistry", "Slate", "EnhancedInput", "InputCore", "ApplicationCore", "KismetCompiler", "BlueprintGraph", "UMG", "UMGEditor", "AIModule", "NavigationSystem", "GameplayTasks", "AIGraph", "BehaviorTreeEditor", "AnimGraph", "AnimGraphRuntime" });
         PrivateIncludePaths.Add(System.IO.Path.Combine(EngineDirectory, "Source/Editor/UMGEditor/Private"));
         if (Target.Platform != UnrealTargetPlatform.Mac)
         {

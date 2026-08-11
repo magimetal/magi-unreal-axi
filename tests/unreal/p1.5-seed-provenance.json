@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "name": "Magi P1.5 owned animation seed",
+  "ownership": {
+    "author": "Magi Metal",
+    "origin": "Original procedural geometry, skin weights, bone hierarchy, and animation keys generated in this repository; no copied model, animation, texture, template, sample, Marketplace, or plugin content.",
+    "license": "MIT",
+    "licenseFile": "LICENSE"
+  },
+  "source": {
+    "generator": "tests/unreal/MagiP15AnimationSeed/Source/generate_owned_seed.py",
+    "generatorSha256": "d6b88e20e433660b3c5a87e7249fc92d9ea4381d0c2614e3d8f8921053a49555",
+    "command": "python3 tests/unreal/MagiP15AnimationSeed/Source/generate_owned_seed.py tests/unreal/MagiP15AnimationSeed/Source/magi-p15-owned-seed.glb",
+    "python": "3.8+ standard library only",
+    "glb": "tests/unreal/MagiP15AnimationSeed/Source/magi-p15-owned-seed.glb",
+    "glbSha256": "e5127ab92df4d7414e8a78191513b9b6ad1cde3ef699fb2a2a7f04e035f3f286",
+    "glbSizeBytes": 2824,
+    "format": "glTF 2.0 binary",
+    "semantics": {
+      "mesh": "one original four-vertex skinned plane with explicit normals and material",
+      "skeleton": "one RootBone joint",
+      "idle": "2.0-second in-place identity-rotation clip",
+      "moving": "1.5-second in-place alternating 20-degree rotation clip",
+      "rootTranslation": false
+    }
+  },
+  "materialization": {
+    "project": "tests/unreal/MagiP15AnimationSeed/MagiP15AnimationSeed.uproject",
+    "script": "tests/unreal/MagiP15AnimationSeed/Source/materialize_owned_seed.py",
+    "scriptSha256": "35ff6d865a415d4a66a6776c815b12a72612bce965ed2771bea1c2207db2f5ad",
+    "engine": {
+      "version": "5.8.1",
+      "changelist": 56057345,
+      "hostArchitecture": "arm64"
+    },
+    "importer": "UE Interchange glTF",
+    "automated": true,
+    "note": "Committed UE binary outputs are canonical and hash-pinned. Interchange regeneration is semantically reproducible but not byte-reproducible because UE assigns fresh internal identities."
+  },
+  "files": [
+    {
+      "path": "tests/unreal/MagiP15AnimationSeed/Content/MagiP15Seed/magi-p15-owned-seed/Materials/MagiP15SeedMaterial.uasset",
+      "class": "MaterialInstanceConstant",
+      "sha256": "ddbcfa3c7053632cfd3dd3a4617190dcfb374a6344d84c1ec1ba2a93b8bcea26",
+      "sizeBytes": 61680
+    },
+    {
+      "path": "tests/unreal/MagiP15AnimationSeed/Content/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed.uasset",
+      "class": "SkeletalMesh",
+      "sha256": "26511b9a55e9ce340ea52d84a6a82a49ea7e553c9fc43e2d86ea09395583cf42",
+      "sizeBytes": 76125
+    },
+    {
+      "path": "tests/unreal/MagiP15AnimationSeed/Content/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seedIdle.uasset",
+      "class": "AnimSequence",
+      "sha256": "ab485252aedad544f71df69987e1c5f038015de5c8ffab8e7853145d42c26884",
+      "sizeBytes": 78586
+    },
+    {
+      "path": "tests/unreal/MagiP15AnimationSeed/Content/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seedMoving.uasset",
+      "class": "AnimSequence",
+      "sha256": "beee104c560c87cb25bd03cdf75972022620c14270cd4985675ccc43fc2cd33b",
+      "sizeBytes": 80084
+    },
+    {
+      "path": "tests/unreal/MagiP15AnimationSeed/Content/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed_PhysicsAsset.uasset",
+      "class": "PhysicsAsset",
+      "sha256": "f16be61a681c52f0c4c2d66a03b9cba4c51c659f68531294bbfc323b073041b2",
+      "sizeBytes": 3366
+    },
+    {
+      "path": "tests/unreal/MagiP15AnimationSeed/Content/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed_Skeleton.uasset",
+      "class": "Skeleton",
+      "sha256": "0d58362cd882d7b9108d2c50338477307e7ea497d39ba88b274dc3217a790022",
+      "sizeBytes": 2279
+    }
+  ],
+  "verification": {
+    "script": "tests/unreal/MagiP15AnimationSeed/Source/verify_owned_seed.py",
+    "scriptSha256": "80428e26fb8132b6eadce8a49169d692f58f855edf7b9b17466d61667df7292d",
+    "assertions": [
+      "exact object classes and paths",
+      "SkeletalMesh and both AnimSequences bind the same exact Skeleton",
+      "Idle duration is 2.0 seconds",
+      "Moving duration is 1.5 seconds",
+      "both clips have root motion disabled"
+    ]
+  }
+}

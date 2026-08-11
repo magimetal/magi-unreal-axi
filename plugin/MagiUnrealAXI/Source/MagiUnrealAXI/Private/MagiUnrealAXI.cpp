@@ -22,6 +22,26 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
+#include "Animation/AnimBlueprint.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/Skeleton.h"
+#include "AnimGraphNode_Root.h"
+#include "AnimGraphNode_SequencePlayer.h"
+#include "AnimGraphNode_StateMachine.h"
+#include "AnimGraphNode_StateResult.h"
+#include "AnimGraphNode_TransitionResult.h"
+#include "AnimStateNode.h"
+#include "AnimStateTransitionNode.h"
+#include "AnimStateEntryNode.h"
+#include "AnimationGraph.h"
+#include "AnimationGraphSchema.h"
+#include "AnimationStateGraph.h"
+#include "AnimationStateMachineGraph.h"
+#include "AnimationStateMachineSchema.h"
+#include "AnimationTransitionGraph.h"
+#include "Factories/AnimBlueprintFactory.h"
+#include "EdGraphSchema_K2_Actions.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SCS_Node.h"
 #include "UObject/Interface.h"
@@ -144,6 +164,7 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
+
 bool IsGeneratedNativeCapability(const FString& Operation)
 {
 #define MAGI_AXI_MATCH_NATIVE(Name) if (Operation == Name) return true;
@@ -990,6 +1011,9 @@ bool P13WidgetTree(UWidgetBlueprint& Blueprint, TArray<UWidget*>& Widgets, FStri
 FString P13WidgetClass(const UWidget& Widget);
 TSharedRef<FJsonObject> P13TreeResult(UWidgetBlueprint& Blueprint);
 
+bool IsP15AnimationOperation(const FString& Operation);
+static UAnimBlueprint* P15LoadAnimationBlueprint(const FString& Id);
+static bool P15RootReadback(UAnimBlueprint& Blueprint, USkeleton*& Skeleton, UAnimationGraph*& Graph, UAnimGraphNode_Root*& Root);
 bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJsonObject>& Result, const FString& Target, const TSharedRef<FJsonObject>& Verification, const TSharedPtr<FJsonObject>& Args = nullptr);
 UBlueprint* P11LoadBlueprint(const FString& Id);
 static bool P13ViewportReadback(UBlueprint& Blueprint, UEdGraph& Graph, const FString& AgentKey, UClass* WidgetClass, UEdGraphNode*& Begin, UEdGraphNode*& Input, UK2Node_CreateWidget*& Create, UK2Node_CallFunction*& Add, UK2Node_CallFunction*& Enable, UK2Node_CallFunction*& Activate);
@@ -1062,6 +1086,12 @@ FString SuccessResponse(const FString& Id, const TSharedRef<FJsonObject>& Result
         {
             BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("sourcePinId"), TEXT("requestSourcePinId")); BindRequest(TEXT("targetPinId"), TEXT("requestTargetPinId"));
         }
+        else if (Args.IsValid() && Operation == TEXT("animation_blueprint.create")) { BindRequest(TEXT("path"), TEXT("requestPath")); BindRequest(TEXT("skeletonId"), TEXT("requestSkeletonId")); }
+        else if (Args.IsValid() && Operation == TEXT("animation.character_configure")) { BindRequest(TEXT("characterBlueprintId"), TEXT("requestCharacterBlueprintId")); BindRequest(TEXT("skeletalMeshId"), TEXT("requestSkeletalMeshId")); BindRequest(TEXT("animationBlueprintId"), TEXT("requestAnimationBlueprintId")); }
+        else if (Args.IsValid() && Operation == TEXT("animation.state_machine_ensure")) { BindRequest(TEXT("animationBlueprintId"), TEXT("requestAnimationBlueprintId")); BindRequest(TEXT("name"), TEXT("requestName")); }
+        else if (Args.IsValid() && Operation == TEXT("animation.state_ensure")) { BindRequest(TEXT("animationBlueprintId"), TEXT("requestAnimationBlueprintId")); BindRequest(TEXT("stateMachineId"), TEXT("requestStateMachineId")); BindRequest(TEXT("name"), TEXT("requestName")); BindRequest(TEXT("sequenceId"), TEXT("requestSequenceId")); }
+        else if (Args.IsValid() && Operation == TEXT("animation.transition_ensure")) { BindRequest(TEXT("animationBlueprintId"), TEXT("requestAnimationBlueprintId")); BindRequest(TEXT("stateMachineId"), TEXT("requestStateMachineId")); BindRequest(TEXT("fromStateId"), TEXT("requestFromStateId")); BindRequest(TEXT("toStateId"), TEXT("requestToStateId")); BindRequest(TEXT("expression"), TEXT("requestExpression")); }
+        else if (Args.IsValid() && Operation == TEXT("animation.variable_ensure")) { BindRequest(TEXT("animationBlueprintId"), TEXT("requestAnimationBlueprintId")); BindRequest(TEXT("name"), TEXT("requestName")); BindRequest(TEXT("type"), TEXT("requestType")); BindRequest(TEXT("source"), TEXT("requestSource")); }
         else if (Args.IsValid() && Operation == TEXT("blackboard.create")) { BindRequest(TEXT("path"), TEXT("requestPath")); }
         else if (Args.IsValid() && Operation == TEXT("blackboard.key_ensure")) { BindRequest(TEXT("blackboardId"), TEXT("requestBlackboardId")); BindRequest(TEXT("keyName"), TEXT("requestKeyName")); BindRequest(TEXT("keyType"), TEXT("requestKeyType")); }
         else if (Args.IsValid() && Operation == TEXT("behavior_tree.create")) { BindRequest(TEXT("path"), TEXT("requestPath")); BindRequest(TEXT("blackboardId"), TEXT("requestBlackboardId")); }
@@ -1081,7 +1111,13 @@ FString SuccessResponse(const FString& Id, const TSharedRef<FJsonObject>& Result
         else if (Args.IsValid() && Operation == TEXT("widget.event_ensure")) { BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId")); BindRequest(TEXT("agentKey"), TEXT("requestAgentKey")); BindRequest(TEXT("event"), TEXT("requestIntent")); BindRequest(TEXT("actions"), TEXT("requestActions")); }
         else if (Args.IsValid() && Operation == TEXT("widget.tree_view")) BindRequest(TEXT("blueprintId"), TEXT("requestBlueprintId"));
         FString Target = MetadataTarget(Operation, Result);
-        if (Args.IsValid() && Operation == TEXT("blueprint.interface_ensure")) { FString BlueprintId, InterfaceId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("interfaceId"), InterfaceId); Target = BlueprintId + TEXT("#") + InterfaceId; }
+        if (Args.IsValid() && Operation == TEXT("animation_blueprint.create")) { FString Path; Args->TryGetStringField(TEXT("path"), Path); Target = Path + TEXT(".") + FPackageName::GetShortName(Path); }
+        else if (Args.IsValid() && Operation == TEXT("animation.character_configure")) { FString BlueprintId; Args->TryGetStringField(TEXT("characterBlueprintId"), BlueprintId); Target = BlueprintId + TEXT("#animation-character"); }
+        else if (Args.IsValid() && Operation == TEXT("animation.state_machine_ensure")) { FString BlueprintId, Name; Args->TryGetStringField(TEXT("animationBlueprintId"), BlueprintId); Args->TryGetStringField(TEXT("name"), Name); Target = BlueprintId + TEXT("#state-machine:") + Name; }
+        else if (Args.IsValid() && Operation == TEXT("animation.state_ensure")) { FString BlueprintId, MachineId, Name; Args->TryGetStringField(TEXT("animationBlueprintId"), BlueprintId); Args->TryGetStringField(TEXT("stateMachineId"), MachineId); Args->TryGetStringField(TEXT("name"), Name); Target = BlueprintId + TEXT("#") + MachineId + TEXT("#state:") + Name; }
+        else if (Args.IsValid() && Operation == TEXT("animation.transition_ensure")) { FString BlueprintId, MachineId, FromId, ToId; Args->TryGetStringField(TEXT("animationBlueprintId"), BlueprintId); Args->TryGetStringField(TEXT("stateMachineId"), MachineId); Args->TryGetStringField(TEXT("fromStateId"), FromId); Args->TryGetStringField(TEXT("toStateId"), ToId); Target = BlueprintId + TEXT("#") + MachineId + TEXT("#") + FromId + TEXT("#") + ToId; }
+        else if (Args.IsValid() && Operation == TEXT("animation.variable_ensure")) { FString BlueprintId, Name; Args->TryGetStringField(TEXT("animationBlueprintId"), BlueprintId); Args->TryGetStringField(TEXT("name"), Name); Target = BlueprintId + TEXT("#variable:") + Name; }
+        else if (Args.IsValid() && Operation == TEXT("blueprint.interface_ensure")) { FString BlueprintId, InterfaceId; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("interfaceId"), InterfaceId); Target = BlueprintId + TEXT("#") + InterfaceId; }
         else if (Args.IsValid() && Operation == TEXT("blueprint.scs_component_ensure")) { FString BlueprintId, Name; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("name"), Name); Target = BlueprintId + TEXT("#scs-name:") + Name; }
         else if (Args.IsValid() && (Operation == TEXT("blueprint.scs_component_update") || Operation == TEXT("blueprint.scs_component_remove"))) { FString BlueprintId, VariableGuid; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("variableGuid"), VariableGuid); Target = BlueprintId + TEXT("#scs:") + VariableGuid; }
         else if (Args.IsValid() && (Operation == TEXT("blueprint.event_ensure") || Operation == TEXT("blueprint.node_ensure"))) { FString BlueprintId, GraphId, AgentKey; Args->TryGetStringField(TEXT("blueprintId"), BlueprintId); Args->TryGetStringField(TEXT("graphId"), GraphId); Args->TryGetStringField(TEXT("agentKey"), AgentKey); Target = BlueprintId + TEXT("#") + GraphId + TEXT("#") + AgentKey; }
@@ -1671,6 +1707,16 @@ bool VerifyMutationPostcondition(const FString& Operation, const TSharedRef<FJso
         if (Operation == TEXT("asset.save") && (!Asset->GetOutermost() || Asset->GetOutermost()->IsDirty())) return false;
         return Verified();
     }
+    if (Operation == TEXT("animation_blueprint.create"))
+    {
+        if (!Args.IsValid()) return false;
+        FString BlueprintId, SkeletonId, Path, GeneratedClass, AnimGraphId, RootNodeId;
+        Result->TryGetStringField(TEXT("animationBlueprintId"), BlueprintId); Result->TryGetStringField(TEXT("skeletonId"), SkeletonId); Result->TryGetStringField(TEXT("generatedClass"), GeneratedClass); Result->TryGetStringField(TEXT("animGraphId"), AnimGraphId); Result->TryGetStringField(TEXT("rootNodeId"), RootNodeId); Args->TryGetStringField(TEXT("path"), Path);
+        UAnimBlueprint* Blueprint = P15LoadAnimationBlueprint(BlueprintId); USkeleton* Skeleton = nullptr; UAnimationGraph* Graph = nullptr; UAnimGraphNode_Root* Root = nullptr;
+        if (!Blueprint || BlueprintId != Path + TEXT(".") + FPackageName::GetShortName(Path) || Target != BlueprintId || Args->GetStringField(TEXT("skeletonId")) != SkeletonId || !P15RootReadback(*Blueprint, Skeleton, Graph, Root) || !Skeleton || Skeleton->GetPathName() != SkeletonId || BlueprintContentRevision(*Blueprint) != Revision) return false;
+        const FString ExpectedGraphId = BlueprintId + TEXT("#graph:other:") + Graph->GraphGuid.ToString(EGuidFormats::DigitsWithHyphens).ToLower();
+        return GeneratedClass == Blueprint->GeneratedClass->GetPathName() && AnimGraphId == ExpectedGraphId && RootNodeId == ExpectedGraphId + TEXT("#node:") + Root->NodeGuid.ToString(EGuidFormats::DigitsWithHyphens).ToLower() && Verified();
+    }
     if (Operation == TEXT("blueprint.create"))
     {
         if (!Args.IsValid()) return false;
@@ -2228,6 +2274,7 @@ TSharedRef<FJsonObject> BridgeDescribeResultOnGameThread()
         const FMagiAxiCapabilityMetadata* Metadata = CapabilityMetadata(NativeOperation);
         TArray<FString> Reasons;
         if (Metadata) { MetadataModulesLoaded(*Metadata, Reasons); MetadataEditorStateAllowed(*Metadata, Reasons); }
+        if ((NativeOperation.StartsWith(TEXT("animation.")) || NativeOperation == TEXT("play.animation_observe")) && !IsP15AnimationOperation(NativeOperation)) Reasons.Add(TEXT("implementation_pending:") + NativeOperation);
         Reasons.Sort();
         const TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
         Entry->SetStringField(TEXT("operation"), NativeOperation);
@@ -2256,6 +2303,7 @@ bool DrainGameThreadQueue(float DeltaSeconds);
 #include "MagiBlueprintAuthoring.inl"
 #include "MagiWidgetAuthoring.inl"
 #include "MagiAiNavigation.inl"
+#include "MagiAnimationAuthoring.inl"
 
 FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, const TSharedPtr<FJsonObject>& Args, const FString& ExpectedRevision)
 {
@@ -2265,6 +2313,15 @@ FString ReadResponseOnGameThread(const FString& Id, const FString& Operation, co
     {
         FString PreflightType, PreflightError;
         if (!NativePreflight(Operation, Args, PreflightType, PreflightError)) return ErrorResponse(Id, *PreflightType, *PreflightError);
+    }
+    if (IsP15AnimationOperation(Operation))
+    {
+        if (Operation == TEXT("animation_blueprint.create"))
+        {
+            FString GateMessage;
+            if (!MutationGate(GateMessage)) return ErrorResponse(Id, TEXT("unsafe_editor_state"), *GateMessage, true);
+        }
+        return HandleP15AnimationOperation(Id, Operation, Args, ExpectedRevision);
     }
     if (Operation == TEXT("editor.status"))
     {

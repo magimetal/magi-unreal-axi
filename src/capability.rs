@@ -814,7 +814,16 @@ pub fn validate_input(id: &str, args: Value) -> Result<Value, AppError> {
         | "ai.controller_configure"
         | "ai.pawn_configure"
         | "play.ai_target_set"
-        | "play.ai_observe" => {}
+        | "play.ai_observe"
+        | "animation_blueprint.create"
+        | "animation.character_configure"
+        | "animation.character_view"
+        | "animation.graph_view"
+        | "animation.state_ensure"
+        | "animation.state_machine_ensure"
+        | "animation.transition_ensure"
+        | "animation.variable_ensure"
+        | "play.animation_observe" => {}
         _ => {
             return Err(input_error(
                 id,
@@ -1026,9 +1035,546 @@ pub fn validate_output_for_request(
         | "play.ai_observe" => {
             require_output_string(id, object, "revision")?;
         }
+        "animation_blueprint.create" => validate_animation_create(id, request, object)?,
+        "animation.character_configure"
+        | "animation.state_ensure"
+        | "animation.state_machine_ensure"
+        | "animation.transition_ensure"
+        | "animation.variable_ensure" => validate_animation_mutation(id, request, object)?,
+        "animation.character_view" => validate_animation_character_view(id, request, object)?,
+        "animation.graph_view" => validate_animation_graph(id, request, object)?,
+        "play.animation_observe" => validate_animation_observation(id, request, object)?,
         _ => return Err(output_error(id, "unknown result contract")),
     }
     Ok(result)
+}
+
+fn validate_animation_create(
+    id: &str,
+    request: &Value,
+    object: &Map<String, Value>,
+) -> Result<(), AppError> {
+    validate_animation_mutation_evidence(id, object)?;
+    for field in [
+        "animationBlueprintId",
+        "skeletonId",
+        "generatedClass",
+        "animGraphId",
+        "rootNodeId",
+    ] {
+        require_nonempty_output(id, object, field)?;
+    }
+    let blueprint = object["animationBlueprintId"].as_str().unwrap_or_default();
+    if object["generatedClass"] != json!(format!("{blueprint}_C")) {
+        return Err(output_error(
+            id,
+            "generated class is not bound to Animation Blueprint",
+        ));
+    }
+    if !request.is_null() {
+        let path = request["path"]
+            .as_str()
+            .ok_or_else(|| output_error(id, "request.path is missing"))?;
+        let name = path
+            .rsplit_once('/')
+            .map(|(_, name)| name)
+            .filter(|name| !name.is_empty())
+            .ok_or_else(|| output_error(id, "request.path is invalid"))?;
+        if blueprint != format!("{path}.{name}")
+            || object.get("skeletonId") != request.get("skeletonId")
+        {
+            return Err(output_error(
+                id,
+                "create output does not match path or Skeleton request",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_animation_mutation(
+    id: &str,
+    request: &Value,
+    object: &Map<String, Value>,
+) -> Result<(), AppError> {
+    validate_animation_mutation_evidence(id, object)?;
+    let identity_fields: &[&str] = match id {
+        "animation.character_configure" => &[
+            "characterBlueprintId",
+            "meshComponentId",
+            "skeletalMeshId",
+            "skeletonId",
+            "animationBlueprintId",
+            "animClass",
+        ],
+        "animation.state_machine_ensure" => &[
+            "animationBlueprintId",
+            "stateMachineId",
+            "stateMachineGraphId",
+            "entryNodeId",
+            "name",
+        ],
+        "animation.state_ensure" => &[
+            "animationBlueprintId",
+            "stateMachineId",
+            "stateId",
+            "stateGraphId",
+            "resultNodeId",
+            "sequencePlayerNodeId",
+            "name",
+            "sequenceId",
+            "skeletonId",
+        ],
+        "animation.transition_ensure" => &[
+            "animationBlueprintId",
+            "stateMachineId",
+            "transitionId",
+            "transitionGraphId",
+            "resultNodeId",
+            "variableGetterNodeId",
+            "comparisonNodeId",
+            "fromStateId",
+            "toStateId",
+            "expression",
+        ],
+        "animation.variable_ensure" => &[
+            "animationBlueprintId",
+            "variableId",
+            "bindingId",
+            "name",
+            "type",
+            "source",
+            "updateGraphId",
+            "eventNodeId",
+            "ownerNodeId",
+            "velocityNodeId",
+            "planarSpeedNodeId",
+            "setterNodeId",
+        ],
+        _ => unreachable!(),
+    };
+    for field in identity_fields {
+        require_nonempty_output(id, object, field)?;
+    }
+    let request_fields: &[&str] = match id {
+        "animation.character_configure" => &[
+            "characterBlueprintId",
+            "skeletalMeshId",
+            "animationBlueprintId",
+        ],
+        "animation.state_machine_ensure" => &["animationBlueprintId", "name"],
+        "animation.state_ensure" => &[
+            "animationBlueprintId",
+            "stateMachineId",
+            "name",
+            "sequenceId",
+        ],
+        "animation.transition_ensure" => &[
+            "animationBlueprintId",
+            "stateMachineId",
+            "fromStateId",
+            "toStateId",
+            "expression",
+        ],
+        "animation.variable_ensure" => &["animationBlueprintId", "name", "type", "source"],
+        _ => unreachable!(),
+    };
+    validate_animation_request_fields(id, request, object, request_fields)?;
+    if id == "animation.character_configure" {
+        let animation_blueprint = object["animationBlueprintId"].as_str().unwrap_or_default();
+        if object["animClass"] != json!(format!("{animation_blueprint}_C")) {
+            return Err(output_error(
+                id,
+                "AnimClass is not generated by requested Animation Blueprint",
+            ));
+        }
+    }
+    if id == "animation.state_ensure" && object["initial"] != json!(object["name"] == "idle") {
+        return Err(output_error(
+            id,
+            "state initial flag must follow state name",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_animation_mutation_evidence(
+    id: &str,
+    object: &Map<String, Value>,
+) -> Result<(), AppError> {
+    if !object.get("changed").is_some_and(Value::is_boolean) {
+        return Err(output_error(id, "result.changed must be boolean"));
+    }
+    for field in ["dirtyPackages", "savedPackages"] {
+        if !object.get(field).is_some_and(Value::is_array) {
+            return Err(output_error(id, format!("result.{field} must be array")));
+        }
+    }
+    if !object
+        .get("revision")
+        .and_then(Value::as_str)
+        .is_some_and(canonical_revision)
+    {
+        return Err(output_error(id, "result.revision is not canonical"));
+    }
+    Ok(())
+}
+
+fn validate_animation_character_view(
+    id: &str,
+    request: &Value,
+    object: &Map<String, Value>,
+) -> Result<(), AppError> {
+    for field in ["characterBlueprintId", "meshComponentId", "animationMode"] {
+        require_nonempty_output(id, object, field)?;
+    }
+    validate_animation_request_fields(id, request, object, &["characterBlueprintId"])?;
+    let mesh_bound = object["skeletalMeshId"].is_string();
+    if mesh_bound != object["skeletonId"].is_string() {
+        return Err(output_error(
+            id,
+            "SkeletalMesh and Skeleton evidence must be paired",
+        ));
+    }
+    match object["animationBlueprintId"].as_str() {
+        Some(animation_blueprint) => {
+            if object["animationMode"] != "AnimationBlueprint"
+                || object["animClass"] != json!(format!("{animation_blueprint}_C"))
+            {
+                return Err(output_error(
+                    id,
+                    "Animation Blueprint mode, asset, and generated class are incoherent",
+                ));
+            }
+        }
+        None => {
+            if !object["animClass"].is_null() {
+                return Err(output_error(
+                    id,
+                    "AnimClass requires an Animation Blueprint identity",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_animation_request_fields(
+    id: &str,
+    request: &Value,
+    object: &Map<String, Value>,
+    fields: &[&str],
+) -> Result<(), AppError> {
+    if request.is_null() {
+        return Ok(());
+    }
+    for field in fields {
+        if object.get(*field) != request.get(*field) {
+            return Err(output_error(
+                id,
+                format!("result.{field} must match request"),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn require_nonempty_output<'a>(
+    id: &str,
+    object: &'a Map<String, Value>,
+    field: &str,
+) -> Result<&'a str, AppError> {
+    object
+        .get(field)
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| output_error(id, format!("result.{field} must be nonempty string")))
+}
+
+fn validate_animation_graph(
+    id: &str,
+    request: &Value,
+    object: &Map<String, Value>,
+) -> Result<(), AppError> {
+    validate_animation_request_fields(id, request, object, &["animationBlueprintId"])?;
+    for field in [
+        "animationBlueprintId",
+        "skeletonId",
+        "generatedClass",
+        "animGraphId",
+        "rootNodeId",
+        "revision",
+    ] {
+        require_nonempty_output(id, object, field)?;
+    }
+    let blueprint = object["animationBlueprintId"].as_str().unwrap_or_default();
+    if object["generatedClass"] != json!(format!("{blueprint}_C")) {
+        return Err(output_error(
+            id,
+            "generated class is not bound to Animation Blueprint",
+        ));
+    }
+    let mut identities = HashSet::new();
+    for field in ["animGraphId", "rootNodeId"] {
+        insert_animation_identity(
+            id,
+            object[field].as_str().unwrap_or_default(),
+            field,
+            &mut identities,
+        )?;
+    }
+    let variables = object["variables"]
+        .as_array()
+        .ok_or_else(|| output_error(id, "variables must be array"))?;
+    for variable in variables {
+        validate_animation_row(
+            id,
+            variable,
+            &mut identities,
+            &[
+                "variableId",
+                "bindingId",
+                "updateGraphId",
+                "eventNodeId",
+                "ownerNodeId",
+                "velocityNodeId",
+                "planarSpeedNodeId",
+                "setterNodeId",
+            ],
+        )?;
+    }
+    let machines = object["stateMachines"]
+        .as_array()
+        .ok_or_else(|| output_error(id, "stateMachines must be array"))?;
+    if let Some(machine) = machines.first() {
+        let machine = machine
+            .as_object()
+            .ok_or_else(|| output_error(id, "state machine must be object"))?;
+        for field in ["stateMachineId", "stateMachineGraphId", "entryNodeId"] {
+            validate_identity(id, machine, field, &mut identities)?;
+        }
+        let states = machine["states"]
+            .as_array()
+            .ok_or_else(|| output_error(id, "states must be array"))?;
+        let mut state_ids = HashSet::new();
+        let mut previous_state_rank = None;
+        let mut idle_state_id = None;
+        for state in states {
+            let state = state
+                .as_object()
+                .ok_or_else(|| output_error(id, "state must be object"))?;
+            let rank = match state["name"].as_str() {
+                Some("idle") => 0,
+                Some("moving") => 1,
+                _ => return Err(output_error(id, "state name is not canonical")),
+            };
+            if previous_state_rank.is_some_and(|previous| previous >= rank)
+                || state["skeletonId"] != object["skeletonId"]
+            {
+                return Err(output_error(
+                    id,
+                    "states must be a unique ordered subset on root Skeleton",
+                ));
+            }
+            previous_state_rank = Some(rank);
+            for field in [
+                "stateId",
+                "stateGraphId",
+                "resultNodeId",
+                "sequencePlayerNodeId",
+            ] {
+                validate_identity(id, state, field, &mut identities)?;
+            }
+            let state_id = state["stateId"].as_str().unwrap_or_default();
+            if !state_ids.insert(state_id) || state["initial"] != json!(rank == 0) {
+                return Err(output_error(
+                    id,
+                    "state identity or initial semantics are invalid",
+                ));
+            }
+            if rank == 0 {
+                idle_state_id = Some(state["stateId"].clone());
+            }
+        }
+        if machine["initialStateId"] != idle_state_id.unwrap_or(Value::Null) {
+            return Err(output_error(
+                id,
+                "initialStateId must select idle when idle exists",
+            ));
+        }
+        let transitions = machine["transitions"]
+            .as_array()
+            .ok_or_else(|| output_error(id, "transitions must be array"))?;
+        let mut previous_transition_rank = None;
+        for transition in transitions {
+            let transition = transition
+                .as_object()
+                .ok_or_else(|| output_error(id, "transition must be object"))?;
+            for field in [
+                "transitionId",
+                "transitionGraphId",
+                "resultNodeId",
+                "variableGetterNodeId",
+                "comparisonNodeId",
+            ] {
+                validate_identity(id, transition, field, &mut identities)?;
+            }
+            let from = states
+                .iter()
+                .find(|state| state["stateId"] == transition["fromStateId"])
+                .and_then(|state| state["name"].as_str())
+                .unwrap_or_default();
+            let to = states
+                .iter()
+                .find(|state| state["stateId"] == transition["toStateId"])
+                .and_then(|state| state["name"].as_str())
+                .unwrap_or_default();
+            let rank = match (
+                from,
+                to,
+                transition["expression"].as_str().unwrap_or_default(),
+            ) {
+                ("idle", "moving", "Speed > 10") => 0,
+                ("moving", "idle", "Speed <= 10") => 1,
+                _ => {
+                    return Err(output_error(
+                        id,
+                        "transition does not match a canonical directional rule",
+                    ));
+                }
+            };
+            if previous_transition_rank.is_some_and(|previous| previous >= rank) {
+                return Err(output_error(
+                    id,
+                    "transitions must be a unique ordered subset",
+                ));
+            }
+            previous_transition_rank = Some(rank);
+        }
+    }
+    Ok(())
+}
+
+fn validate_animation_row(
+    id: &str,
+    value: &Value,
+    identities: &mut HashSet<String>,
+    fields: &[&str],
+) -> Result<(), AppError> {
+    let row = value
+        .as_object()
+        .ok_or_else(|| output_error(id, "animation row must be object"))?;
+    for field in fields {
+        validate_identity(id, row, field, identities)?;
+    }
+    Ok(())
+}
+
+fn validate_identity(
+    id: &str,
+    row: &Map<String, Value>,
+    field: &str,
+    identities: &mut HashSet<String>,
+) -> Result<(), AppError> {
+    let value = row.get(field).and_then(Value::as_str).unwrap_or_default();
+    insert_animation_identity(id, value, field, identities)
+}
+
+fn insert_animation_identity(
+    id: &str,
+    value: &str,
+    field: &str,
+    identities: &mut HashSet<String>,
+) -> Result<(), AppError> {
+    if value.is_empty() || !identities.insert(value.to_owned()) {
+        return Err(output_error(
+            id,
+            format!("result.{field} identity is empty or duplicated"),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_animation_observation(
+    id: &str,
+    request: &Value,
+    object: &Map<String, Value>,
+) -> Result<(), AppError> {
+    validate_animation_request_fields(
+        id,
+        request,
+        object,
+        &[
+            "sessionId",
+            "characterId",
+            "animationBlueprintId",
+            "stateMachineId",
+        ],
+    )?;
+    let weights = object["stateWeights"]
+        .as_array()
+        .ok_or_else(|| output_error(id, "stateWeights must be array"))?;
+    if weights.len() != 2 || weights[0]["name"] != "idle" || weights[1]["name"] != "moving" {
+        return Err(output_error(id, "stateWeights must be ordered idle,moving"));
+    }
+    let mut ids = HashSet::new();
+    for row in weights {
+        validate_identity(
+            id,
+            row.as_object()
+                .ok_or_else(|| output_error(id, "state weight must be object"))?,
+            "stateId",
+            &mut ids,
+        )?;
+    }
+    let idle_weight = weights[0]["weight"].as_f64().unwrap_or_default();
+    let moving_weight = weights[1]["weight"].as_f64().unwrap_or_default();
+    if ((idle_weight + moving_weight) - 1.0).abs() > 0.001 {
+        return Err(output_error(
+            id,
+            "state weights must sum to one within 0.001",
+        ));
+    }
+    let selected = usize::from(moving_weight > idle_weight);
+    if object["activeStateId"] != weights[selected]["stateId"]
+        || object["activeStateName"] != weights[selected]["name"]
+    {
+        return Err(output_error(
+            id,
+            "active state does not match selected weight row",
+        ));
+    }
+    let transition = object["activeTransition"]
+        .as_object()
+        .ok_or_else(|| output_error(id, "activeTransition must be object"))?;
+    let active = transition["active"]
+        .as_bool()
+        .ok_or_else(|| output_error(id, "transition active must be boolean"))?;
+    for field in [
+        "transitionId",
+        "fromStateId",
+        "toStateId",
+        "elapsedFraction",
+    ] {
+        if active == transition[field].is_null() {
+            return Err(output_error(
+                id,
+                "transition nullable fields are inconsistent",
+            ));
+        }
+    }
+    if active
+        && !((transition["fromStateId"] == weights[0]["stateId"]
+            && transition["toStateId"] == weights[1]["stateId"])
+            || (transition["fromStateId"] == weights[1]["stateId"]
+                && transition["toStateId"] == weights[0]["stateId"]))
+    {
+        return Err(output_error(
+            id,
+            "transition direction does not reference state weights",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_list_input(id: &str, object: &Map<String, Value>) -> Result<(), AppError> {
@@ -2448,6 +2994,219 @@ mod tests {
         assert_eq!(
             validate_input("component.list", input.clone()).unwrap(),
             input
+        );
+    }
+    #[test]
+    fn animation_mutations_bind_request_and_state_semantics() {
+        let revision = "0".repeat(64);
+        let create_request = json!({"path":"/Game/ABP","skeletonId":"/Game/Skeleton.Skeleton"});
+        let create = json!({
+            "animationBlueprintId":"/Game/ABP.ABP","skeletonId":"/Game/Skeleton.Skeleton",
+            "generatedClass":"/Game/ABP.ABP_C","animGraphId":"anim-graph","rootNodeId":"root",
+            "changed":true,"dirtyPackages":["/Game/ABP"],"savedPackages":[],"revision":revision
+        });
+        assert!(
+            validate_output_for_request(
+                "animation_blueprint.create",
+                &create_request,
+                create.clone()
+            )
+            .is_ok()
+        );
+        let mut wrong_skeleton = create;
+        wrong_skeleton["skeletonId"] = json!("/Game/Other.Other");
+        assert!(
+            validate_output_for_request(
+                "animation_blueprint.create",
+                &create_request,
+                wrong_skeleton
+            )
+            .is_err()
+        );
+
+        let character_request = json!({
+            "characterBlueprintId":"/Game/Char.Char","skeletalMeshId":"/Game/Mesh.Mesh",
+            "animationBlueprintId":"/Game/ABP.ABP"
+        });
+        let character = json!({
+            "characterBlueprintId":"/Game/Char.Char","meshComponentId":"mesh",
+            "skeletalMeshId":"/Game/Mesh.Mesh","skeletonId":"/Game/Skeleton.Skeleton",
+            "animationMode":"AnimationBlueprint","animationBlueprintId":"/Game/ABP.ABP",
+            "animClass":"/Game/ABP.ABP_C","changed":true,"dirtyPackages":["/Game/Char"],
+            "savedPackages":[],"revision":"0".repeat(64)
+        });
+        assert!(
+            validate_output_for_request(
+                "animation.character_configure",
+                &character_request,
+                character.clone()
+            )
+            .is_ok()
+        );
+        let mut wrong_class = character;
+        wrong_class["animClass"] = json!("/Game/Other.Other_C");
+        assert!(
+            validate_output_for_request(
+                "animation.character_configure",
+                &character_request,
+                wrong_class
+            )
+            .is_err()
+        );
+
+        let state_request = json!({
+            "animationBlueprintId":"/Game/ABP.ABP","stateMachineId":"machine",
+            "name":"idle","sequenceId":"/Game/Idle.Idle"
+        });
+        let state = json!({
+            "animationBlueprintId":"/Game/ABP.ABP","stateMachineId":"machine","stateId":"idle-state",
+            "stateGraphId":"idle-graph","resultNodeId":"idle-result","sequencePlayerNodeId":"idle-player",
+            "name":"idle","sequenceId":"/Game/Idle.Idle","skeletonId":"/Game/Skeleton.Skeleton",
+            "initial":true,"changed":true,"dirtyPackages":["/Game/ABP"],"savedPackages":[],
+            "revision":"0".repeat(64)
+        });
+        assert!(
+            validate_output_for_request("animation.state_ensure", &state_request, state.clone())
+                .is_ok()
+        );
+        let mut wrong_initial = state;
+        wrong_initial["initial"] = json!(false);
+        assert!(
+            validate_output_for_request("animation.state_ensure", &state_request, wrong_initial)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn animation_graph_enforces_skeleton_topology_and_direction() {
+        let request = json!({"animationBlueprintId":"/Game/ABP.ABP"});
+        let graph = json!({
+            "animationBlueprintId":"/Game/ABP.ABP","skeletonId":"/Game/Skeleton.Skeleton",
+            "generatedClass":"/Game/ABP.ABP_C","animGraphId":"anim-graph","rootNodeId":"root",
+            "variables":[{
+                "variableId":"speed-variable","bindingId":"speed-binding","name":"Speed","type":"float",
+                "source":"owner_planar_speed","updateGraphId":"update-graph","eventNodeId":"update-event",
+                "ownerNodeId":"owner","velocityNodeId":"velocity","planarSpeedNodeId":"planar-speed",
+                "setterNodeId":"speed-setter"
+            }],
+            "stateMachines":[{
+                "stateMachineId":"machine","stateMachineGraphId":"machine-graph","entryNodeId":"entry",
+                "name":"locomotion","initialStateId":"idle-state",
+                "states":[
+                    {"stateId":"idle-state","stateGraphId":"idle-graph","resultNodeId":"idle-result",
+                     "sequencePlayerNodeId":"idle-player","name":"idle","sequenceId":"/Game/Idle.Idle",
+                     "skeletonId":"/Game/Skeleton.Skeleton","initial":true},
+                    {"stateId":"moving-state","stateGraphId":"moving-graph","resultNodeId":"moving-result",
+                     "sequencePlayerNodeId":"moving-player","name":"moving","sequenceId":"/Game/Moving.Moving",
+                     "skeletonId":"/Game/Skeleton.Skeleton","initial":false}
+                ],
+                "transitions":[
+                    {"transitionId":"idle-moving","transitionGraphId":"idle-moving-graph",
+                     "resultNodeId":"idle-moving-result","variableGetterNodeId":"idle-moving-getter",
+                     "comparisonNodeId":"idle-moving-compare","fromStateId":"idle-state",
+                     "toStateId":"moving-state","expression":"Speed > 10"},
+                    {"transitionId":"moving-idle","transitionGraphId":"moving-idle-graph",
+                     "resultNodeId":"moving-idle-result","variableGetterNodeId":"moving-idle-getter",
+                     "comparisonNodeId":"moving-idle-compare","fromStateId":"moving-state",
+                     "toStateId":"idle-state","expression":"Speed <= 10"}
+                ]
+            }],
+            "revision":"0".repeat(64)
+        });
+        assert!(
+            validate_output_for_request("animation.graph_view", &request, graph.clone()).is_ok()
+        );
+        let mut wrong_skeleton = graph.clone();
+        wrong_skeleton["stateMachines"][0]["states"][1]["skeletonId"] = json!("/Game/Other.Other");
+        assert!(
+            validate_output_for_request("animation.graph_view", &request, wrong_skeleton).is_err()
+        );
+        let mut wrong_direction = graph.clone();
+        wrong_direction["stateMachines"][0]["transitions"][0]["expression"] = json!("Speed <= 10");
+        assert!(
+            validate_output_for_request("animation.graph_view", &request, wrong_direction).is_err()
+        );
+        let mut duplicate_identity = graph.clone();
+        duplicate_identity["stateMachines"][0]["states"][1]["resultNodeId"] = json!("idle-result");
+        assert!(
+            validate_output_for_request("animation.graph_view", &request, duplicate_identity)
+                .is_err()
+        );
+        let mut moving_only = graph.clone();
+        moving_only["stateMachines"][0]["states"] =
+            json!([moving_only["stateMachines"][0]["states"][1].clone()]);
+        moving_only["stateMachines"][0]["initialStateId"] = Value::Null;
+        moving_only["stateMachines"][0]["transitions"] = json!([]);
+        assert!(validate_output_for_request("animation.graph_view", &request, moving_only).is_ok());
+        let mut reverse_only = graph.clone();
+        reverse_only["stateMachines"][0]["transitions"] =
+            json!([reverse_only["stateMachines"][0]["transitions"][1].clone()]);
+        assert!(
+            validate_output_for_request("animation.graph_view", &request, reverse_only).is_ok()
+        );
+        let character_request = json!({"characterBlueprintId":"/Game/Char.Char"});
+        let character_view = json!({
+            "characterBlueprintId":"/Game/Char.Char","meshComponentId":"mesh",
+            "skeletalMeshId":"/Game/Mesh.Mesh","skeletonId":"/Game/Skeleton.Skeleton",
+            "animationMode":"AnimationBlueprint","animationBlueprintId":"/Game/ABP.ABP",
+            "animClass":"/Game/ABP.ABP_C","revision":"0".repeat(64)
+        });
+        assert!(
+            validate_output_for_request(
+                "animation.character_view",
+                &character_request,
+                character_view.clone()
+            )
+            .is_ok()
+        );
+        let mut partial_null = character_view;
+        partial_null["skeletonId"] = Value::Null;
+        assert!(
+            validate_output_for_request(
+                "animation.character_view",
+                &character_request,
+                partial_null
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn animation_observation_binds_exact_request_and_runtime_evidence() {
+        let request = json!({"sessionId":"session","characterId":"/Game/Char.Char","animationBlueprintId":"/Game/ABP.ABP","stateMachineId":"machine"});
+        let result = json!({
+            "sessionId":"session","characterId":"/Game/Char.Char","meshComponentId":"mesh-component",
+            "skeletalMeshId":"/Game/Mesh.Mesh","skeletonId":"/Game/Skeleton.Skeleton",
+            "animationBlueprintId":"/Game/ABP.ABP","animClass":"/Game/ABP.ABP_C",
+            "animationInstanceId":"animation-instance","stateMachineId":"machine",
+            "speed":0.0,"ownerPlanarSpeed":0.0,
+            "stateWeights":[{"stateId":"idle-state","name":"idle","weight":1.0},{"stateId":"moving-state","name":"moving","weight":0.0}],
+            "activeStateId":"idle-state","activeStateName":"idle",
+            "activeTransition":{"active":false,"transitionId":null,"fromStateId":null,"toStateId":null,"elapsedFraction":null},
+            "revision":"0".repeat(64)
+        });
+        assert!(
+            validate_output_for_request("play.animation_observe", &request, result.clone()).is_ok()
+        );
+        let mut wrong_session = result.clone();
+        wrong_session["sessionId"] = json!("wrong");
+        assert!(
+            validate_output_for_request("play.animation_observe", &request, wrong_session).is_err()
+        );
+        let mut wrong_active = result.clone();
+        wrong_active["activeStateId"] = json!("moving-state");
+        assert!(
+            validate_output_for_request("play.animation_observe", &request, wrong_active).is_err()
+        );
+        let mut inconsistent_transition = result;
+        inconsistent_transition["activeTransition"]["transitionId"] = json!("idle-moving");
+        assert!(
+            validate_output_for_request(
+                "play.animation_observe",
+                &request,
+                inconsistent_transition
+            )
+            .is_err()
         );
     }
 }
