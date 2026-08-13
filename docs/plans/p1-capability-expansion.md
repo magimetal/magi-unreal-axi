@@ -61,9 +61,9 @@ Current gaps that must be addressed before graph authoring expands:
 | P1.3 | done | Widget-driven runtime state | `ui-state-loop` |
 | P1.4 | done | NavMesh, AI Controller, Blackboard, and Behavior Tree | `ai-navigation-loop` |
 | P1.5 | done | Basic Animation Blueprint state machine | `animation-state-loop` |
-| P1.6 | not-started | Combined P1 agent evaluation and exact-artifact certification | all P1 fixtures |
+| P1.6 | active (kickoff) | Combined P1 agent evaluation and exact-artifact certification | all P1 fixtures |
 
-Phases execute in order. P1.1–P1.5 are independently release-capable once their promotion gate passes. P1.0–P1.5 are complete; P1.6 has not started. P1 remains active until P1.6 passes.
+P1.6 kickoff started. Certification is incomplete; P1 remains active, and support remains certified only through P1.5. Exact-artifact and traceability evidence is tracked by `tests/unreal/p1.6-manifest.json` and `tests/unreal/verify-p1.6-kickoff.sh`.
 
 ## 5. Universal capability promotion gate
 
@@ -110,7 +110,7 @@ Make catalog authoritative for native safety before adding mutation operations.
 - Every existing catalogued mutation consumes generated safety metadata without unintended external behavior changes.
 - Every generated safety field, including `destructive` and `idempotency`, has runtime parity coverage; catalog/runtime disagreement fails build or startup closed.
 - No catalogued capability lacks handler/output validation, and no mutation lacks declared receipt/readback routing. `blueprint.compile` metadata and failed receipts truthfully report preserved dirty state as non-atomic. Non-catalogued lifecycle operations remain explicitly registered and tested.
-- Current 55 library, 6 xtask, and 44 real-binary integration tests pass: 105 Rust tests total.
+- Current 56 library, 6 xtask, and 44 real-binary integration tests pass: 106 Rust tests total.
 - Full Unreal automation passes exact 38/38 through P1.5. All five P1.5 tests are zero-warning; five prior regression tests retain an exact 10-warning baseline.
 - M8 exact-artifact lifecycle remains green after version generalization.
 - Invalid dirty Blueprint compile test proves catalog metadata, error receipt/recovery, observed revision and dirty packages, and absence of false atomic rollback/persistence claims.
@@ -358,13 +358,17 @@ Hash-pinned, provenance-recorded seed Skeleton, SkeletalMesh, and animation sequ
 
 ### Completion
 
-P1.5 integrated native/live certification passes all nine operation cells: the seven original animation operations plus `animation.character_configure` and `animation.character_view`. Repository-owned seed GLB SHA-256 `e5127ab92df4d7414e8a78191513b9b6ad1cde3ef699fb2a2a7f04e035f3f286` supplies the sole pre-authored Skeleton, SkeletalMesh, and idle/moving sequences; every asset binds the exact certified Skeleton. Animation-specific APIs produce deterministic graph/state identities and prove atomic rollback, stale-revision rejection, revision-preserving no-ops, compile/save/restart, and real PIE idle → moving → idle. The gate passes 38/38 automation: all five P1.5 tests have zero warnings, while five prior regression tests retain an exact 10-warning baseline. Universal plugin, Blueprint-only `.app`/IoStore/Asset Registry owned-content, receipt, source-integrity, and token gates pass. Evidence: `~/Library/Caches/magi-unreal-axi/p1.5/native/latest`, bound to the certified 79-record catalog full-file hash `a1f1906449ba158584f4b07f0adc0cccb4dba27df12f371e04aadb88452aae8f`. P1.5 is complete; P1.6 has not started, and P1 remains active.
+P1.5 integrated native/live certification passes all nine operation cells: the seven original animation operations plus `animation.character_configure` and `animation.character_view`. Repository-owned seed GLB SHA-256 `e5127ab92df4d7414e8a78191513b9b6ad1cde3ef699fb2a2a7f04e035f3f286` supplies the sole pre-authored Skeleton, SkeletalMesh, and idle/moving sequences; every asset binds the exact certified Skeleton. Animation-specific APIs produce deterministic graph/state identities and prove atomic rollback, stale-revision rejection, revision-preserving no-ops, compile/save/restart, and real PIE idle → moving → idle. The gate passes 38/38 automation: all five P1.5 tests have zero warnings, while five prior regression tests retain an exact 10-warning baseline. Universal plugin, Blueprint-only `.app`/IoStore/Asset Registry owned-content, receipt, source-integrity, and token gates pass. Evidence: `~/Library/Caches/magi-unreal-axi/p1.5/native/latest`, bound to the certified 79-record catalog full-file hash `a1f1906449ba158584f4b07f0adc0cccb4dba27df12f371e04aadb88452aae8f`. P1.5 is complete. P1.6 kickoff is active but certification is incomplete; P1 remains active and support remains certified through P1.5 only.
 
 ### Non-goals
 
 - Montages, Blend Spaces, IK, motion matching, Control Rig, retargeting, imports, Sequencer, or advanced layered graphs.
 
 ## 12. P1.6 — Combined certification and closure
+
+### Kickoff
+
+P1.6 freezes one 79-record traceability partition: 34 baseline operations plus 14 interaction, seven UI, 15 AI/navigation, and nine animation operations. The kickoff also pins all P1.0–P1.5 manifest hashes, the exact 38-test inventory, the exact five-test/10-warning regression baseline, one release-archive allowlist, and five representative jobs: unknown-project orientation plus all four construction loops. `tests/unreal/verify-p1.6-kickoff.sh` verifies repository contracts without an artifact. Artifact mode additionally requires externally trusted `P16_EXPECTED_ARTIFACT_SHA256`, enforces exact adjacent checksum identity, bounded regular-file/directory-only archive contents, validates codesign before binary execution, binds packaged files byte-for-byte to reviewed repository sources, and retains kickoff evidence. This is kickoff evidence only; native automation, construction jobs, combined packaging, documentation reconciliation, and independent review remain open.
 
 ### Work
 

@@ -13,13 +13,16 @@ Usage:
   evaluate-p1.6-agents.sh job-context RUN JOB
   evaluate-p1.6-agents.sh record RUN JOB SESSION_JSONL
   evaluate-p1.6-agents.sh finalize RUN
+  evaluate-p1.6-agents.sh revalidate RUN COMBINED
   evaluate-p1.6-agents.sh --self-test
 USAGE
 }
 [[ -f "$manifest" ]] || fail "manifest missing"
-for command in jq shasum tar codesign git ditto trash ruby lipo; do command -v "$command" >/dev/null || fail "$command missing"; done
 [[ $# -ge 1 ]] || { usage; exit 2; }
 mode=$1; shift
+for command in jq shasum tar codesign git ditto trash ruby lipo; do
+  case "$mode" in prepare|finalize) command -v "$command" >/dev/null || fail "$command missing" ;; esac
+done
 is_job(){ printf '%s\n' "${JOBS[@]}" | grep -Fxq "$1"; }
 job_index(){ local job=$1 index; for index in "${!JOBS[@]}"; do [[ ${JOBS[$index]} == "$job" ]] && { echo $((index+1)); return; }; done; return 1; }
 run_dir(){ [[ $1 = /* ]] && printf '%s\n' "$1" || printf '%s/%s\n' "$cache_root" "$1"; }
@@ -41,14 +44,23 @@ copy_tracked(){
 }
 
 write_prompt(){
-  local directory=$1 job=$2 required
+  local directory=$1 job=$2 required receipt_readbacks
   case $job in
     unknown-project-orientation) required='Read-only orientation. Required exact help, project doctor, engine view, setup plugin status, editor status, capability search total 79, generated catalog scope, and nonempty next safe action. Help may be plain nonempty text; all other stdout JSON objects. Never mutate, package, or start/stop editor.' ;;
     interaction-loop) required='Start/status editor. Author exact interface, two Actor Blueprints, components, owners/GUIDs/config, graph wiring, compile/save all assets, exact level.save. Restart/open/read back exact level. Spawn created classes; run exactly 2 ordered PIE chains with accepted input and deterministic observations. Final stop, one cook, one package.' ;;
     ui-state-loop) required='Start/status editor. Author widget/host, derived root/text IDs, parent, READY, exact E action to ACTIVE and viewport, compile/save assets and level. Restart/read back tree. Two sessions prove READY, accepted E, ACTIVE, new instance/reset. Final stop, one cook, one package.' ;;
     ai-navigation-loop) required='Start/status editor. Save BB/BT/controller/pawn/floor; prove TargetActor, exact loop/move/wait nodes and 3 links, configs, floor, bounds, level/readbacks. Restart; nav succeeds/reachable. Session one moves to target; session two null target idle. Final stop, one cook, one package.' ;;
-    animation-state-loop) required='Start/status editor. Use exact complete contract: assets /Game/MagiP15/BB_P16AnimationAI.BB_P16AnimationAI, /Game/MagiP15/BT_P16AnimationAI.BT_P16AnimationAI, /Game/MagiP15/BP_P16AnimationController.BP_P16AnimationController, /Game/MagiP15/BP_P16AnimationFloor.BP_P16AnimationFloor, /Game/MagiP15/ABP_P15Animation.ABP_P15Animation, /Game/MagiP15/BP_P15Character.BP_P15Character. Blackboard key TargetActor with key type Actor. Behavior tree nodes loop (sequence), move (move_to using TargetActor), wait (wait 0.5); links root->loop child index 0, loop->move child index 0, loop->wait child index 1. Controller uses BT; same Character pawn config uses controller. FloorBox BoxComponent uses QueryAndPhysics, BlockAll, extent [1000,1000,25]. Level /Game/MagiP15/P15Animation. Navigation bounds agent key p14-nav at [0,0,0], extent [1000,1000,100]; floor at [0,0,-25], Character at [0,0,100], TargetPoint at [600,0,100]. Animation authoring contract: skeleton /Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed_Skeleton.magi-p15-owned-seed_Skeleton; skeletal mesh /Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed.magi-p15-owned-seed; idle sequence /Game/MagiP15Seed/magi-p15-owned-seed/Animations/magi-p15-owned-seedIdle.magi-p15-owned-seedIdle; moving sequence /Game/MagiP15Seed/magi-p15-owned-seed/Animations/magi-p15-owned-seedMoving.magi-p15-owned-seedMoving. Exact blueprint parent classes: controller AIModule.AIController, floor Engine.Actor, Character Engine.Character. Animation graph has Speed float variable owner_planar_speed, locomotion state machine, idle and moving states mapped to exact idle and moving sequences; transitions idle->moving when Speed > 10 and moving->idle when Speed <= 10. Compile and save all assets and level; restart editor, open exact level, and prove persisted readbacks for blackboard, behavior tree, controller, Character, floor, animation graph, bounds, and spawned actors. Build navigation and prove succeeded status plus reachable non-partial path with positive path length and endpoints [0,0,100] to [600,0,100]. Run exactly two sessions; each exact order: start, observe idle animation, set TargetActor on same Character pawn to spawned TargetPoint, observe moving AI with move active, observe moving animation, observe reached AI with wait active, distance to target <=50 and Character near target, observe final idle animation, stop. Final editor stop, one cook, one package.' ;;
+    animation-state-loop) required='Start/status editor. Use exact complete contract: assets /Game/MagiP15/BB_P16AnimationAI.BB_P16AnimationAI, /Game/MagiP15/BT_P16AnimationAI.BT_P16AnimationAI, /Game/MagiP15/BP_P16AnimationController.BP_P16AnimationController, /Game/MagiP15/BP_P16AnimationFloor.BP_P16AnimationFloor, /Game/MagiP15/ABP_P15Animation.ABP_P15Animation, /Game/MagiP15/BP_P15Character.BP_P15Character. Blackboard key TargetActor with key type Actor. Behavior tree nodes loop (sequence), move (move_to using TargetActor), wait (wait 0.5); links root->loop child index 0, loop->move child index 0, loop->wait child index 1. Controller uses BT; same Character pawn config uses controller. FloorBox BoxComponent uses QueryAndPhysics, BlockAll, extent [1000,1000,25]. Level /Game/MagiP15/P15Animation. Navigation bounds agent key p14-nav at [0,0,0], extent [1000,1000,100]; floor at [0,0,-25], Character at [0,0,100], TargetPoint at [600,0,100]. Animation authoring contract: skeleton /Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed_Skeleton.magi-p15-owned-seed_Skeleton; skeletal mesh /Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seed.magi-p15-owned-seed; idle sequence /Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seedIdle.magi-p15-owned-seedIdle; moving sequence /Game/MagiP15Seed/magi-p15-owned-seed/SkeletalMeshes/magi-p15-owned-seedMoving.magi-p15-owned-seedMoving. Exact blueprint parent classes: controller /Script/AIModule.AIController, floor /Script/Engine.Actor, Character /Script/Engine.Character. Animation graph has Speed float variable owner_planar_speed, locomotion state machine, idle and moving states mapped to exact idle and moving sequences; transitions idle->moving when Speed > 10 and moving->idle when Speed <= 10. Compile and save all assets and level; restart editor, open exact level, and prove persisted readbacks for blackboard, behavior tree, controller, Character, floor, animation graph, bounds, and spawned actors. Build navigation and prove succeeded status plus reachable non-partial path with positive path length and endpoints [0,0,100] to [600,0,100]. Run exactly two sessions; each exact order: start, observe idle animation, set TargetActor on same Character pawn to spawned TargetPoint, observe moving AI with move active, observe moving animation, observe reached AI with wait active, distance to target <=50 and Character near target, observe final idle animation, stop. Final editor stop, one cook, one package.' ;;
   esac
+  if [[ $job != unknown-project-orientation ]]; then
+    case $job in
+      interaction-loop) receipt_readbacks='blueprint.interface_create; blueprint.compile for /Game/MagiP12/BP_Interactable.BP_Interactable; asset.save for /Game/MagiP12/BPI_Interact.BPI_Interact; level.save; level.open; unchanged post-restart blueprint.interface_ensure' ;;
+      ui-state-loop) receipt_readbacks='widget.create; blueprint.compile for /Game/MagiP13/WBP_UIState.WBP_UIState; asset.save for /Game/MagiP13/WBP_UIState.WBP_UIState; level.save; level.open; unchanged post-restart widget.event_ensure' ;;
+      ai-navigation-loop) receipt_readbacks='blackboard.create; blueprint.compile for /Game/MagiP14/BP_P14AIController.BP_P14AIController; asset.save for /Game/MagiP14/BB_P14AI.BB_P14AI; level.save; level.open; unchanged post-restart blackboard.key_ensure' ;;
+      animation-state-loop) receipt_readbacks='animation_blueprint.create; blueprint.compile for /Game/MagiP15/ABP_P15Animation.ABP_P15Animation; asset.save for /Game/MagiP15/ABP_P15Animation.ABP_P15Animation; level.save; level.open; unchanged post-restart animation.variable_ensure' ;;
+    esac
+    required+=" Durable receipt contract: invoke operation view once for each exact source: $receipt_readbacks. Also view second play.stop only after final editor.stop to prove offline journal recovery. View project cook immediately after cook and project package immediately after package. Exactly 9 operation.view calls total. Every view ID comes from its selected prior source; viewed JSON must exactly equal native receipt or cook/package operation summary. Classify each view reference with source category: compile,compile,save,save,restart,noop,runtime,package,package."
+  fi
   cat >"$directory/PROMPT.txt" <<EOF
 P1.6 representative agent job: $job
 Project: $directory/project/MagiUnrealAXIPackageFixture.uproject
@@ -146,7 +158,9 @@ session_valid(){
     abort unless calls.map { |e| e.dig("payload", "id") }.all? { |id| id.is_a?(String) && !id.empty? }
     abort unless calls.map { |e| e.dig("payload", "id") }.uniq.length == calls.length
     abort unless calls.map { |e| e.dig("payload", "id") } == results.map { |e| e.dig("payload", "call_id") }
-    abort if results.any? { |e| e["success"] == false }
+    abort unless results.all? { |e| e["success"] == true || e.dig("payload", "result", "success") == true }
+    users = events.each_index.select { |i| events[i]["event_type"] == "user_input" }; assistants = events.each_index.select { |i| events[i]["event_type"] == "assistant_output" }
+    abort unless users.length == 1 && assistants.length == 1 && users.first < (events.index(calls.first) || events.length) && assistants.first == events.length - 1
     rows = File.readlines(ledger_path, chomp: true).map { |line| JSON.parse(line) }
     result_by_id = results.each_with_object({}) { |e,h| h[e.dig("payload","call_id")] = e }
     bash_index = 0; reads = 0; writes = 0
@@ -155,7 +169,7 @@ session_valid(){
       abort unless %w[bash read write].include?(name) && args.is_a?(Hash)
       case name
       when "bash"
-        abort unless bash_index < rows.length && args.keys.sort == ["command", "timeout"] && args["timeout"].is_a?(Integer)
+        abort unless bash_index < rows.length && (args.keys.sort == ["command"] || args.keys.sort == ["command", "timeout"]) && (!args.key?("timeout") || (args["timeout"].is_a?(Integer) && args["timeout"].between?(1, 300)))
         tokens = Shellwords.split(args["command"]); abort unless tokens == [wrapper] + rows[bash_index]["argv"]
         result = result_by_id.fetch(call.dig("payload","id")); wrapped_success = result.dig("payload","result","success")
         abort unless wrapped_success.nil? || wrapped_success == (rows[bash_index]["exit"] == 0)
@@ -176,6 +190,24 @@ session_valid(){
 validate_outcome(){
   local directory=$1 job=$2
   ruby "$repo_root/tests/unreal/support/p16-outcome.rb" validate "$directory" "$job" "$repo_root"
+}
+
+record_valid(){
+  local directory=$1 job=$2 previous_end=${3-}
+  ruby -rjson -rtime -rdigest -e '
+    dir, job, previous_end = ARGV
+    record = JSON.parse(File.binread(File.join(dir, "record.json")))
+    abort unless record.is_a?(Hash) && record.keys.sort == %w[ended job recordedAt sessionSha256 started].sort && record["job"] == job
+    rows = File.readlines(File.join(dir, "ledger.jsonl"), chomp: true).map { |line| JSON.parse(line) }
+    abort if rows.empty?
+    starts = rows.map { |row| Time.iso8601(row.fetch("started")) }
+    ends = rows.map { |row| Time.iso8601(row.fetch("ended")) }
+    recorded_start = Time.iso8601(record.fetch("started")); recorded_end = Time.iso8601(record.fetch("ended")); Time.iso8601(record.fetch("recordedAt"))
+    abort unless recorded_start == starts.min && recorded_end == ends.max && rows.each_index.all? { |index| starts[index] <= ends[index] && (index.zero? || starts[index] >= ends[index - 1]) }
+    abort unless previous_end.empty? || recorded_start > Time.iso8601(previous_end)
+    abort unless record["sessionSha256"] == Digest::SHA256.file(File.join(dir, "session.jsonl")).hexdigest
+    puts record.fetch("ended")
+  ' "$directory" "$job" "$previous_end" 2>/dev/null
 }
 
 plugin_valid(){
@@ -210,6 +242,9 @@ case $mode in
     ledger_valid "$temporary" "$project" "$engine_root" || fail "generated ledger self-test"
     session_valid "$temporary/session.jsonl" "$project" "$wrapper" || fail "actual-schema/quoted argv self-test"
     cp "$temporary/ledger.jsonl" "$temporary/ledger.good"; cp "$temporary/session.jsonl" "$temporary/session.good"; cp "$temporary/ledger.jsonl.1.stdout" "$temporary/sidecar.good"
+    jq -c 'if .event_type=="tool_call" and .payload.name=="bash" then del(.payload.arguments.timeout) else . end' "$temporary/session.good" >"$temporary/no-timeout.jsonl"
+    session_valid "$temporary/no-timeout.jsonl" "$project" "$wrapper" || fail "optional bash timeout self-test"
+    for invalid_timeout in 0 -1 301; do jq -c --argjson timeout "$invalid_timeout" 'if .event_type=="tool_call" and .payload.name=="bash" then .payload.arguments.timeout=$timeout else . end' "$temporary/session.good" >"$temporary/bad.jsonl"; session_valid "$temporary/bad.jsonl" "$project" "$wrapper" && fail "invalid bash timeout accepted: $invalid_timeout"; done
     printf '{}\n' >"$temporary/ledger.jsonl"; ledger_valid "$temporary" "$project" "$engine_root" && fail "null ledger accepted"; cp "$temporary/ledger.good" "$temporary/ledger.jsonl"
     tail -r "$temporary/ledger.good" >"$temporary/ledger.jsonl"; ledger_valid "$temporary" "$project" "$engine_root" && fail "reordered ledger accepted"; cp "$temporary/ledger.good" "$temporary/ledger.jsonl"
     printf 'tamper\n' >>"$temporary/ledger.jsonl.1.stdout"; ledger_valid "$temporary" "$project" "$engine_root" && fail "tampered sidecar accepted"; cp "$temporary/sidecar.good" "$temporary/ledger.jsonl.1.stdout"
@@ -218,6 +253,8 @@ case $mode in
     jq -c 'if .event_type=="tool_call" and .payload.name=="bash" then .payload.arguments.command += "; true" else . end' "$temporary/session.good" >"$temporary/bad.jsonl"; session_valid "$temporary/bad.jsonl" "$project" "$wrapper" && fail "compound command accepted"
     jq -c 'if .event_type=="tool_call" and .payload.name=="read" then .payload.arguments.paths += ["/etc/passwd"] else . end' "$temporary/session.good" >"$temporary/bad.jsonl"; session_valid "$temporary/bad.jsonl" "$project" "$wrapper" && fail "extra read accepted"
     jq -c 'if .sequence==1 then .argv[(.argv|index("--project"))+1]="/wrong" else . end' "$temporary/ledger.good" >"$temporary/ledger.jsonl"; ledger_valid "$temporary" "$project" "$engine_root" && fail "wrong project accepted"; cp "$temporary/ledger.good" "$temporary/ledger.jsonl"
+    ruby "$repo_root/tests/unreal/support/p16-run-inventory.rb" self-test
+    ruby "$repo_root/tests/unreal/support/p16-revalidate.rb" self-test
     ruby "$repo_root/tests/unreal/support/p16-outcome.rb" self-test "$repo_root"
     printf 'P1.6 agent harness self-test: PASS\n'
     ;;
@@ -225,11 +262,20 @@ case $mode in
     [[ $# == 1 && -f $1 ]] || { usage; exit 2; }
     artifact=$(cd "$(dirname "$1")" && pwd -P)/$(basename "$1")
     [[ ${P16_EXPECTED_ARTIFACT_SHA256:-} =~ ^[0-9a-fA-F]{64}$ ]] || fail "P16_EXPECTED_ARTIFACT_SHA256 required"
+    [[ ${P16_EXPECTED_SOURCE_COMMIT:-} =~ ^[0-9a-f]{40}$ ]] || fail "P16_EXPECTED_SOURCE_COMMIT required"
+    [[ -z $(git -C "$repo_root" status --porcelain=v1 --untracked-files=all) ]] || fail "repository must be clean at prepare"
+    [[ "$(git -C "$repo_root" rev-parse HEAD)" == "$P16_EXPECTED_SOURCE_COMMIT" ]] || fail "source commit differs from HEAD"
+    [[ ${P16_EXPECTED_COMBINED_EVIDENCE_TREE_SHA256:-} =~ ^[0-9a-f]{64}$ ]] || fail "P16_EXPECTED_COMBINED_EVIDENCE_TREE_SHA256 required"
     trusted=$(printf '%s' "$P16_EXPECTED_ARTIFACT_SHA256" | tr A-F a-f)
     combined_pointer="$HOME/Library/Caches/magi-unreal-axi/p1.6/combined/latest"
     [[ -f $combined_pointer ]] || fail "combined latest missing"
-    combined=$(cat "$combined_pointer"); [[ -f "$combined/summary.txt" ]] || fail "combined summary missing"
+    combined=$(cat "$combined_pointer"); [[ -d "$combined" && -f "$combined/summary.txt" ]] || fail "combined evidence missing"
     grep -Fxq "artifactSha256=$trusted" "$combined/summary.txt" || fail "artifact differs from combined pass"
+    combined_tree=$(jq -r .treeSha256 "$combined/evidence-tree.json"); [[ $combined_tree == "$P16_EXPECTED_COMBINED_EVIDENCE_TREE_SHA256" ]] || fail "combined evidence tree differs from trusted hash"
+    ruby "$repo_root/tests/unreal/support/p16-evidence.rb" verify "$combined" "$combined/evidence-tree.json" >/dev/null || fail "combined evidence tree invalid"
+    combined_provenance=$(sed -n 's/^provenanceSha256=//p' "$combined/summary.txt"); [[ $combined_provenance =~ ^[0-9a-f]{64}$ && $(hash "$combined/provenance.json") == "$combined_provenance" ]] || fail "combined provenance hash mismatch"
+    ruby "$repo_root/tests/unreal/support/p16-provenance.rb" verify "$repo_root" "$combined/source-inventory.tsv" "$combined/provenance.json" "$combined/provenance-identities.json" >/dev/null || fail "combined provenance invalid"
+    [[ $(jq -r .source.commit "$combined/provenance.json") == "$P16_EXPECTED_SOURCE_COMMIT" ]] || fail "combined source commit mismatch"
     combined_plugin=$(sed -n 's/^pluginSha256=//p' "$combined/summary.txt"); [[ $combined_plugin =~ ^[0-9a-f]{64}$ ]] || fail "combined plugin hash missing"
     mkdir -p "$cache_root"; run=$(mktemp -d "$cache_root/run.XXXXXX"); chmod 0700 "$run"
     stage="$run/artifact"; mkdir "$stage"; staged="$stage/$(basename "$artifact")"
@@ -283,13 +329,15 @@ EOF
         [[ -n $plugin ]] || fail "plugin missing: $job"
         arches=$(lipo -archs "$plugin"); grep -qw arm64 <<<"$arches" || fail "plugin lacks arm64: $job"
         plugin_hash=$(hash "$plugin")
+        [[ $plugin_hash == "$combined_plugin" ]] || fail "job plugin differs from combined core: $job"
         printf '%s\n' "$plugin_hash" >"$directory/plugin.sha256"
         plugin_inventory "$directory/project/Plugins/MagiUnrealAXI" "$directory/plugin-tree.sha256"
       fi
       write_prompt "$directory" "$job"; write_wrapper "$directory" "$exact" "$directory/ledger.jsonl"
       for immutable in PROMPT.txt bin/axi-record plugin-install.json plugin.sha256 seed-source.txt seed-destination.txt plugin-tree.sha256 project/Config/DefaultEngine.ini project/Config/DefaultGame.ini; do [[ ! -f "$directory/$immutable" ]] || printf '%s\t%s\n' "$immutable" "$(hash "$directory/$immutable")"; done >"$directory/immutable.sha256"
     done
-    jq -n --arg run "$run" --arg artifact "$trusted" --arg binary "$(hash "$exact")" --arg plugin "$combined_plugin" --arg combined "$combined" '{phase:"P1.6",status:"prepared",run:$run,artifactSha256:$artifact,binarySha256:$binary,pluginSha256:$plugin,combinedEvidence:$combined,jobs:["unknown-project-orientation","interaction-loop","ui-state-loop","ai-navigation-loop","animation-state-loop"]}' >"$run/manifest.json"
+    immutable_hashes=$(for job in "${JOBS[@]}"; do printf '%s\t%s\n' "$job" "$(hash "$run/jobs/$job/immutable.sha256")"; done | jq -Rn 'reduce inputs as $line ({}; ($line | split("\t")) as $parts | .[$parts[0]] = $parts[1])')
+    jq -n --arg run "$run" --arg artifact "$trusted" --arg binary "$(hash "$exact")" --arg plugin "$combined_plugin" --arg combined "$combined" --arg engineRoot "$engine_root" --arg sourceCommit "$P16_EXPECTED_SOURCE_COMMIT" --arg sourceTree "$(git -C "$repo_root" rev-parse HEAD^{tree})" --arg evidenceTree "$combined_tree" --arg provenance "$combined_provenance" --argjson immutable "$immutable_hashes" '{phase:"P1.6",status:"prepared",run:$run,artifactSha256:$artifact,binarySha256:$binary,pluginSha256:$plugin,combinedEvidence:$combined,combinedEvidenceTreeSha256:$evidenceTree,combinedProvenanceSha256:$provenance,engineRoot:$engineRoot,sourceCommit:$sourceCommit,sourceTree:$sourceTree,immutableSha256s:$immutable,jobs:["unknown-project-orientation","interaction-loop","ui-state-loop","ai-navigation-loop","animation-state-loop"]}' >"$run/manifest.json"
     printf '%s\n' "$run"
     ;;
   job-context)
@@ -307,31 +355,61 @@ EOF
     [[ -f "$directory/agent-outcome.json" ]] || fail "agent outcome missing"
     validate_outcome "$directory" "$job" || fail "job outcome evidence: $job"
     [[ $job == unknown-project-orientation ]] || plugin_valid "$directory" || fail "job plugin identity: $job"
+    [[ $job == unknown-project-orientation || $(cat "$directory/plugin.sha256") == $(jq -r .pluginSha256 "$run/manifest.json") ]] || fail "job plugin differs from combined core: $job"
+    [[ $(hash "$directory/immutable.sha256") == $(jq -r --arg job "$job" '.immutableSha256s[$job]' "$run/manifest.json") ]] || fail "immutable inventory seal changed: $job"
     while IFS=$'\t' read -r immutable expected; do [[ $(hash "$directory/$immutable") == "$expected" ]] || fail "immutable input changed: $job/$immutable"; done <"$directory/immutable.sha256"
     started=$(jq -sr 'map(.started)|min' "$directory/ledger.jsonl"); ended=$(jq -sr 'map(.ended)|max' "$directory/ledger.jsonl")
     if ((index>1)); then previous=${JOBS[$((index-2))]}; previous_end=$(jq -r .ended "$run/jobs/$previous/record.json"); [[ $started > $previous_end ]] || fail "job overlap/order"; fi
     jq -n --arg job "$job" --arg session "$(hash "$directory/session.jsonl")" --arg started "$started" --arg ended "$ended" '{job:$job,sessionSha256:$session,started:$started,ended:$ended,recordedAt:(now|todateiso8601)}' >"$directory/record.json"
     ;;
   finalize)
-    [[ $# == 1 ]] || { usage; exit 2; }; run=$(run_dir "$1"); [[ -f "$run/manifest.json" && ! -e "$run/summary.txt" ]] || fail "run missing/already finalized"
+    [[ $# == 1 ]] || { usage; exit 2; }; run=$(run_dir "$1")
+    latest_run=; [[ ! -f "$cache_root/latest" ]] || latest_run=$(cat "$cache_root/latest")
+    [[ $latest_run != "$run" ]] || fail "run already finalized"
+    if [[ -e "$run/summary.txt" || -e "$run/run-inventory.json" ]]; then trash "$run/summary.txt" "$run/run-inventory.json" >/dev/null 2>&1 || fail "incomplete finalization cleanup"; fi
+    for stale in "$run"/.summary.*; do [[ ! -e "$stale" ]] || trash "$stale" >/dev/null 2>&1 || fail "stale summary cleanup"; done
+    [[ -f "$run/manifest.json" ]] || fail "run missing"
     [[ $(hash "$(cat "$run/exact-binary")") == $(cat "$run/exact-binary.sha256") ]] || fail "exact binary changed"
     [[ $(jq -r .artifactSha256 "$run/manifest.json") == $(cat "$run/artifact.sha256") && $(jq -r .pluginSha256 "$run/manifest.json") == $(cat "$run/plugin.sha256") ]] || fail "identity mismatch"
+    previous_record_end=
     for job in "${JOBS[@]}"; do
       directory="$run/jobs/$job"; [[ -f "$directory/record.json" && -f "$directory/session.jsonl" ]] || fail "job incomplete: $job"
       [[ $(hash "$directory/session.jsonl") == $(jq -r .sessionSha256 "$directory/record.json") ]] || fail "session changed: $job"
       session_valid "$directory/session.jsonl" "$directory/project" "$directory/bin/axi-record" || fail "session changed: $job"
+      while IFS=$'\t' read -r immutable expected; do [[ $(hash "$directory/$immutable") == "$expected" ]] || fail "immutable input changed: $job/$immutable"; done <"$directory/immutable.sha256"
+      previous_record_end=$(record_valid "$directory" "$job" "$previous_record_end") || fail "invalid record/order: $job"
       validate_outcome "$directory" "$job" || fail "outcome changed: $job"
       [[ $job == unknown-project-orientation ]] || plugin_valid "$directory" || fail "plugin changed: $job"
-      while IFS=$'\t' read -r immutable expected; do [[ $(hash "$directory/$immutable") == "$expected" ]] || fail "immutable changed: $job/$immutable"; done <"$directory/immutable.sha256"
+      [[ $job == unknown-project-orientation || $(cat "$directory/plugin.sha256") == $(jq -r .pluginSha256 "$run/manifest.json") ]] || fail "job plugin differs from combined core: $job"
+      [[ $(hash "$directory/immutable.sha256") == $(jq -r --arg job "$job" '.immutableSha256s[$job]' "$run/manifest.json") ]] || fail "immutable inventory seal changed: $job"
     done
     cmp -s "$run/git-status.before" <(git -C "$repo_root" status --porcelain=v1 --untracked-files=all) || fail "repository state changed"
     if find "$run" -type f \( -name token -o -name bridge-v1.json \) -print -quit | grep -q .; then fail "runtime secret file retained"; fi
     set +e; grep -R -I -E -q 'Authorization:[[:space:]]*Bearer[[:space:]]+[A-Za-z0-9._-]+' "$run"; leaked=$?; set -e; [[ $leaked == 1 ]] || fail "bearer credential retained"
-    metrics=$(jq -s --slurpfile outcomes <(jq -s '.' "$run"/jobs/*/agent-outcome.json) '{cliCalls:length,stdoutBytes:(map(.stdoutBytes)|add),stderrBytes:(map(.stderrBytes)|add),estimatedTokens:(map(.estimatedTokens)|add),retries:($outcomes[0]|map(.metrics.retries)|add),avoidableRetries:($outcomes[0]|map(.metrics.avoidableRetries)|add),structuredOutputFailures:($outcomes[0]|map(.metrics.structuredOutputFailures)|add)}' "$run"/jobs/*/ledger.jsonl)
+    metrics=$(jq -c -s --slurpfile outcomes <(jq -s '.' "$run"/jobs/*/agent-outcome.json) '{cliCalls:length,stdoutBytes:(map(.stdoutBytes)|add),stderrBytes:(map(.stderrBytes)|add),estimatedTokens:(map(.estimatedTokens)|add),retries:($outcomes[0]|map(.metrics.retries)|add),avoidableRetries:($outcomes[0]|map(.metrics.avoidableRetries)|add),structuredOutputFailures:($outcomes[0]|map(.metrics.structuredOutputFailures)|add)}' "$run"/jobs/*/ledger.jsonl)
     agent_plugins=$(for job in interaction-loop ui-state-loop ai-navigation-loop animation-state-loop; do printf '%s:%s,' "$job" "$(cat "$run/jobs/$job/plugin.sha256")"; done); agent_plugins=${agent_plugins%,}
-    printf 'phase=P1.6\nstatus=passed\nartifactSha256=%s\nbinarySha256=%s\ncombinedPluginSha256=%s\nagentPluginSha256s=%s\ncombinedEvidence=%s\njobs=5/5-passed-sequential\nmetrics=%s\ntokenScan=passed\n' "$(cat "$run/artifact.sha256")" "$(cat "$run/exact-binary.sha256")" "$(cat "$run/plugin.sha256")" "$agent_plugins" "$(jq -r .combinedEvidence "$run/manifest.json")" "$metrics" >"$run/summary.txt"
-    printf '%s\n' "$run" >"$cache_root/latest.tmp"; mv -f "$cache_root/latest.tmp" "$cache_root/latest"
+    summary_tmp=$(mktemp "$run/.summary.XXXXXX")
+    printf 'phase=P1.6\nstatus=passed\nartifactSha256=%s\nbinarySha256=%s\ncombinedPluginSha256=%s\nagentPluginSha256s=%s\ncombinedEvidence=%s\ncombinedEvidenceTreeSha256=%s\ncombinedProvenanceSha256=%s\nsourceCommit=%s\nsourceTree=%s\njobs=5/5-passed-sequential\nmetrics=%s\ntokenScan=passed\n' "$(cat "$run/artifact.sha256")" "$(cat "$run/exact-binary.sha256")" "$(cat "$run/plugin.sha256")" "$agent_plugins" "$(jq -r .combinedEvidence "$run/manifest.json")" "$(jq -r .combinedEvidenceTreeSha256 "$run/manifest.json")" "$(jq -r .combinedProvenanceSha256 "$run/manifest.json")" "$(jq -r .sourceCommit "$run/manifest.json")" "$(jq -r .sourceTree "$run/manifest.json")" "$metrics" >"$summary_tmp"
+    [[ -e "$run/run-inventory.json" ]] && fail "run inventory already exists"
+    mv "$summary_tmp" "$run/summary.txt"
+    set +e; inventory_result=$(ruby "$repo_root/tests/unreal/support/p16-run-inventory.rb" write "$run"); inventory_status=$?; set -e
+    if ((inventory_status != 0)); then trash "$run/summary.txt" "$run/run-inventory.json" >/dev/null 2>&1 || true; fail "run inventory write"; fi
+    inventory_sha=$(sed -n 's/^inventorySha256=\([0-9a-f]\{64\}\) treeSha256=.*/\1/p' <<<"$inventory_result")
+    if [[ ! $inventory_sha =~ ^[0-9a-f]{64}$ ]]; then trash "$run/summary.txt" "$run/run-inventory.json" >/dev/null 2>&1 || true; fail "run inventory result"; fi
+    set +e; ruby "$repo_root/tests/unreal/support/p16-run-inventory.rb" verify "$run" "$inventory_sha" >/dev/null; inventory_status=$?; set -e
+    if ((inventory_status != 0)); then trash "$run/summary.txt" "$run/run-inventory.json" >/dev/null 2>&1 || true; fail "run inventory verification"; fi
+    latest_tmp=$(mktemp "$cache_root/latest.XXXXXX"); printf '%s\n' "$run" >"$latest_tmp"; mv -f "$latest_tmp" "$cache_root/latest"
     cat "$run/summary.txt"
+    printf '%s\n' "$inventory_result"
+    ;;
+  revalidate)
+    [[ $# == 2 ]] || { usage; exit 2; }
+    [[ ${P16_EXPECTED_RUN_INVENTORY_SHA256:-} =~ ^[0-9a-f]{64}$ ]] || fail "P16_EXPECTED_RUN_INVENTORY_SHA256 required"
+    run=$(cd "$(dirname "$1")" && pwd -P)/$(basename "$1")
+    combined=$(cd "$2" && pwd -P)
+    [[ -d "$run" && ! -L "$run" ]] || fail "downloaded run missing"
+    [[ -d "$combined" && ! -L "$combined" ]] || fail "downloaded combined evidence missing"
+    ruby "$repo_root/tests/unreal/support/p16-revalidate.rb" "$run" "$combined" "$P16_EXPECTED_RUN_INVENTORY_SHA256"
     ;;
   help|--help) usage ;;
   *) usage; exit 2 ;;

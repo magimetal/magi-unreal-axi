@@ -30,11 +30,13 @@ cargo run --locked --bin xtask -- release check
 ./tests/unreal/certify-p1.3.sh
 ./tests/unreal/certify-p1.4.sh
 ./tests/unreal/certify-p1.5.sh
+./tests/unreal/verify-p1.6-kickoff.sh
+P16_EXPECTED_ARTIFACT_SHA256=<trusted-sha256> ./tests/unreal/verify-p1.6-kickoff.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
 ```
 
-Rust gate: 55 library tests, 6 xtask tests, and 44 real-binary integration tests = 105 tests (`cargo test --all-targets --all-features --locked`, verified locally). Catalog check validates 79 records, generated static Rust/C++ schemas and registries, mutation safety metadata, semantic receipt bindings, and current full-file hash `a1f1906449ba158584f4b07f0adc0cccb4dba27df12f371e04aadb88452aae8f`.
+Rust gate: 56 library tests, 6 xtask tests, and 44 real-binary integration tests = 106 tests (`cargo test --all-targets --all-features --locked`, verified locally). Catalog check validates 79 records, generated static Rust/C++ schemas and registries, mutation safety metadata, semantic receipt bindings, and current full-file hash `a1f1906449ba158584f4b07f0adc0cccb4dba27df12f371e04aadb88452aae8f`.
 
-P1.0–P1.5 certification and M8 exact-artifact regression pass for the sole engine cell. P1.5 integrated certification includes the exact 33-test P1.4 regression plus five zero-warning P1.5 tests. Full automation passes 38/38 with 10 known pre-existing regression warnings; this is not an overall zero-warning result. P1.6 has not started, so P1 remains active.
+P1.0–P1.5 certification and M8 exact-artifact regression pass for the sole engine cell. P1.5 integrated certification includes the exact 33-test P1.4 regression plus five zero-warning P1.5 tests. Full automation passes 38/38 with 10 known pre-existing regression warnings; this is not an overall zero-warning result. P1.6 kickoff now verifies frozen historical-manifest hashes, exact 79-record/45-P1-operation traceability, automation/warning inventories, and optional release-archive preflight. Combined certification has not passed, P1 remains active, and support remains certified through P1.5 only.
 
 ## Evidence paths
 

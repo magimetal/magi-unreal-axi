@@ -55,6 +55,16 @@ const PAYLOAD: &[(&str, &[u8])] = &[
             "../plugin/MagiUnrealAXI/Source/MagiUnrealAXI/Private/MagiWidgetAuthoring.inl"
         ),
     ),
+    (
+        "Source/MagiUnrealAXI/Private/MagiAiNavigation.inl",
+        include_bytes!("../plugin/MagiUnrealAXI/Source/MagiUnrealAXI/Private/MagiAiNavigation.inl"),
+    ),
+    (
+        "Source/MagiUnrealAXI/Private/MagiAnimationAuthoring.inl",
+        include_bytes!(
+            "../plugin/MagiUnrealAXI/Source/MagiUnrealAXI/Private/MagiAnimationAuthoring.inl"
+        ),
+    ),
 ];
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -326,7 +336,6 @@ fn build_plugin_invocation(engine: &EngineInfo, dry_run: bool) -> Result<Invocat
             format!("-Package={}", root.join("package").display()),
             "-HostPlatforms=Mac".into(),
             "-TargetPlatforms=Mac".into(),
-            "-Architecture_Mac=arm64".into(),
         ],
         working_directory: root,
         environment: BTreeMap::from([(
@@ -580,4 +589,30 @@ fn setup_error(reason: &'static str, message: impl Into<String>) -> AppError {
         message,
         "magi-unreal-axi setup plugin status",
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PAYLOAD;
+    use std::collections::BTreeSet;
+    #[test]
+    fn embedded_payload_contains_every_local_magi_inl_include() {
+        let source =
+            include_str!("../plugin/MagiUnrealAXI/Source/MagiUnrealAXI/Private/MagiUnrealAXI.cpp");
+        let embedded: BTreeSet<_> = PAYLOAD
+            .iter()
+            .map(|(path, _)| path.rsplit('/').next().unwrap())
+            .collect();
+        let includes: BTreeSet<_> = source
+            .lines()
+            .filter_map(|line| line.trim().strip_prefix("#include \"")?.strip_suffix("\""))
+            .filter(|name| name.starts_with("Magi") && name.ends_with(".inl"))
+            .collect();
+        assert!(!includes.is_empty());
+        assert!(
+            includes.is_subset(&embedded),
+            "missing embedded includes: {:?}",
+            includes.difference(&embedded).collect::<Vec<_>>()
+        );
+    }
 }

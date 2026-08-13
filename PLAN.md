@@ -110,8 +110,10 @@ First complete loop:
 Broad action count is not success. A smaller set that completes and verifies this loop is more valuable than hundreds of shallow handlers.
 
 ## 3. Sources and implementation policy
-- Current 55 library, 6 xtask, and 44 real-binary integration tests pass: 105 Rust tests total.
+- Current 56 library, 6 xtask, and 44 real-binary integration tests pass: 106 Rust tests total.
 - Full Unreal automation passes exact 38/38 through P1.5. All five P1.5 tests are zero-warning; five prior regression tests retain an exact 10-warning baseline.
+
+P1.6 kickoff is active, certification is incomplete, P1 remains active, and support certification remains through P1.5 only. Kickoff manifest/verifier: `tests/unreal/p1.6-manifest.json`, `tests/unreal/verify-p1.6-kickoff.sh`.
 
 Implementation must re-read current versions before public contract is frozen:
 
@@ -1020,7 +1022,7 @@ Fixture order:
 3. `ai-navigation-loop`
 4. `animation-state-loop`
 
-P1.5 is complete. It adds exactly nine animation operations spanning Animation Blueprint creation, Character binding/readback, graph/state-machine/state/transition/variable authoring, and structured runtime animation observation. Certification proves owned seed identity and exact Skeleton compatibility, deterministic graph identities, atomic rollback, stale revisions, revision-preserving no-ops, compile/save/restart, real PIE idle → moving → idle, all nine operation cells, universal plugin output, and Blueprint-only `.app`/IoStore/Asset Registry gates. Full automation passes 38/38: all five P1.5 tests have zero warnings, while prior regressions retain an exact 10-warning baseline. Evidence: `~/Library/Caches/magi-unreal-axi/p1.5/native/latest`. P1.6 has not started; P1 remains active.
+P1.5 is complete. It adds exactly nine animation operations spanning Animation Blueprint creation, Character binding/readback, graph/state-machine/state/transition/variable authoring, and structured runtime animation observation. Certification proves owned seed identity and exact Skeleton compatibility, deterministic graph identities, atomic rollback, stale revisions, revision-preserving no-ops, compile/save/restart, real PIE idle → moving → idle, all nine operation cells, universal plugin output, and Blueprint-only `.app`/IoStore/Asset Registry gates. Full automation passes 38/38: all five P1.5 tests have zero warnings, while prior regressions retain an exact 10-warning baseline. Evidence: `~/Library/Caches/magi-unreal-axi/p1.5/native/latest`. P1.6 kickoff is active but certification is incomplete; P1 remains active and support remains certified through P1.5 only.
 
 ### M7 — Production pipeline
 

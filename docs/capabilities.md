@@ -52,7 +52,7 @@ P1.4 adds exactly `navigation.bounds_ensure`, `navigation.build`, `navigation.st
 
 P1.5 adds exactly nine operations: `animation_blueprint.create`, `animation.character_configure`, `animation.character_view`, `animation.graph_view`, `animation.variable_ensure`, `animation.state_machine_ensure`, `animation.state_ensure`, `animation.transition_ensure`, and `play.animation_observe`. The seven original animation operations use animation-specific graph/schema APIs; the two character operations bind and inspect Character mesh/AnimBP defaults. The fixture uses repository-owned seed GLB SHA-256 `e5127ab92df4d7414e8a78191513b9b6ad1cde3ef699fb2a2a7f04e035f3f286`, validates one exact Skeleton across SkeletalMesh and both sequences, and exposes deterministic graph, variable, state-machine, state, transition, and node identities. Certification proves atomic failure rollback, stale-revision rejection, revision-preserving no-ops, compile/save/restart identity, real PIE idle → moving → idle, verified receipts, universal plugin output, Blueprint-only `.app`/IoStore/Asset Registry owned content, source integrity, and token absence. Full automation passes 38/38; all five P1.5 tests pass with zero warnings, while regressions retain 10 known pre-existing warnings.
 
-P1.5 is complete. P1.6 has not started, so P1 remains active.
+P1.5 is complete. P1.6 kickoff is active but certification is incomplete; P1 remains active and support remains certified through P1.5 only. Kickoff traceability partitions all 79 operations exactly once and identifies the 45 P1 operations exercised by the four construction loops.
 
 ## Examples
 

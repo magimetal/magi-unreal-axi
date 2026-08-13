@@ -23,7 +23,8 @@ jq -e '.phase == "P1.4" and (.catalog.count == 70) and (.nativeTests|length) == 
 [[ $(plutil -extract Changelist raw -o - "$version_file") == "$(jq -r .engine.changelist "$manifest")" ]]
 [[ "$(plutil -extract MajorVersion raw -o - "$version_file").$(plutil -extract MinorVersion raw -o - "$version_file").$(plutil -extract PatchVersion raw -o - "$version_file")" == "$(jq -r .engine.version "$manifest")" ]]
 
-cache_root="$HOME/Library/Caches/magi-unreal-axi/p1.4/live"
+account_home=${P14_ACCOUNT_HOME:-$HOME}
+cache_root="$account_home/Library/Caches/magi-unreal-axi/p1.4/live"
 mkdir -p "$cache_root"
 work=$(mktemp -d "$cache_root/work.XXXXXX")
 if [[ -n "${P14_LIVE_EVIDENCE_DIR:-}" ]]; then
@@ -50,13 +51,15 @@ controller_path=$(jq -r .fixture.controller "$manifest")
 pawn_path=$(jq -r .fixture.pawn "$manifest")
 floor_path=$(jq -r .fixture.floor "$manifest")
 bounds_agent=$(jq -r .fixture.bounds.agentKey "$manifest")
+bounds_location=$(jq -c .fixture.bounds.location "$manifest")
 pawn_location=$(jq -c .fixture.pawnLocation "$manifest")
 target_location=$(jq -c .fixture.targetLocation "$manifest")
 target_refresh_location=$(jq -c .fixture.targetRefreshLocation "$manifest")
 arrival_tolerance=$(jq -r .fixture.arrivalDistanceTolerance "$manifest")
 arrival_timeout_seconds=$(jq -r .fixture.arrivalTimeoutSeconds "$manifest")
-bounds_location=$(jq -c .fixture.bounds.location "$manifest")
 bounds_extent=$(jq -c .fixture.bounds.extent "$manifest")
+expected_catalog_count=${P14_CATALOG_COUNT:-$(jq -r .catalog.count "$manifest")}
+expected_catalog_hash=${P14_CATALOG_HASH:-$(jq -r .catalog.sha256 "$manifest")}
 
 export DOTNET_ROOT="$engine_root/Engine/Binaries/ThirdParty/DotNet/10.0/mac-arm64"
 export PATH="$DOTNET_ROOT:$PATH"
@@ -133,12 +136,13 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$project_dir/Plugins"
-ditto "$repo_root/tests/unreal/MagiUnrealAXIFixture" "$project_dir"
+copy_tracked_tree() { local source=$1 destination=$2 relative; mkdir -p "$destination"; while IFS= read -r -d '' relative; do relative=${relative#"$source"/}; [[ -f "$repo_root/$source/$relative" && ! -L "$repo_root/$source/$relative" ]] || return 1; mkdir -p "$destination/$(dirname "$relative")"; cp -p "$repo_root/$source/$relative" "$destination/$relative"; done < <(git -C "$repo_root" ls-files -z -- "$source/"); }
+copy_tracked_tree tests/unreal/MagiUnrealAXIFixture "$project_dir"
 catalog_line=$(cargo run --locked --manifest-path "$repo_root/Cargo.toml" --bin xtask -- capabilities check)
 printf '%s\n' "$catalog_line" >"$work/catalog.txt"
 catalog_count=$(sed -E 's/^capability catalog: ([0-9]+) records.*/\1/' <<<"$catalog_line")
 catalog_hash=$(sed -E 's/.*sha256:([0-9a-f]{64})$/\1/' <<<"$catalog_line")
-[[ $catalog_count == "$(jq -r .catalog.count "$manifest")" && $catalog_hash == "$(jq -r .catalog.sha256 "$manifest")" ]]
+[[ "$catalog_count" == "$expected_catalog_count" && "$catalog_hash" == "$expected_catalog_hash" ]]
 if [[ -z "${P14_CLI_PATH:-}" ]]; then
   cargo build --release --locked --manifest-path "$repo_root/Cargo.toml" >"$work/rust-build.log" 2>&1
   cp "$repo_root/target/release/magi-unreal-axi" "$bin"
@@ -158,10 +162,14 @@ for arch in $(jq -r '.plugin.requiredArchitectures[]' "$manifest"); do grep -qw 
 [[ $(wc -w <<<"$arches" | tr -d ' ') == 2 ]]
 mkdir -p "$project_dir/Plugins/MagiUnrealAXI"
 ditto "$plugin_dir" "$project_dir/Plugins/MagiUnrealAXI"
+copied_plugin_binary=$(find "$project_dir/Plugins/MagiUnrealAXI" -type f -name "$(jq -r .plugin.binary "$manifest")" -print -quit); [[ -n "$copied_plugin_binary" && $(shasum -a 256 "$copied_plugin_binary" | cut -d' ' -f1) == "$artifact_hash" ]]
 "$engine_root/Engine/Build/BatchFiles/Mac/Build.sh" MagiUnrealAXIFixtureEditor Mac Development "$project" -WaitMutex >"$work/fixture-build.log" 2>&1
+/usr/bin/trash "$project_dir/Plugins/MagiUnrealAXI/Binaries"
+ditto "$plugin_dir/Binaries" "$project_dir/Plugins/MagiUnrealAXI/Binaries"
+post_build_plugin=$(find "$project_dir/Plugins/MagiUnrealAXI" -type f -name "$(jq -r .plugin.binary "$manifest")" -print -quit); [[ -n "$post_build_plugin" && $(shasum -a 256 "$post_build_plugin" | cut -d' ' -f1) == "${P14_PLUGIN_SHA256:-$artifact_hash}" ]]
 canonical_project=$(cd "$project_dir" && pwd -P)/$(basename "$project")
 project_hash=$(printf '%s' "$canonical_project" | shasum -a 256 | cut -d' ' -f1)
-runtime_root="$HOME/Library/Caches/magi-unreal-axi/$project_hash"
+runtime_root="$account_home/Library/Caches/magi-unreal-axi/$project_hash"
 find "$runtime_root" -mindepth 1 -maxdepth 1 -type d -exec /usr/bin/trash {} + 2>/dev/null || true
 
 start_editor author

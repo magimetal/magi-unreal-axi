@@ -17,6 +17,8 @@ agent=$(jq -r .fixture.agentKey "$manifest")
 input_key=$(jq -r .fixture.inputKey "$manifest")
 z_order=$(jq -r .fixture.zOrder "$manifest")
 content_root=$(jq -r .packageAssertions.contentRoot "$manifest")
+expected_catalog_count=${P13_CATALOG_COUNT:-$(jq -r .catalog.count "$manifest")}
+expected_catalog_hash=${P13_CATALOG_HASH:-$(jq -r .catalog.sha256 "$manifest")}
 [[ "$widget" == "/Game/$content_root/WBP_UIState" && "$host" == "/Game/$content_root/BP_UIStateHost" ]]
 engine_root=$(cd "${UE_ENGINE_ROOT:-/Users/Shared/Epic Games/UE_5.8}" && pwd -P)
 editor="$engine_root/Engine/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor"
@@ -28,7 +30,8 @@ jq -e '.phase == "P1.3" and .fixture.name == "ui-state-loop" and .fixture.agentK
 [[ $(plutil -extract Changelist raw -o - "$version_file") == "$(jq -r .engine.changelist "$manifest")" ]]
 [[ "$(plutil -extract MajorVersion raw -o - "$version_file").$(plutil -extract MinorVersion raw -o - "$version_file").$(plutil -extract PatchVersion raw -o - "$version_file")" == "$(jq -r .engine.version "$manifest")" ]]
 
-cache_root="$HOME/Library/Caches/magi-unreal-axi/p1.3/live"
+account_home=${P13_ACCOUNT_HOME:-$HOME}
+cache_root="$account_home/Library/Caches/magi-unreal-axi/p1.3/live"
 mkdir -p "$cache_root"
 work=$(mktemp -d "$cache_root/work.XXXXXX")
 if [[ -n "${P13_LIVE_EVIDENCE_DIR:-}" ]]; then evidence=$P13_LIVE_EVIDENCE_DIR; [[ ! -e "$evidence" ]]; else evidence=$(mktemp -d "$cache_root/evidence.XXXXXX"); fi
@@ -93,8 +96,9 @@ catalog_line=$(cargo run --locked --manifest-path "$repo_root/Cargo.toml" --bin 
 printf '%s\n' "$catalog_line" >"$work/catalog.txt"
 catalog_count=$(sed -E 's/^capability catalog: ([0-9]+) records.*/\1/' <<<"$catalog_line")
 catalog_hash=$(sed -E 's/.*sha256:([0-9a-f]{64})$/\1/' <<<"$catalog_line")
-[[ "$catalog_count" == "$(jq -r .catalog.count "$manifest")" && "$catalog_hash" == "$(jq -r .catalog.sha256 "$manifest")" ]]
-ditto "$repo_root/tests/unreal/MagiUnrealAXIFixture" "$project_dir"
+[[ "$catalog_count" == "$expected_catalog_count" && "$catalog_hash" == "$expected_catalog_hash" ]]
+copy_tracked_tree() { local source=$1 destination=$2 relative; mkdir -p "$destination"; while IFS= read -r -d '' relative; do relative=${relative#"$source"/}; [[ -f "$repo_root/$source/$relative" && ! -L "$repo_root/$source/$relative" ]] || return 1; mkdir -p "$destination/$(dirname "$relative")"; cp -p "$repo_root/$source/$relative" "$destination/$relative"; done < <(git -C "$repo_root" ls-files -z -- "$source/"); }
+copy_tracked_tree tests/unreal/MagiUnrealAXIFixture "$project_dir"
 if [[ -z "${P13_CLI_PATH:-}" ]]; then cargo build --release --locked --manifest-path "$repo_root/Cargo.toml" >"$work/rust-build.log" 2>&1; cp "$repo_root/target/release/magi-unreal-axi" "$bin"; fi
 chmod 0755 "$bin"; [[ -x "$bin" ]]
 cli_hash=$(shasum -a 256 "$bin" | cut -d' ' -f1); [[ -z "${P13_CLI_SHA256:-}" || "$cli_hash" == "$P13_CLI_SHA256" ]]
@@ -103,10 +107,14 @@ plugin_binary=$(find "$plugin_dir" -type f -name "$(jq -r .plugin.binary "$manif
 artifact_hash=$(shasum -a 256 "$plugin_binary" | cut -d' ' -f1); [[ -z "${P13_PLUGIN_SHA256:-}" || "$artifact_hash" == "$P13_PLUGIN_SHA256" ]]
 arches=$(lipo -archs "$plugin_binary"); for arch in $(jq -r '.plugin.requiredArchitectures[]' "$manifest"); do grep -qw "$arch" <<<"$arches"; done; [[ $(wc -w <<<"$arches" | tr -d ' ') == 2 ]]
 mkdir -p "$project_dir/Plugins/MagiUnrealAXI"; ditto "$plugin_dir" "$project_dir/Plugins/MagiUnrealAXI"
+copied_plugin_binary=$(find "$project_dir/Plugins/MagiUnrealAXI" -type f -name "$(jq -r .plugin.binary "$manifest")" -print -quit); [[ -n "$copied_plugin_binary" && $(shasum -a 256 "$copied_plugin_binary" | cut -d' ' -f1) == "$artifact_hash" ]]
 "$engine_root/Engine/Build/BatchFiles/Mac/Build.sh" MagiUnrealAXIFixtureEditor Mac Development "$project" -WaitMutex >"$work/fixture-build.log" 2>&1
+/usr/bin/trash "$project_dir/Plugins/MagiUnrealAXI/Binaries"
+ditto "$plugin_dir/Binaries" "$project_dir/Plugins/MagiUnrealAXI/Binaries"
+post_build_plugin=$(find "$project_dir/Plugins/MagiUnrealAXI" -type f -name "$(jq -r .plugin.binary "$manifest")" -print -quit); [[ -n "$post_build_plugin" && $(shasum -a 256 "$post_build_plugin" | cut -d' ' -f1) == "${P13_PLUGIN_SHA256:-$artifact_hash}" ]]
 canonical_project=$(cd "$project_dir" && pwd -P)/$(basename "$project")
 project_hash=$(printf '%s' "$canonical_project" | shasum -a 256 | cut -d' ' -f1)
-runtime_root="$HOME/Library/Caches/magi-unreal-axi/$project_hash"
+runtime_root="$account_home/Library/Caches/magi-unreal-axi/$project_hash"
 find "$runtime_root" -mindepth 1 -maxdepth 1 -type d -exec /usr/bin/trash {} + 2>/dev/null || true
 
 start_editor author

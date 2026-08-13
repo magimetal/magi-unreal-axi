@@ -2,7 +2,9 @@ use clap::Parser;
 use magi_unreal_axi::{capability::CATALOG_HASH, cli::Cli};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
-use std::{collections::HashSet, env, fs, path::Path, process::Command};
+use std::{
+    collections::HashSet, env, fs, os::unix::fs::PermissionsExt, path::Path, process::Command,
+};
 
 const RECORD_FIELDS: &[&str] = &[
     "id",
@@ -303,14 +305,47 @@ fn release(mode: &str) -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
     }
-    let status = Command::new("/usr/bin/tar")
+    let mut entries = vec![
+        package_name.clone(),
+        format!("{package_name}/skills"),
+        format!("{package_name}/skills/magi-unreal-axi"),
+        format!("{package_name}/docs"),
+        format!("{package_name}/magi-unreal-axi"),
+        format!("{package_name}/skills/magi-unreal-axi/SKILL.md"),
+        format!("{package_name}/README.md"),
+        format!("{package_name}/LICENSE"),
+        format!("{package_name}/THIRD_PARTY_NOTICES.md"),
+        format!("{package_name}/CHANGELOG.md"),
+        format!("{package_name}/Cargo.lock"),
+        format!("{package_name}/docs/engine-support.md"),
+        format!("{package_name}/docs/agent-evaluation.md"),
+    ];
+    entries.sort_unstable();
+    normalize_staging(&staging, &entries, &package_name)?;
+    let mut tar = Command::new("/usr/bin/tar");
+    tar.env("COPYFILE_DISABLE", "1")
         .args(["-czf"])
         .arg(&archive)
-        .args(["-C"])
+        .args([
+            "-b",
+            "1",
+            "--format=ustar",
+            "--uid=0",
+            "--gid=0",
+            "--numeric-owner",
+            "--uname=",
+            "--gname=",
+            "--no-xattrs",
+            "--no-acls",
+            "--no-fflags",
+            "--no-mac-metadata",
+            "--no-recursion",
+            "--options=gzip:!timestamp",
+            "-C",
+        ])
         .arg(&release_dir)
-        .arg(&package_name)
-        .status()
-        .map_err(|e| e.to_string())?;
+        .args(entries.iter().map(String::as_str));
+    let status = tar.status().map_err(|e| e.to_string())?;
     if !status.success() {
         return Err("tar failed".into());
     }
@@ -330,7 +365,36 @@ fn release(mode: &str) -> Result<(), String> {
     println!("release package: {} sha256:{digest}", archive.display());
     Ok(())
 }
-
+fn normalize_staging(staging: &Path, entries: &[String], package_name: &str) -> Result<(), String> {
+    for entry in entries {
+        let relative = entry
+            .strip_prefix(package_name)
+            .and_then(|path| path.strip_prefix('/'))
+            .unwrap_or("");
+        let path = if relative.is_empty() {
+            staging.to_owned()
+        } else {
+            staging.join(relative)
+        };
+        let mode = if path.is_dir() || relative == "magi-unreal-axi" {
+            0o755
+        } else {
+            0o644
+        };
+        fs::set_permissions(&path, fs::Permissions::from_mode(mode))
+            .map_err(|error| format!("normalize {}: {error}", path.display()))?;
+        let status = Command::new("/usr/bin/touch")
+            .env("TZ", "UTC")
+            .args(["-t", "197001010000.00"])
+            .arg(&path)
+            .status()
+            .map_err(|error| format!("normalize timestamp {}: {error}", path.display()))?;
+        if !status.success() {
+            return Err(format!("touch failed for {}", path.display()));
+        }
+    }
+    Ok(())
+}
 fn schema_types(schema: &Map<String, Value>) -> Vec<&str> {
     match schema.get("type") {
         Some(Value::String(value)) => vec![value],

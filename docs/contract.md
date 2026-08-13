@@ -1,6 +1,6 @@
 # Contract evidence ledger
 
-Certified cell: UE 5.8.1, changelist `56057345`, macOS arm64. Support certification is complete through P1.5.
+Certified cell: UE 5.8.1, changelist `56057345`, macOS arm64. Support certification is complete through P1.5; P1.6 kickoff is active and incomplete.
 
 ## Confirmed
 
@@ -20,7 +20,7 @@ Certified cell: UE 5.8.1, changelist `56057345`, macOS arm64. Support certificat
 - M7 release CLI proves exact side-effect-free pipeline previews, UBT pass/repeat normalization, deterministic automation listing, authoritative pass/zero-match reports, cook-only materialization from canonical `Saved/Cooked/Mac`, Blueprint-only packaged `.app` output, transactional managed destination replacement, structured build/cook/package failures, bounded logs, and durable local operation readback.
 - M8 proves preserving/idempotent Claude/Codex/OpenCode setup, compact Claude SessionStart context, representative agent jobs, checksum-bound allowlisted archive installation, ad-hoc codesign verification, its then-current full 27/27 automation inventory, save/restart persistence, and retained-evidence token non-disclosure. C++ source fixture is build/editor proof; Blueprint-only fixture is certified cook/package target.
 - Agent setup uses selected `HOME` only for Claude settings/skill, Codex skill, and OpenCode skill installation. M8 clean-install certification isolates that configuration HOME, then restores actual macOS account HOME for Unreal lifecycle because Unreal resolves user settings/runtime paths through macOS account APIs.
-- Current Rust baseline is Rust 1.88 with 55 library tests, 6 xtask tests, and 44 real-binary integration tests = 105 tests.
+- Current Rust baseline is Rust 1.88 with 56 library tests, 6 xtask tests, and 44 real-binary integration tests = 106 tests.
 
 ## Evidence
 
@@ -48,7 +48,7 @@ Certified cell: UE 5.8.1, changelist `56057345`, macOS arm64. Support certificat
 ## Remaining
 
 - M6–M8 have no acceptance unknowns for certified cell. Historical evaluated artifact hash remains distinct from release checksum in `SHA256SUMS`.
-- P1 remains active. P1.0–P1.5 are complete; P1.6 has not started.
+- P1 remains active. P1.0–P1.5 are complete; P1.6 kickoff is active and certification is incomplete. Support remains certified through P1.5 only.
 
 ## N/A
 
@@ -83,5 +83,7 @@ cargo run --locked --bin xtask -- release check
 ./tests/unreal/certify-p1.3.sh
 ./tests/unreal/certify-p1.4.sh
 ./tests/unreal/certify-p1.5.sh
+./tests/unreal/verify-p1.6-kickoff.sh
+P16_EXPECTED_ARTIFACT_SHA256=<trusted-sha256> ./tests/unreal/verify-p1.6-kickoff.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
 ./tests/unreal/certify-m8-live.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
 ```

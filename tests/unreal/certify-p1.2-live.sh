@@ -14,7 +14,8 @@ actual_version="$(plutil -extract MajorVersion raw -o - "$version_file").$(pluti
 [[ "$actual_version" == "$(jq -r .engine.version "$manifest")" ]]
 [[ "$(plutil -extract Changelist raw -o - "$version_file")" == "$(jq -r .engine.changelist "$manifest")" ]]
 
-cache_root="$HOME/Library/Caches/magi-unreal-axi/p1.2/live"
+account_home=${P12_ACCOUNT_HOME:-$HOME}
+cache_root="$account_home/Library/Caches/magi-unreal-axi/p1.2/live"
 mkdir -p "$cache_root"
 work=$(mktemp -d "$cache_root/work.XXXXXX")
 if [[ -n "${P12_LIVE_EVIDENCE_DIR:-}" ]]; then
@@ -35,6 +36,8 @@ tokens=()
 
 level=$(jq -r .packageAssertions.mapPackage "$manifest")
 content_root=$(jq -r .packageAssertions.contentRoot "$manifest")
+expected_catalog_count=${P12_CATALOG_COUNT:-$(jq -r .catalog.count "$manifest")}
+expected_catalog_hash=${P12_CATALOG_HASH:-$(jq -r .catalog.sha256 "$manifest")}
 interface_path=$(jq -r .fixture.paths.interface "$manifest")
 interface_id=$(jq -r .packageAssertions.interface.object "$manifest")
 target_path=$(jq -r .fixture.paths.targetBlueprint "$manifest")
@@ -115,7 +118,8 @@ trap cleanup EXIT
 
 cargo run --locked --manifest-path "$repo_root/Cargo.toml" --bin xtask -- capabilities check >"$work/catalog.txt"
 catalog_hash=$(sed -E 's/.*sha256:([0-9a-f]{64})$/\1/' "$work/catalog.txt")
-[[ "$catalog_hash" == "$(jq -r .catalog.sha256 "$manifest")" ]]
+catalog_count=$(sed -E 's/^capability catalog: ([0-9]+) records.*/\1/' "$work/catalog.txt")
+[[ "$catalog_count" == "$expected_catalog_count" && "$catalog_hash" == "$expected_catalog_hash" ]]
 if [[ -z "${P12_CLI_PATH:-}" ]]; then
   cargo build --release --locked --manifest-path "$repo_root/Cargo.toml" >"$work/rust-build.log" 2>&1
   cp "$repo_root/target/release/magi-unreal-axi" "$bin"
@@ -125,7 +129,8 @@ chmod 0755 "$bin"
 cli_hash=$(shasum -a 256 "$bin" | cut -d' ' -f1)
 [[ -z "${P12_CLI_SHA256:-}" || "$cli_hash" == "$P12_CLI_SHA256" ]]
 mkdir -p "$project_dir/Plugins"
-ditto "$repo_root/tests/unreal/MagiUnrealAXIFixture" "$project_dir"
+copy_tracked_tree() { local source=$1 destination=$2 relative; mkdir -p "$destination"; while IFS= read -r -d '' relative; do relative=${relative#"$source"/}; [[ -f "$repo_root/$source/$relative" && ! -L "$repo_root/$source/$relative" ]] || return 1; mkdir -p "$destination/$(dirname "$relative")"; cp -p "$repo_root/$source/$relative" "$destination/$relative"; done < <(git -C "$repo_root" ls-files -z -- "$source/"); }
+copy_tracked_tree tests/unreal/MagiUnrealAXIFixture "$project_dir"
 if [[ -z "${P12_PLUGIN_DIR:-}" ]]; then
   "$run_uat" BuildPlugin -Plugin="$repo_root/plugin/MagiUnrealAXI/MagiUnrealAXI.uplugin" -Package="$plugin_dir" -TargetPlatforms=Mac >"$work/plugin-build.log" 2>&1
 fi
@@ -135,10 +140,14 @@ plugin_binary=$(find "$plugin_dir" -type f -name "$(jq -r .plugin.binary "$manif
 plugin_hash=$(shasum -a 256 "$plugin_binary" | cut -d' ' -f1)
 [[ -z "${P12_PLUGIN_SHA256:-}" || "$plugin_hash" == "$P12_PLUGIN_SHA256" ]]
 ditto "$plugin_dir" "$project_dir/Plugins/MagiUnrealAXI"
+copied_plugin_binary=$(find "$project_dir/Plugins/MagiUnrealAXI" -type f -name "$(jq -r .plugin.binary "$manifest")" -print -quit); [[ -n "$copied_plugin_binary" && $(shasum -a 256 "$copied_plugin_binary" | cut -d' ' -f1) == "$plugin_hash" ]]
 "$engine_root/Engine/Build/BatchFiles/Mac/Build.sh" MagiUnrealAXIFixtureEditor Mac Development "$project" -WaitMutex >"$work/fixture-build.log" 2>&1
+/usr/bin/trash "$project_dir/Plugins/MagiUnrealAXI/Binaries"
+ditto "$plugin_dir/Binaries" "$project_dir/Plugins/MagiUnrealAXI/Binaries"
+post_build_plugin=$(find "$project_dir/Plugins/MagiUnrealAXI" -type f -name "$(jq -r .plugin.binary "$manifest")" -print -quit); [[ -n "$post_build_plugin" && $(shasum -a 256 "$post_build_plugin" | cut -d' ' -f1) == "${P12_PLUGIN_SHA256:-$plugin_hash}" ]]
 canonical_project=$(cd "$project_dir" && pwd -P)/$(basename "$project")
 project_hash=$(printf '%s' "$canonical_project" | shasum -a 256 | cut -d' ' -f1)
-runtime_root="$HOME/Library/Caches/magi-unreal-axi/$project_hash"
+runtime_root="$account_home/Library/Caches/magi-unreal-axi/$project_hash"
 find "$runtime_root" -mindepth 1 -maxdepth 1 -type d -exec /usr/bin/trash {} + 2>/dev/null || true
 
 validate_receipt() {

@@ -30,6 +30,10 @@ This directory is text-owned. Certification copies fixtures to canonical cache w
 - `p1.5-manifest.json`: P1.5 UE 5.8.1/56057345 native cell, 79-record catalog identity, owned seed identity, universal plugin arches, exact 38-test inventory, exact 10-warning regression baseline, nine certified operation cells, and Blueprint-only pipeline contract.
 - `certify-p1.5.sh`: integrated P1.5 gate covering Rust 55+6+44 gate, universal plugin package, `CompileAllBlueprints`, exact 38-test inventory with five zero-warning P1.5 tests and exact 10-warning regression map, live animation/reset proof, Blueprint-only `.app`, IoStore/Asset Registry/inventory/receipt/source-integrity/token checks, and retained evidence.
 - `certify-p1.5-live.sh`: P1.5 typed Character/Animation Blueprint authoring, exact Skeleton binding, save/restart/no-op lifecycle, verified receipts, and real PIE idle → moving → idle proof.
+- `p1.6-manifest.json`: kickoff traceability manifest pinning exact catalog, historical manifest hashes, 38-test/10-warning baseline, 45 P1 operations, bounded regular-file/directory archive policy, and five representative agent jobs (orientation plus four construction loops); certification remains incomplete.
+- `verify-p1.6-kickoff.sh`: fail-closed no-artifact manifest/catalog/partition/certified-cell verifier. Artifact mode requires externally trusted `P16_EXPECTED_ARTIFACT_SHA256`, then checks exact adjacent checksum, bounded type-safe archive inventory, codesign before execution, embedded catalog identity, byte-identical packaged sources, and retained evidence. It does not claim combined certification.
+
+- `evaluate-p1.6-agents.sh`: prepare, record, finalize, and portable-revalidate five sequential representative-agent jobs. Prepare requires trusted artifact/source/combined-tree identities and clean source bytes matching commit inventory. Finalization seals immutable inputs and full run inventory. Revalidation requires externally trusted run-inventory SHA plus downloaded combined evidence, snapshots inventory-bound run bytes before semantic checks, and verifies combined evidence tree/provenance without Git. Script never runs agents or Unreal. Each construction transcript must include exactly nine selected durable `operation view` readbacks: domain creation, compile, asset save, level save/open, post-restart no-op, second `play.stop` after final editor stop for offline journal recovery, cook, and package; each readback must exactly equal source receipt or process summary.
 - `certify-m8-live.sh`: verifies checksum binding, allowlisted archive inventory/path safety, arm64 binary and ad-hoc codesign, clean extraction/install, isolated-HOME agent setup/idempotency/context, plugin lifecycle, project build, full 27-test MagiUnrealAXI automation, editor read/mutation/save/restart persistence, uninstall, and retained-evidence token scan.
 
 Run current gates from repository root:
@@ -50,6 +54,20 @@ Run current gates from repository root:
 ./tests/unreal/certify-p1.4.sh
 ./tests/unreal/certify-p1.4-live.sh
 ./tests/unreal/certify-p1.5.sh
+./tests/unreal/verify-p1.6-kickoff.sh
+./tests/unreal/verify-p1.6-kickoff.sh --self-test
+# Artifact preflight after obtaining digest from trusted build/provenance:
+P16_EXPECTED_ARTIFACT_SHA256=<trusted-sha256> ./tests/unreal/verify-p1.6-kickoff.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
+```
+
+P1.6 agent harness usage:
+
+```sh
+P16_EXPECTED_ARTIFACT_SHA256=<trusted-sha256> P16_EXPECTED_SOURCE_COMMIT=<trusted-commit> P16_EXPECTED_COMBINED_EVIDENCE_TREE_SHA256=<trusted-sha256> ./tests/unreal/evaluate-p1.6-agents.sh prepare target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
+./tests/unreal/evaluate-p1.6-agents.sh job-context <run> unknown-project-orientation
+./tests/unreal/evaluate-p1.6-agents.sh record <run> <job> SESSION_JSONL
+./tests/unreal/evaluate-p1.6-agents.sh finalize <run>
+P16_EXPECTED_RUN_INVENTORY_SHA256=<trusted-sha256> ./tests/unreal/evaluate-p1.6-agents.sh revalidate <downloaded-run> <downloaded-combined-evidence>
 ```
 
 Latest M6 evidence: `~/Library/Caches/magi-unreal-axi/m6/native/evidence.T25zpG` and `~/Library/Caches/magi-unreal-axi/m6/live/evidence.m9J5dO`.
@@ -63,4 +81,4 @@ P1.1 integrated native/live evidence is retained under `~/Library/Caches/magi-un
 - P1.5 integrated evidence: latest successful path is recorded in `~/Library/Caches/magi-unreal-axi/p1.5/native/latest`.
 
 M8 exact-artifact evidence: latest successful path is recorded in `~/Library/Caches/magi-unreal-axi/m8/live/latest`; agent evaluation remains at `~/Library/Caches/magi-unreal-axi/m8/agent-evaluation/run.Gy9dcQ/evidence`.
-UE 5.8.1/macOS arm64 is certified through P1.5; P1.5 is complete, P1.6 has not started, P1 remains active, and M8 release and installation baseline remains certified.
+UE 5.8.1/macOS arm64 is certified through P1.5; P1.6 kickoff is active but certification is incomplete, P1 remains active, and support remains certified through P1.5 only.

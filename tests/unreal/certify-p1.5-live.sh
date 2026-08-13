@@ -7,8 +7,11 @@ engine_root=$(cd "${UE_ENGINE_ROOT:-/Users/Shared/Epic Games/UE_5.8}" && pwd -P)
 editor="$engine_root/Engine/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor"
 run_uat="$engine_root/Engine/Build/BatchFiles/RunUAT.sh"
 [[ -f "$manifest" && -x "$editor" && -x "$run_uat" ]]
+account_home=${P15_ACCOUNT_HOME:-$HOME}
+export DOTNET_ROOT="$engine_root/Engine/Binaries/ThirdParty/DotNet/10.0/mac-arm64"
+export PATH="$DOTNET_ROOT:$PATH"
 
-cache_root="$HOME/Library/Caches/magi-unreal-axi/p1.5/live"; mkdir -p "$cache_root"
+cache_root="$account_home/Library/Caches/magi-unreal-axi/p1.5/live"; mkdir -p "$cache_root"
 work=$(mktemp -d "$cache_root/work.XXXXXX")
 if [[ -n "${P15_LIVE_EVIDENCE_DIR:-}" ]]; then evidence=$P15_LIVE_EVIDENCE_DIR; [[ ! -e "$evidence" ]]; mkdir -p "$evidence"; else evidence=$(mktemp -d "$cache_root/evidence.XXXXXX"); fi
 project_dir="$work/project"; project="$project_dir/MagiUnrealAXIFixture.uproject"
@@ -18,7 +21,8 @@ pid=; session=; tokens=()
 level=$(jq -r .fixture.level "$manifest"); abp_path=$(jq -r .fixture.animationBlueprint "$manifest"); abp="$abp_path.$(basename "$abp_path")"
 character_path=$(jq -r .fixture.character "$manifest"); character="$character_path.$(basename "$character_path")"; character_class="${character}_C"
 skeleton=$(jq -r .fixture.skeleton "$manifest"); mesh=$(jq -r .fixture.skeletalMesh "$manifest"); idle=$(jq -r .fixture.idle "$manifest"); moving=$(jq -r .fixture.moving "$manifest")
-export DOTNET_ROOT="$engine_root/Engine/Binaries/ThirdParty/DotNet/10.0/mac-arm64" PATH="$DOTNET_ROOT:$PATH"
+expected_catalog_count=${P15_CATALOG_COUNT:-$(jq -r .catalog.count "$manifest")}
+expected_catalog_hash=${P15_CATALOG_HASH:-$(jq -r .catalog.sha256 "$manifest")}
 
 editor_alive(){ kill -0 "$1" 2>/dev/null && [[ $(ps -p "$1" -o stat= 2>/dev/null) != Z* ]]; }
 axi(){ "$bin" --project "$project" --engine "$engine_root" --timeout 240 --format json "$@"; }
@@ -31,14 +35,19 @@ start_editor(){ local label=$1; "$editor" "$project" -unattended -nop4 -nosplash
 scan(){ local root=$1 secret status; [[ -z "$(find "$root" -type f \( -name token -o -name bridge-v1.json \) -print -quit)" ]]; set +e; grep -R -I -E -q 'Authorization:[[:space:]]*Bearer[[:space:]]+[A-Za-z0-9._-]+' "$root"; status=$?; set -e; [[ $status == 1 ]]; for secret in "${tokens[@]}"; do set +e; grep -R -I -Fq -- "$secret" "$root"; status=$?; set -e; [[ $status == 1 ]]; done; }
 cleanup(){ local status=$?; trap - EXIT; stop_editor || status=1; if [[ $status != 0 ]]; then echo "P1.5 live certification failed; work=$work evidence=$evidence" >&2; exit "$status"; fi; [[ ${KEEP_P15_WORK:-0} == 1 ]] || /usr/bin/trash "$work" 2>/dev/null || true; }; trap cleanup EXIT
 
-mkdir -p "$project_dir/Plugins"; ditto "$repo_root/tests/unreal/MagiUnrealAXIFixture" "$project_dir"; ditto "$repo_root/tests/unreal/MagiP15AnimationSeed/Content" "$project_dir/Content"
+copy_tracked_tree() { local source=$1 destination=$2 relative; mkdir -p "$destination"; while IFS= read -r -d '' relative; do relative=${relative#"$source"/}; [[ -f "$repo_root/$source/$relative" && ! -L "$repo_root/$source/$relative" ]] || return 1; mkdir -p "$destination/$(dirname "$relative")"; cp -p "$repo_root/$source/$relative" "$destination/$relative"; done < <(git -C "$repo_root" ls-files -z -- "$source/"); }
+mkdir -p "$project_dir/Plugins"; copy_tracked_tree tests/unreal/MagiUnrealAXIFixture "$project_dir"; copy_tracked_tree tests/unreal/MagiP15AnimationSeed/Content "$project_dir/Content"
 if [[ -z "${P15_CLI_PATH:-}" ]]; then cargo build --release --locked --manifest-path "$repo_root/Cargo.toml" >"$work/rust-build.log" 2>&1; cp "$repo_root/target/release/magi-unreal-axi" "$bin"; fi
 chmod 0755 "$bin"; cli_hash=$(shasum -a 256 "$bin"|cut -d' ' -f1); [[ -z "${P15_CLI_SHA256:-}" || $cli_hash == "$P15_CLI_SHA256" ]]
 if [[ -z "${P15_PLUGIN_DIR:-}" ]]; then "$run_uat" BuildPlugin -Plugin="$repo_root/plugin/MagiUnrealAXI/MagiUnrealAXI.uplugin" -Package="$plugin_dir" -TargetPlatforms=Mac >"$work/plugin-build.log" 2>&1; fi
 plugin_binary=$(find "$plugin_dir" -type f -name "$(jq -r .plugin.binary "$manifest")" -print -quit); [[ -n "$plugin_binary" ]]; artifact=$(shasum -a 256 "$plugin_binary"|cut -d' ' -f1); [[ -z "${P15_PLUGIN_SHA256:-}" || $artifact == "$P15_PLUGIN_SHA256" ]]
-ditto "$plugin_dir" "$project_dir/Plugins/MagiUnrealAXI"; "$engine_root/Engine/Build/BatchFiles/Mac/Build.sh" MagiUnrealAXIFixtureEditor Mac Development "$project" -WaitMutex >"$work/fixture-build.log" 2>&1
-canonical_project=$(cd "$project_dir" && pwd -P)/$(basename "$project"); project_hash=$(printf %s "$canonical_project"|shasum -a 256|cut -d' ' -f1); runtime_root="$HOME/Library/Caches/magi-unreal-axi/$project_hash"; find "$runtime_root" -mindepth 1 -maxdepth 1 -type d -exec /usr/bin/trash {} + 2>/dev/null || true
-catalog_line=$(cargo run --locked --manifest-path "$repo_root/Cargo.toml" --bin xtask -- capabilities check); catalog_hash=$(sed -E 's/.*sha256:([0-9a-f]{64})$/\1/' <<<"$catalog_line"); [[ $catalog_hash == "$(jq -r .catalog.sha256 "$manifest")" ]]
+ditto "$plugin_dir" "$project_dir/Plugins/MagiUnrealAXI"; copied_plugin_binary=$(find "$project_dir/Plugins/MagiUnrealAXI" -type f -name "$(jq -r .plugin.binary "$manifest")" -print -quit); [[ -n "$copied_plugin_binary" && $(shasum -a 256 "$copied_plugin_binary" | cut -d' ' -f1) == "$artifact" ]]; "$engine_root/Engine/Build/BatchFiles/Mac/Build.sh" MagiUnrealAXIFixtureEditor Mac Development "$project" -WaitMutex >"$work/fixture-build.log" 2>&1
+/usr/bin/trash "$project_dir/Plugins/MagiUnrealAXI/Binaries"
+ditto "$plugin_dir/Binaries" "$project_dir/Plugins/MagiUnrealAXI/Binaries"
+post_build_plugin=$(find "$project_dir/Plugins/MagiUnrealAXI" -type f -name "$(jq -r .plugin.binary "$manifest")" -print -quit); [[ -n "$post_build_plugin" && $(shasum -a 256 "$post_build_plugin" | cut -d' ' -f1) == "${P15_PLUGIN_SHA256:-$artifact}" ]]
+canonical_project=$(cd "$project_dir" && pwd -P)/$(basename "$project"); project_hash=$(printf %s "$canonical_project"|shasum -a 256|cut -d' ' -f1)
+runtime_root="$account_home/Library/Caches/magi-unreal-axi/$project_hash"; find "$runtime_root" -mindepth 1 -maxdepth 1 -type d -exec /usr/bin/trash {} + 2>/dev/null || true
+catalog_line=$(cargo run --locked --manifest-path "$repo_root/Cargo.toml" --bin xtask -- capabilities check); catalog_hash=$(sed -E 's/.*sha256:([0-9a-f]{64})$/\1/' <<<"$catalog_line"); catalog_count=$(sed -E 's/^capability catalog: ([0-9]+) records.*/\1/' <<<"$catalog_line"); [[ "$catalog_count" == "$expected_catalog_count" && "$catalog_hash" == "$expected_catalog_hash" ]]
 
 start_editor author
 retry "$work/level-create.json" level create --path "$level"; receipt "$work/level-create.json"
@@ -61,7 +70,7 @@ retry "$work/noop-abp-create.json" capability execute animation_blueprint.create
 noop "$work/noop-variable.json" animation.variable_ensure "$abp_rev" "$variable"; noop "$work/noop-machine.json" animation.state_machine_ensure "$abp_rev" "$machine"; noop "$work/noop-state-idle.json" animation.state_ensure "$abp_rev" "$state_idle"; noop "$work/noop-state-moving.json" animation.state_ensure "$abp_rev" "$state_moving"; noop "$work/noop-transition-out.json" animation.transition_ensure "$abp_rev" "$transition_out"; noop "$work/noop-transition-back.json" animation.transition_ensure "$abp_rev" "$transition_back"; noop "$work/noop-character-configure.json" animation.character_configure "$character_rev" "$configure"
 stop_editor
 
-if [[ -n "$package_project_dir" ]]; then [[ -f "$package_project_dir/MagiUnrealAXIPackageFixture.uproject" && ! -e "$package_project_dir/Content" ]]; mkdir -p "$package_project_dir/Content"; ditto "$project_dir/Content/MagiP15" "$package_project_dir/Content/MagiP15"; ditto "$project_dir/Content/MagiP15Seed" "$package_project_dir/Content/MagiP15Seed"; for root in MagiP15 MagiP15Seed; do (cd "$project_dir/Content/$root" && find . -type f -print|LC_ALL=C sort|while read -r f; do printf '%s  %s\n' "$(shasum -a 256 "$f"|cut -d' ' -f1)" "$f"; done) >"$work/source-$root.txt"; (cd "$package_project_dir/Content/$root" && find . -type f -print|LC_ALL=C sort|while read -r f; do printf '%s  %s\n' "$(shasum -a 256 "$f"|cut -d' ' -f1)" "$f"; done) >"$work/destination-$root.txt"; diff -u "$work/source-$root.txt" "$work/destination-$root.txt"; done; package_claim=Content/MagiP15+Content/MagiP15Seed; else package_claim=not-requested; fi
+if [[ -n "$package_project_dir" ]]; then [[ -f "$package_project_dir/MagiUnrealAXIPackageFixture.uproject" ]]; mkdir -p "$package_project_dir/Content"; for root in MagiP15 MagiP15Seed; do [[ ! -e "$package_project_dir/Content/$root" ]]; ditto "$project_dir/Content/$root" "$package_project_dir/Content/$root"; (cd "$project_dir/Content/$root" && find . -type f -print|LC_ALL=C sort|while read -r f; do printf '%s  %s\n' "$(shasum -a 256 "$f"|cut -d' ' -f1)" "$f"; done) >"$work/source-$root.txt"; (cd "$package_project_dir/Content/$root" && find . -type f -print|LC_ALL=C sort|while read -r f; do printf '%s  %s\n' "$(shasum -a 256 "$f"|cut -d' ' -f1)" "$f"; done) >"$work/destination-$root.txt"; diff -u "$work/source-$root.txt" "$work/destination-$root.txt"; done; package_claim=Content/MagiP15+Content/MagiP15Seed; else package_claim=not-requested; fi
 cp "$work"/*.json "$work"/source-*.txt "$work"/destination-*.txt "$evidence/" 2>/dev/null || true; scan "$work"; scan "$evidence"; [[ -z "${P15_WORKSPACE:-}" ]] || scan "$P15_WORKSPACE"
 printf 'phase=P1.5\ncatalogHash=%s\nartifactSha256=%s\ncliSha256=%s\nfixture=animation-state-loop\nauthoring=typed-public-cli\nrestart=exact-graph-character-oracles\nnoops=8/8-preserved-revisions\npackage=%s\ntokenScan=passed\n' "$catalog_hash" "$artifact" "$cli_hash" "$package_claim" | tee "$evidence/summary.txt"
 [[ -z "${P15_LIVE_EVIDENCE_DIR:-}" ]] && printf '%s\n' "$evidence" >"$cache_root/latest"
