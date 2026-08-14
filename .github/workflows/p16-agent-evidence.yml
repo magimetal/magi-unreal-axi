@@ -42,8 +42,11 @@ jobs:
       P16_EXPECTED_RUN_INVENTORY_SHA256: ${{ vars.P16_EXPECTED_RUN_INVENTORY_SHA256 }}
       P16_EXPECTED_COMBINED_EVIDENCE_TREE_SHA256: ${{ vars.P16_EXPECTED_COMBINED_EVIDENCE_TREE_SHA256 }}
       TRUSTED_SOURCE: ${{ github.workspace }}/trusted-source
-      P16_EVIDENCE_ROOT: ${{ runner.temp }}/p16-agent-evidence
     steps:
+      - name: Initialize runner-temporary evidence path
+        run: |
+          test ! -e "$RUNNER_TEMP/p16-agent-evidence"
+          printf 'P16_EVIDENCE_ROOT=%s\n' "$RUNNER_TEMP/p16-agent-evidence" >> "$GITHUB_ENV"
       - name: Checkout exact trusted source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

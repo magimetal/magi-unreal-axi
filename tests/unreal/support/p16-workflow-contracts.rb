@@ -52,11 +52,12 @@ module P16WorkflowContracts
       next if action.start_with?("./")
       fail! "unpinned action #{action}@#{ref}" unless ref.match?(/\A[0-9a-f]{40}\z/)
     end
-    require_text("certification", "runs-on: [self-hosted, macOS, arm64, unreal-5.8.1]", "environment: p16-certification", "P16_EVIDENCE_PATH_FILE=\"$evidence_path_file\"", "name: p16-release-archive", "name: p16-combined-evidence")
-    require_text("agentEvidence", "environment: p16-agent-evidence", "P16_AGENT_EVIDENCE_ROOT", "materialize_verified", "name: p16-agent-run")
-    require_text("independentReview", "runs-on: [self-hosted, macOS, arm64, p16-review]", "environment: p16-independent-review", "P16_INDEPENDENT_REVIEW_ROOT", "name: p16-independent-review")
-    require_text("assembly", "environment: p16-release-gate", *CLOSURE.fetch("assemblyInputs").map { |input| "#{input}:" }, *CLOSURE.fetch("assemblyArtifacts").map { |artifact| "name: #{artifact}" })
-    require_text("release", "environment: p16-release-gate", "dtolnay/rust-toolchain@#{ACTIONS.fetch("rustToolchain")}", "taiki-e/install-action@#{ACTIONS.fetch("installAction")}", "gh api --method POST", "-F draft=true", "-F draft=false")
+    fail! "runner context used in job-level env" if combined.match?(/^ {6}[A-Z][A-Z0-9_]*:.*\$\{\{\s*runner\./)
+    require_text("certification", "runs-on: [self-hosted, macOS, arm64, unreal-5.8.1]", "environment: p16-certification", "$RUNNER_TEMP/p16-certification", "P16_EVIDENCE_PATH_FILE=\"$evidence_path_file\"", "name: p16-release-archive", "name: p16-combined-evidence")
+    require_text("agentEvidence", "environment: p16-agent-evidence", "P16_AGENT_EVIDENCE_ROOT", "$RUNNER_TEMP/p16-agent-evidence", "materialize_verified", "name: p16-agent-run")
+    require_text("independentReview", "runs-on: [self-hosted, macOS, arm64, p16-review]", "environment: p16-independent-review", "P16_INDEPENDENT_REVIEW_ROOT", "$RUNNER_TEMP/p16-independent-review", "name: p16-independent-review")
+    require_text("assembly", "environment: p16-release-gate", "$RUNNER_TEMP/p16-evidence", *CLOSURE.fetch("assemblyInputs").map { |input| "#{input}:" }, *CLOSURE.fetch("assemblyArtifacts").map { |artifact| "name: #{artifact}" })
+    require_text("release", "environment: p16-release-gate", "$RUNNER_TEMP/release-evidence", "$RUNNER_TEMP/validated-release", "dtolnay/rust-toolchain@#{ACTIONS.fetch("rustToolchain")}", "taiki-e/install-action@#{ACTIONS.fetch("installAction")}", "gh api --method POST", "-F draft=true", "-F draft=false")
     fail! "protected environments mismatch" unless CLOSURE.fetch("protectedEnvironments").sort == %w[p16-agent-evidence p16-certification p16-independent-review p16-release-gate].sort
     true
   end

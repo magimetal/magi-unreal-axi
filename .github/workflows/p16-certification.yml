@@ -34,8 +34,11 @@ jobs:
       WORKFLOW_REF: ${{ github.ref }}
       WORKFLOW_SHA: ${{ github.sha }}
       TRUSTED_SOURCE: ${{ github.workspace }}/trusted-source
-      P16_EVIDENCE_ROOT: ${{ runner.temp }}/p16-certification
     steps:
+      - name: Initialize runner-temporary evidence path
+        run: |
+          test ! -e "$RUNNER_TEMP/p16-certification"
+          printf 'P16_EVIDENCE_ROOT=%s\n' "$RUNNER_TEMP/p16-certification" >> "$GITHUB_ENV"
       - name: Checkout exact trusted source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

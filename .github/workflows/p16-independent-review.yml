@@ -34,8 +34,11 @@ jobs:
       P16_EXPECTED_REVIEW_SHA256: ${{ vars.P16_EXPECTED_REVIEW_SHA256 }}
       P16_EXPECTED_REVIEWER_ID: ${{ vars.P16_EXPECTED_REVIEWER_ID }}
       TRUSTED_SOURCE: ${{ github.workspace }}/trusted-source
-      P16_REVIEW_ROOT: ${{ runner.temp }}/p16-independent-review
     steps:
+      - name: Initialize runner-temporary review path
+        run: |
+          test ! -e "$RUNNER_TEMP/p16-independent-review"
+          printf 'P16_REVIEW_ROOT=%s\n' "$RUNNER_TEMP/p16-independent-review" >> "$GITHUB_ENV"
       - name: Checkout exact trusted source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

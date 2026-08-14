@@ -83,10 +83,13 @@ jobs:
       P16_EXPECTED_REVIEW_SHA256: ${{ vars.P16_EXPECTED_REVIEW_SHA256 }}
       P16_EXPECTED_REVIEWER_ID: ${{ vars.P16_EXPECTED_REVIEWER_ID }}
       TRUSTED_SOURCE: ${{ github.workspace }}/trusted-source
-      EVIDENCE_ROOT: ${{ runner.temp }}/release-evidence
       WORKFLOW_REF: ${{ github.ref }}
       WORKFLOW_SHA: ${{ github.sha }}
     steps:
+      - name: Initialize runner-temporary evidence path
+        run: |
+          test ! -e "$RUNNER_TEMP/release-evidence"
+          printf 'EVIDENCE_ROOT=%s\n' "$RUNNER_TEMP/release-evidence" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ inputs.release_tag }}
@@ -176,8 +179,11 @@ jobs:
       EXPECTED_SOURCE_COMMIT: ${{ vars.P16_EXPECTED_SOURCE_COMMIT }}
       WORKFLOW_REF: ${{ github.ref }}
       WORKFLOW_SHA: ${{ github.sha }}
-      VALIDATED_ROOT: ${{ runner.temp }}/validated-release
     steps:
+      - name: Initialize runner-temporary validated path
+        run: |
+          test ! -e "$RUNNER_TEMP/validated-release"
+          printf 'VALIDATED_ROOT=%s\n' "$RUNNER_TEMP/validated-release" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ inputs.release_tag }}

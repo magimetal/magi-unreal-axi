@@ -51,10 +51,13 @@ jobs:
       REVIEW_RUN_ID: ${{ inputs.review_run_id }}
       CERTIFICATION_TAG: ${{ inputs.certification_tag }}
       TRUSTED_SOURCE: ${{ github.workspace }}/trusted-source
-      EVIDENCE_ROOT: ${{ runner.temp }}/p16-evidence
       WORKFLOW_REF: ${{ github.ref }}
       WORKFLOW_SHA: ${{ github.sha }}
     steps:
+      - name: Initialize runner-temporary evidence path
+        run: |
+          test ! -e "$RUNNER_TEMP/p16-evidence"
+          printf 'EVIDENCE_ROOT=%s\n' "$RUNNER_TEMP/p16-evidence" >> "$GITHUB_ENV"
       - name: Validate dispatch, run IDs, and protected trust roots
         run: |
           set -euo pipefail
