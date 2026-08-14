@@ -199,6 +199,7 @@ module P16Provenance
   end
 end
 
+if $PROGRAM_NAME == __FILE__
 begin
   case ARGV[0]
   when "inventory" then raise "usage" unless ARGV.length == 3; File.binwrite(ARGV[2], P16Provenance.inventory(File.realpath(ARGV[1])))
@@ -211,4 +212,5 @@ begin
 rescue StandardError => error
   warn "p16-provenance: #{error.message}"
   exit 1
+end
 end

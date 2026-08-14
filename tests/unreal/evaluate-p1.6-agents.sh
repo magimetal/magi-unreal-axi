@@ -217,12 +217,13 @@ plugin_valid(){
   count=$(find "$directory/project/Plugins/MagiUnrealAXI" -type f -name libUnrealEditor-MagiUnrealAXI.dylib | wc -l | tr -d ' '); [[ $count == 1 ]] || return 1
   plugin=$(find "$directory/project/Plugins/MagiUnrealAXI" -type f -name libUnrealEditor-MagiUnrealAXI.dylib -print -quit)
   [[ -f "$plugin" && ! -L "$plugin" ]] || return 1; expected=$(cat "$directory/plugin.sha256"); [[ $expected =~ ^[0-9a-f]{64}$ && $(hash "$plugin") == "$expected" ]] || return 1
-  arches=$(lipo -archs "$plugin"); grep -qw arm64 <<<"$arches" || return 1
+  arches=$(lipo -archs "$plugin"); grep -Eqw 'arm64' <<<"$arches" || return 1
   current=$(mktemp); plugin_inventory "$directory/project/Plugins/MagiUnrealAXI" "$current"; cmp -s "$current" "$directory/plugin-tree.sha256"; status=$?; trash "$current" >/dev/null 2>&1 || true; return $status
 }
 
 case $mode in
   --self-test|self-test)
+    ruby "$repo_root/tests/unreal/support/p16-agent-lifecycle-fixtures.rb" || fail "hermetic lifecycle fixture self-test"
     temporary=$(mktemp -d); temporary=$(cd "$temporary" && pwd -P); trap 'trash "$temporary" >/dev/null 2>&1 || true' EXIT
     mkdir -p "$temporary/bin" "$temporary/project"; printf '#!/usr/bin/env bash\nprintf "{}\\n"\n' >"$temporary/bin/dummy"; chmod +x "$temporary/bin/dummy"
     write_wrapper "$temporary" "$temporary/bin/dummy" "$temporary/ledger.jsonl"

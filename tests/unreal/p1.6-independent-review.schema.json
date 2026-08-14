@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "magi-unreal-axi/p1.6-independent-review/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["findings", "reviewerId", "schema", "status", "subject"],
+  "properties": {
+    "findings": {"const": []},
+    "reviewerId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"},
+    "schema": {"const": "magi-unreal-axi/p1.6-independent-review/v1"},
+    "status": {"const": "passed"},
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactSha256", "binarySha256", "combinedEvidenceTreeSha256", "combinedProvenanceSha256", "pluginSha256", "runInventorySha256", "sourceCommit", "sourceTree"],
+      "properties": {
+        "artifactSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "binarySha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "combinedEvidenceTreeSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "combinedProvenanceSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "pluginSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "runInventorySha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "sourceCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "sourceTree": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    }
+  }
+}

@@ -1,0 +1,105 @@
+name: p16-certification-producer
+
+on:
+  workflow_dispatch:
+    inputs:
+      certification_tag:
+        description: Exact immutable v* certification tag
+        required: true
+        type: string
+      certification_ref:
+        description: Exact tag ref; must equal refs/tags/certification_tag
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: p16-certification-${{ inputs.certification_tag }}
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    runs-on: [self-hosted, macOS, arm64, unreal-5.8.1]
+    environment: p16-certification
+    permissions:
+      contents: read
+    env:
+      CERTIFICATION_TAG: ${{ inputs.certification_tag }}
+      CERTIFICATION_REF: ${{ inputs.certification_ref }}
+      P16_EXPECTED_ARTIFACT_SHA256: ${{ vars.P16_EXPECTED_ARTIFACT_SHA256 }}
+      P16_EXPECTED_SOURCE_COMMIT: ${{ vars.P16_EXPECTED_SOURCE_COMMIT }}
+      WORKFLOW_REF: ${{ github.ref }}
+      WORKFLOW_SHA: ${{ github.sha }}
+      TRUSTED_SOURCE: ${{ github.workspace }}/trusted-source
+      P16_EVIDENCE_ROOT: ${{ runner.temp }}/p16-certification
+    steps:
+      - name: Checkout exact trusted source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ vars.P16_EXPECTED_SOURCE_COMMIT }}
+          fetch-depth: 0
+          path: trusted-source
+      - name: Validate exact tag, commit, trust roots, and clean source
+        run: |
+          set -euo pipefail
+          [[ "$CERTIFICATION_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$CERTIFICATION_REF" = "refs/tags/$CERTIFICATION_TAG"
+          test "$WORKFLOW_REF" = "$CERTIFICATION_REF"
+          [[ "$P16_EXPECTED_SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$P16_EXPECTED_ARTIFACT_SHA256" =~ ^[0-9a-fA-F]{64}$ ]]
+          test "$(git -C "$TRUSTED_SOURCE" rev-parse HEAD)" = "$P16_EXPECTED_SOURCE_COMMIT"
+          test "$(git -C "$TRUSTED_SOURCE" rev-parse "refs/tags/$CERTIFICATION_TAG^{commit}")" = "$P16_EXPECTED_SOURCE_COMMIT"
+          test -z "$(git -C "$TRUSTED_SOURCE" status --porcelain=v1 --untracked-files=all)"
+          test "$CERTIFICATION_TAG" = "v$(sed -n 's/^version = \"\(.*\)\"/\1/p' "$TRUSTED_SOURCE/Cargo.toml" | head -1)"
+      - name: Build and sign exact binary once
+        working-directory: trusted-source
+        run: |
+          set -euo pipefail
+          cargo build --release --locked
+          codesign --force --sign - --timestamp=none target/release/magi-unreal-axi
+          codesign --verify --strict target/release/magi-unreal-axi
+      - name: Package exact signed archive once
+        working-directory: trusted-source
+        run: cargo run --locked --bin xtask -- release package
+      - name: Verify kickoff and run combined certification on same archive bytes
+        working-directory: trusted-source
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          archive="target/release/magi-unreal-axi-${version}-macos-arm64.tar.gz"
+          test -f "$archive" && test -f target/release/SHA256SUMS
+          actual=$(shasum -a 256 "$archive" | awk '{print tolower($1)}')
+          test "$actual" = "$(printf '%s' "$P16_EXPECTED_ARTIFACT_SHA256" | tr '[:upper:]' '[:lower:]')"
+          P16_EXPECTED_ARTIFACT_SHA256="$actual" ./tests/unreal/verify-p1.6-kickoff.sh "$archive"
+          mkdir -p "$P16_EVIDENCE_ROOT"
+          evidence_path_file="$P16_EVIDENCE_ROOT/combined-path"
+          test ! -e "$evidence_path_file"
+          P16_EVIDENCE_PATH_FILE="$evidence_path_file" P16_EXPECTED_ARTIFACT_SHA256="$actual" P16_EXPECTED_SOURCE_COMMIT="$P16_EXPECTED_SOURCE_COMMIT" ./tests/unreal/certify-p1.6.sh "$archive"
+          evidence=$(cat "$evidence_path_file")
+          test -d "$evidence" && test -f "$evidence/evidence-tree.json"
+          expected_tree=$(jq -r '.treeSha256' "$evidence/evidence-tree.json")
+          ditto "$evidence" "$P16_EVIDENCE_ROOT/combined"
+          ruby ./tests/unreal/support/p16-evidence.rb verify "$P16_EVIDENCE_ROOT/combined" "$P16_EVIDENCE_ROOT/combined/evidence-tree.json" >/dev/null
+          test "$(jq -r '.treeSha256' "$P16_EVIDENCE_ROOT/combined/evidence-tree.json")" = "$expected_tree"
+          cp -p "$archive" "$P16_EVIDENCE_ROOT/"
+          cp -p target/release/SHA256SUMS "$P16_EVIDENCE_ROOT/"
+          test "$(find "$P16_EVIDENCE_ROOT" -type f | wc -l | tr -d ' ')" -ge 4
+      - name: Upload release archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: p16-release-archive
+          path: |
+            ${{ runner.temp }}/p16-certification/magi-unreal-axi-*.tar.gz
+            ${{ runner.temp }}/p16-certification/SHA256SUMS
+          if-no-files-found: error
+          include-hidden-files: true
+      - name: Upload combined evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: p16-combined-evidence
+          path: ${{ runner.temp }}/p16-certification/combined
+          if-no-files-found: error
+          include-hidden-files: true

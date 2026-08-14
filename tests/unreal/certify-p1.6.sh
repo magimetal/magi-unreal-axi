@@ -394,11 +394,7 @@ ditto "$work/package-inventory" "$evidence/package-inventory"
 ditto "$work/registry-dump" "$evidence/registry-dump"
 for n in 2 3 4 5; do ditto "$work/loop-$n" "$evidence/loop-$n"; cp "$work/loop-$n.log" "$evidence/"; done
 if find "$evidence" -type f \( -name token -o -name bridge-v1.json \) -print -quit | grep -q .; then fail "runtime material retained in evidence"; fi
-set +e
-grep -R -I -E -q 'Authorization:[[:space:]]*Bearer[[:space:]]+[A-Za-z0-9._-]+' "$evidence"
-evidence_secret_status=$?
-set -e
-[[ $evidence_secret_status == 1 ]]
+ruby -I "$repo_root/tests/unreal/support" -e 'require "find"; require "p16-revalidate"; root=ARGV.fetch(0); abort "credential retained in combined evidence" if Find.find(root).select { |path| P16Revalidate.regular(path) }.any? { |path| P16Revalidate.retained_credential?(path) }' "$evidence" || fail "combined evidence credential scan"
 for n in 2 3 4 5; do grep -Fxq 'tokenScan=passed' "$evidence/loop-$n/summary.txt"; done
 identity_file="$work/provenance-identities.json"
 jq -n --arg artifact "$(printf '%s' "$P16_EXPECTED_ARTIFACT_SHA256" | tr '[:upper:]' '[:lower:]')" --arg binary "$cli_hash" --arg plugin "$plugin_hash" --arg catalog "$catalog_hash" --arg manifest "$(shasum -a 256 "$manifest" | cut -d' ' -f1)" '{artifactSha256:$artifact,binarySha256:$binary,pluginSha256:$plugin,catalogSha256:$catalog,manifestSha256:$manifest}' >"$identity_file"
@@ -414,4 +410,7 @@ ruby "$repo_root/tests/unreal/support/p16-evidence.rb" verify "$evidence" "$evid
 latest_tmp=$(mktemp "$cache/latest.XXXXXX")
 printf '%s\n' "$evidence" >"$latest_tmp"
 mv -f "$latest_tmp" "$cache/latest"
+if [[ -n ${P16_EVIDENCE_PATH_FILE:-} ]]; then
+  ruby "$repo_root/tests/unreal/support/p16-evidence-path.rb" write "$evidence" "$P16_EVIDENCE_PATH_FILE" || fail "exact evidence path output"
+fi
 echo "P1.6 combined core: PASS (active; agentJobs/review/docs remain; evidence retained at $evidence)"

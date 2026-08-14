@@ -15,7 +15,13 @@ codesign --verify --strict --verbose=2 "$HOME/.local/bin/magi-unreal-axi"
 magi-unreal-axi --version
 ```
 
-Release binaries use ad-hoc macOS signing (`codesign --sign -`) for integrity verification. They are not Developer ID signed or Apple-notarized. Tagged GitHub workflow builds archive once, records SHA-256, sends that exact archive to approved self-hosted UE 5.8.1/macOS arm64 live certification, then publishes only after that job succeeds. GitHub build provenance is attached at publish time.
+Release binaries use ad-hoc macOS signing (`codesign --sign -`) for integrity verification. They are not Developer ID signed or Apple-notarized. Release publication is manually dispatched after external certification artifacts exist. Protected P1.6 closure gate revalidates exact archive, combined evidence, five-job agent run, source provenance, and independent review against externally trusted identities, then publishes only validated bytes. GitHub build provenance is not emitted by publication workflow; build provenance must accompany external certification inputs.
+
+P1.6 source producers are separate manual workflows: `.github/workflows/p16-certification.yml` builds/signs/packages once and emits only `p16-release-archive` and `p16-combined-evidence`; `.github/workflows/p16-agent-evidence.yml` accepts only a finalized local run under protected `P16_AGENT_EVIDENCE_ROOT`, materializes and revalidates exact inventory-bound upload bytes, and never runs agents; `.github/workflows/p16-independent-review.yml` ingests canonical review JSON under protected `P16_INDEPENDENT_REVIEW_ROOT` on a dedicated self-hosted review runner and validates copied bytes with the closure oracle without generating or rewriting review. All P1.6 certification, evidence, assembly, closure, and publication uses of checkout, upload, and download actions are pinned to reviewed full SHAs.
+
+P1.6 evidence assembly is separate manual workflow `.github/workflows/p16-evidence-assembly.yml`. Dispatch it from exact immutable certification tag with four explicit source run IDs. It accepts only successful same-tag runs at trusted commit, keeps independent review in distinct run, revalidates downloaded agent/combined evidence, writes and verifies closure, then emits exactly `p16-release-archive`, `p16-combined-evidence`, `p16-agent-run`, `p16-independent-review`, and `p16-closure`. It does not run agents, Unreal, packaging, or release publication.
+
+`p16-release-gate` must allow selected immutable `v*` tags only, require independent approval, prevent self-review, and disallow administrator bypass. Repository ruleset must deny update/deletion of `v*` tags without bypass. Six protected environment variables bind artifact, source commit, run inventory, combined evidence tree, review digest, and reviewer identity.
 
 ## Commands
 

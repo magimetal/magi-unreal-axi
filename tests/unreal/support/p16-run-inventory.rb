@@ -110,6 +110,7 @@ module P16RunInventory
     seen_files = {}
     result = []
     files = 0
+    nodes = 0
     accounting = {total: 0}
     stack = [[root, [root_stat.dev, root_stat.ino]]]
     until stack.empty?
@@ -120,6 +121,8 @@ module P16RunInventory
       before_children = Dir.children(directory).sort
       before_children.sort_by { |name| name.encode(Encoding::UTF_8).bytes }.reverse_each do |name|
         path = File.join(directory, name)
+        nodes += 1
+        fail "too many nodes" if nodes > MAX_NODES
         relative = safe_path(path.delete_prefix("#{root}/"))
         stat = File.lstat(path)
         if relative == INVENTORY_NAME
@@ -132,10 +135,8 @@ module P16RunInventory
           fail "directory cycle or hardlink rejected #{relative}" if seen_dirs.key?(identity)
           seen_dirs[identity] = true
           resolved = File.realpath(path)
-          fail "directory escaped RUN #{relative}" unless resolved == root || resolved.start_with?("#{root}/")
-          result << {"path" => relative, "type" => "directory"}
-          fail "too many nodes" if result.length > MAX_NODES
           stack << [resolved, identity]
+          fail "directory escaped RUN #{relative}" unless resolved == root || resolved.start_with?("#{root}/")
         elsif stat.file?
           identity = [stat.dev, stat.ino]
           fail "hardlink rejected #{relative}" if stat.nlink != 1 || seen_files.key?(identity)
@@ -143,7 +144,6 @@ module P16RunInventory
           files += 1
           fail "too many files" if files > MAX_FILES
           result << stable_file(path, relative, stat, accounting)
-          fail "too many nodes" if result.length > MAX_NODES
         else
           fail "special file rejected #{relative}"
         end
@@ -169,13 +169,12 @@ module P16RunInventory
     listed = manifest.fetch("entries")
     verify(expanded, expected)
     Dir.mkdir(destination, 0o700)
-    listed.each do |entry|
+    listed.select { |entry| entry.fetch("type") == "file" }.each do |entry|
       relative = safe_path(entry.fetch("path"))
       target = File.join(destination, relative)
-      if entry.fetch("type") == "directory"
-        Dir.mkdir(target, 0o700)
-        next
-      end
+      parent = File.dirname(target)
+      FileUtils.mkdir_p(parent, mode: 0o700)
+      fail "snapshot parent is not private directory #{relative}" unless File.directory?(parent) && !File.symlink?(parent)
       File.open(File.join(expanded, relative), File::RDONLY | File::NOFOLLOW) do |input|
         before = input.stat
         fail "snapshot source is not stable regular file #{relative}" unless before.file? && before.nlink == 1 && before.size == entry.fetch("bytes")
@@ -291,6 +290,16 @@ module P16RunInventory
     fail "self-test #{label} accepted" unless failed
   end
 
+  def stub_const(name, value)
+    original = const_get(name)
+    remove_const(name)
+    const_set(name, value)
+    yield
+  ensure
+    remove_const(name)
+    const_set(name, original)
+  end
+
   def self_test
     Dir.mktmpdir("p16-run-inventory-") do |root|
       FileUtils.mkdir_p(File.join(root, "nested")); File.binwrite(File.join(root, "a.txt"), "alpha\n"); File.binwrite(File.join(root, "nested", "b"), "beta")
@@ -301,11 +310,26 @@ module P16RunInventory
       File.binwrite(File.join(root, "a.txt"), "tampered"); expect_failure("tamper") { verify(root, expected) }; File.binwrite(File.join(root, "a.txt"), "alpha\n")
       File.symlink("a.txt", File.join(root, "link")); expect_failure("symlink") { entries(root) }; File.unlink(File.join(root, "link"))
       begin File.link(File.join(root, "a.txt"), File.join(root, "hardlink")); expect_failure("hardlink") { entries(root) }; ensure File.unlink(File.join(root, "hardlink")) if File.exist?(File.join(root, "hardlink")); end
+      deep_root = File.join(Dir.mktmpdir("p16-run-node-bound-"), "root")
+      FileUtils.mkdir_p(deep_root)
+      stub_const(:MAX_NODES, 2) do
+        FileUtils.mkdir_p(File.join(deep_root, "one", "two", "three"))
+        expect_failure("directory node bound") { entries(deep_root) }
+      end
       File.binwrite(output_path(root), raw.sub(/\n\z/, " ")); expect_failure("noncanonical") { verify(root, expected) }; File.binwrite(output_path(root), raw)
       expect_failure("wrong external hash") { verify(root, "A" * 64) }
       snapshot = File.join(Dir.mktmpdir("p16-run-snapshot-parent-"), "snapshot")
       materialize_verified(root, expected, snapshot)
       verify(snapshot, expected)
+      artifact_style = File.join(Dir.mktmpdir("p16-run-artifact-parent-"), "artifact-run")
+      FileUtils.mkdir_p(artifact_style)
+      manifest.fetch("entries").select { |entry| entry.fetch("type") == "file" }.each do |entry|
+        source = File.join(root, entry.fetch("path")); target = File.join(artifact_style, entry.fetch("path"))
+        FileUtils.mkdir_p(File.dirname(target)); FileUtils.cp(source, target); File.chmod(0o644, target)
+      end
+      File.binwrite(output_path(artifact_style), raw); materialize_verified(artifact_style, expected, snapshot = File.join(Dir.mktmpdir("p16-run-zip-parent-"), "snapshot"))
+      fail "artifact-style empty directory retained" if File.directory?(File.join(snapshot, "nested")) && !File.file?(File.join(snapshot, "nested", "b"))
+      fail "artifact-style mode not normalized" unless (File.stat(File.join(snapshot, "a.txt")).mode & 0o777) == 0o600
       File.binwrite(File.join(snapshot, "a.txt"), "tampered")
       expect_failure("snapshot tamper") { verify(snapshot, expected) }
     end

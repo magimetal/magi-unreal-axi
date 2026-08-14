@@ -1,0 +1,78 @@
+name: p16-independent-review-producer
+
+on:
+  workflow_dispatch:
+    inputs:
+      certification_tag:
+        description: Exact immutable v* certification tag
+        required: true
+        type: string
+      certification_ref:
+        description: Exact tag ref
+        required: true
+        type: string
+      finalized_review_json:
+        description: Canonical finalized review JSON under protected P16_INDEPENDENT_REVIEW_ROOT
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: [self-hosted, macOS, arm64, p16-review]
+    environment: p16-independent-review
+    permissions:
+      contents: read
+    env:
+      CERTIFICATION_TAG: ${{ inputs.certification_tag }}
+      CERTIFICATION_REF: ${{ inputs.certification_ref }}
+      REVIEW_JSON: ${{ inputs.finalized_review_json }}
+      P16_INDEPENDENT_REVIEW_ROOT: ${{ vars.P16_INDEPENDENT_REVIEW_ROOT }}
+      P16_EXPECTED_SOURCE_COMMIT: ${{ vars.P16_EXPECTED_SOURCE_COMMIT }}
+      P16_EXPECTED_REVIEW_SHA256: ${{ vars.P16_EXPECTED_REVIEW_SHA256 }}
+      P16_EXPECTED_REVIEWER_ID: ${{ vars.P16_EXPECTED_REVIEWER_ID }}
+      TRUSTED_SOURCE: ${{ github.workspace }}/trusted-source
+      P16_REVIEW_ROOT: ${{ runner.temp }}/p16-independent-review
+    steps:
+      - name: Checkout exact trusted source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ vars.P16_EXPECTED_SOURCE_COMMIT }}
+          fetch-depth: 0
+          path: trusted-source
+      - name: Validate exact tag, source commit, and confined review input
+        run: |
+          set -euo pipefail
+          [[ "$CERTIFICATION_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$CERTIFICATION_REF" = "refs/tags/$CERTIFICATION_TAG" && test "$CERTIFICATION_REF" = "$GITHUB_REF"
+          [[ "$P16_EXPECTED_SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ && "$P16_EXPECTED_REVIEW_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$P16_EXPECTED_REVIEWER_ID" =~ ^[a-z0-9][a-z0-9._-]{0,127}$ ]]
+          test "$(git -C "$TRUSTED_SOURCE" rev-parse HEAD)" = "$P16_EXPECTED_SOURCE_COMMIT"
+          test "$(git -C "$TRUSTED_SOURCE" rev-parse "refs/tags/$CERTIFICATION_TAG^{commit}")" = "$P16_EXPECTED_SOURCE_COMMIT"
+          test -z "$(git -C "$TRUSTED_SOURCE" status --porcelain=v1 --untracked-files=all)"
+          review_root=$(cd "$P16_INDEPENDENT_REVIEW_ROOT" && pwd -P)
+          review=$(cd "$(dirname "$REVIEW_JSON")" && pwd -P)/$(basename "$REVIEW_JSON")
+          case "$review/" in "$review_root"/*) ;; *) echo 'review JSON escapes protected root' >&2; exit 1 ;; esac
+          test -f "$review" && test ! -L "$review" && test "$(stat -f '%l' "$review")" = 1
+          mkdir -p "$P16_REVIEW_ROOT/review"
+          cp -p "$review" "$P16_REVIEW_ROOT/review/independent-review.json"
+          test "$(shasum -a 256 "$P16_REVIEW_ROOT/review/independent-review.json" | awk '{print $1}')" = "$P16_EXPECTED_REVIEW_SHA256"
+      - name: Validate review with trusted closure oracle
+        working-directory: trusted-source
+        run: |
+          set -euo pipefail
+          P16_EXPECTED_ARTIFACT_SHA256=0000000000000000000000000000000000000000000000000000000000000000 \
+          P16_EXPECTED_SOURCE_COMMIT="$P16_EXPECTED_SOURCE_COMMIT" \
+          P16_EXPECTED_RUN_INVENTORY_SHA256=0000000000000000000000000000000000000000000000000000000000000000 \
+          P16_EXPECTED_COMBINED_EVIDENCE_TREE_SHA256=0000000000000000000000000000000000000000000000000000000000000000 \
+          P16_EXPECTED_REVIEW_SHA256="$P16_EXPECTED_REVIEW_SHA256" P16_EXPECTED_REVIEWER_ID="$P16_EXPECTED_REVIEWER_ID" \
+          ruby -I tests/unreal/support -e 'require "p16-closure"; roots=P16Closure.trust_roots; P16Closure.verify_source_checkout(Dir.pwd, roots["sourceCommit"]); P16Closure.verify_review(ARGV.fetch(0), roots)' "$P16_REVIEW_ROOT/review/independent-review.json"
+      - name: Upload independent review only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: p16-independent-review
+          path: ${{ runner.temp }}/p16-independent-review/review/independent-review.json
+          if-no-files-found: error
+          include-hidden-files: true

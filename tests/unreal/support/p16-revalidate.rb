@@ -16,7 +16,7 @@ require_relative "p16-provenance"
 module P16Revalidate
   module_function
 
-  JOBS = %w[unknown-project-orientation interaction-loop ui-state-loop ai-navigation-loop animation-state-loop].freeze
+  JOBS = OutcomeValidator::JOBS
   LEDGER_KEYS = %w[argv cwd ended estimatedTokens exit homeCategory sequence started stderrBytes stderrPath stderrSha256 stdoutBytes stdoutPath stdoutSha256].freeze
   RECORD_KEYS = %w[ended job recordedAt sessionSha256 started].freeze
   OUTCOME_KEYS = %w[expectedFailureSequences job metrics references requiredCategories status].freeze
@@ -66,13 +66,23 @@ module P16Revalidate
     File.open(path, "rb") { |io| while (chunk = io.read(1024 * 1024)); digest.update(chunk); end }
     digest.hexdigest
   end
-  def bearer_credential?(path)
+  def credential_placeholder?(value)
+    value.match?(/\A(?:\*{3}|REDACTED|\[REDACTED\]|<redacted>|\$\{?[A-Za-z_][A-Za-z0-9_]*\}?)\z/i)
+  end
+
+  def retained_credential?(path)
+    patterns = [
+      /["']?Authorization["']?\s*:\s*["']?\s*(?:Basic|Bearer)\s+["']?\s*([A-Za-z0-9._~+\/=:-]+)/i,
+      /["']?(?:X-API-Key|Api-Key)["']?\s*:\s*["']?\s*([^\s"',}]+)/i,
+      /["']?(?:OPENAI_API_KEY|ANTHROPIC_API_KEY|GITHUB_TOKEN|GH_TOKEN|AWS_SECRET_ACCESS_KEY)["']?\s*[=:]\s*["']?\s*([^\s"',}]+)/i,
+      /\b((?:gh[pousr]_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}))\b/
+    ]
     File.open(path, "rb") do |io|
       tail = "".b
       while (chunk = io.read(1024 * 1024))
         data = tail + chunk
-        return true if data.match?(/Authorization:\s*Bearer\s+[A-Za-z0-9._-]+/)
-        tail = data.byteslice(-256, 256) || data
+        return true if patterns.any? { |pattern| data.scan(pattern).any? { |capture| !credential_placeholder?(capture.first) } }
+        tail = data.byteslice(-512, 512) || data
       end
     end
     false
@@ -147,7 +157,7 @@ module P16Revalidate
     end
     paths.sort
   end
-  def verify_session(path, original, run, job, rows, outcome_path, engine_root)
+  def verify_session(path, original, run, job, rows, outcome_path)
     events = lines(path, "#{job}/session.jsonl").map { |line| JSON.parse(line) }
     fail "session empty #{job}" if events.empty?
     fail "session event schema #{job}" unless events.all? { |e| e.is_a?(Hash) && e["session_id"].is_a?(String) && !e["session_id"].empty? && e["cwd"] == File.join(original, "jobs", job, "project") }
@@ -201,6 +211,7 @@ module P16Revalidate
     original = manifest["run"]
     fail "manifest original run" unless original.is_a?(String) && Pathname.new(original).absolute? && File.expand_path(original) == original && original != run
     fail "manifest identities" unless manifest["phase"] == "P1.6" && manifest["status"] == "prepared" && manifest["jobs"] == JOBS && manifest["engineRoot"].is_a?(String) && Pathname.new(manifest["engineRoot"]).absolute? && manifest["sourceCommit"].match?(/\A[0-9a-f]{40}\z/) && manifest["sourceTree"].match?(/\A[0-9a-f]{40}\z/) && %w[artifactSha256 binarySha256 pluginSha256 combinedEvidenceTreeSha256 combinedProvenanceSha256].all? { |key| manifest[key].is_a?(String) && manifest[key].match?(/\A[0-9a-f]{64}\z/) }
+    engine_root = manifest.fetch("engineRoot")
     immutable_seals = manifest["immutableSha256s"]
     fail "immutable seals" unless immutable_seals.is_a?(Hash) && immutable_seals.keys.sort == JOBS.sort && immutable_seals.values.all? { |value| value.is_a?(String) && value.match?(/\A[0-9a-f]{64}\z/) }
     fail "combined evidence" unless manifest["combinedEvidence"].is_a?(String) && Pathname.new(manifest["combinedEvidence"]).absolute?
@@ -209,6 +220,7 @@ module P16Revalidate
     combined_tree = parse_json(combined_tree_path, "combined/evidence-tree.json")
     fail "combined tree identity" unless combined_tree["treeSha256"] == manifest["combinedEvidenceTreeSha256"]
     EvidenceTree.verify(combined, combined_tree_path)
+    fail "combined credential retained" if Find.find(combined).select { |p| regular(p) }.any? { |p| retained_credential?(p) }
     P16Provenance.verify_portable(
       File.join(combined, "source-inventory.tsv"),
       File.join(combined, "provenance.json"),
@@ -227,7 +239,7 @@ module P16Revalidate
     fail "summary identity" unless summary.values_at("phase", "status", "artifactSha256", "binarySha256", "combinedPluginSha256", "combinedEvidence", "combinedEvidenceTreeSha256", "combinedProvenanceSha256", "sourceCommit", "sourceTree", "jobs", "tokenScan") == ["P1.6", "passed", manifest["artifactSha256"], manifest["binarySha256"], manifest["pluginSha256"], manifest["combinedEvidence"], manifest["combinedEvidenceTreeSha256"], manifest["combinedProvenanceSha256"], manifest["sourceCommit"], manifest["sourceTree"], "5/5-passed-sequential", "passed"]
     summary_metrics = JSON.parse(summary["metrics"]); fail "summary metrics" unless summary_metrics.is_a?(Hash)
     fail "runtime secret retained" if Find.find(run).any? { |p| File.basename(p) == "token" || File.basename(p) == "bridge-v1.json" }
-    fail "bearer credential retained" if Find.find(run).select { |p| regular(p) }.any? { |p| bearer_credential?(p) }
+    fail "credential retained" if Find.find(run).select { |p| regular(p) }.any? { |p| retained_credential?(p) }
     %w[artifact.sha256 exact-binary exact-binary.sha256 plugin.sha256 git-status.before kickoff.txt].each { |name| fail "missing #{name}" unless regular(File.join(run, name)) }
     fail "artifact identity" unless bounded_read(File.join(run, "artifact.sha256"), "artifact.sha256", 128).strip == manifest["artifactSha256"]
     exact_recorded = bounded_read(File.join(run, "exact-binary"), "exact-binary", MAX_PATH_BYTES).strip
@@ -264,7 +276,7 @@ module P16Revalidate
       rows.each { |row| metrics["cliCalls"] += 1; %w[stdout stderr].each { |kind| verify_sidecar(row, kind, original, run, job); metrics["#{kind}Bytes"] += row["#{kind}Bytes"] }; metrics["estimatedTokens"] += row["estimatedTokens"] }
       outcome = parse_json(File.join(dir, "agent-outcome.json"), "#{job}/agent-outcome.json"); fail "outcome schema #{job}" unless outcome.keys.sort == OUTCOME_KEYS.sort && outcome["job"] == job && outcome["status"] == "passed" && outcome["expectedFailureSequences"] == []
       outcome.fetch("metrics").each { |key, value| fail "outcome metric #{job}" unless metrics.key?(key) && value.is_a?(Integer) && value >= 0; metrics[key] += value }
-      verify_session(File.join(dir, "session.jsonl"), original, run, job, rows, File.join(dir, "agent-outcome.json"), manifest.fetch("engineRoot"))
+      verify_session(File.join(dir, "session.jsonl"), original, run, job, rows, File.join(dir, "agent-outcome.json"))
       OutcomeValidator.new(dir, job, File.expand_path(File.join(__dir__, "..", "..", "..")), File.join(original, "jobs", job)).validate
       if index.positive?
         install = parse_json(File.join(dir, "plugin-install.json"), "#{job}/plugin-install.json")
@@ -301,22 +313,59 @@ module P16Revalidate
       File.unlink(File.join(nested, "link")); File.link(probe, File.join(nested, "hardlink"))
       begin exact_file_tree(dir); fail "self-test hardlink accepted"; rescue RuntimeError => e; raise if e.message.end_with?("accepted"); end
     end
+    Dir.mktmpdir("p16-revalidate-credentials-") do |dir|
+      [
+        "OPENAI_API_KEY=REDACTED\n",
+        "OPENAI_API_KEY=<redacted>\n",
+        "GH_TOKEN=***\n",
+        "AWS_SECRET_ACCESS_KEY=[REDACTED]\n",
+        "OPENAI_API_KEY=$TOKEN\n",
+        "{\"OPENAI_API_KEY\":\"${TOKEN}\"}\n"
+      ].each_with_index do |content, index|
+        clean = File.join(dir, "clean-#{index}"); File.write(clean, content)
+        fail "self-test clean credential false positive #{index}" if retained_credential?(clean)
+      end
+      [
+        "Authorization: Bearer abc+/=._-\n",
+        "authorization: Basic YWxhZGRpbjpvcGVuc2VzYW1l=\n",
+        "Authorization: \"Bearer quoted-token\"\n",
+        "Authorization: Bearer \"quoted-value\"\n",
+        "{\"Authorization\":\"Bearer json-token\"}\n",
+        "X-API-Key: secret-value\n",
+        "OPENAI_API_KEY=sk-secret\n",
+        "OPENAI_API_KEY=\"sk-quoted\"\n",
+        "{\"OPENAI_API_KEY\":\"sk-json\"}\n",
+        "GH_TOKEN='gh-secret'\n",
+        "{\"GH_TOKEN\":\"ghp_secret\"}\n",
+        "AWS_SECRET_ACCESS_KEY=aws-secret\n",
+        "token: ghp_abcdefghijklmnopqrstuvwxyz123456\n"
+      ].each_with_index do |content, index|
+        path = File.join(dir, "credential-#{index}"); File.write(path, content)
+        fail "self-test retained credential #{index}" unless retained_credential?(path)
+      end
+      boundary = File.join(dir, "boundary")
+      File.binwrite(boundary, "x" * (1024 * 1024 - 10) + "Authorization: Bearer boundary+/=\n")
+      fail "self-test boundary credential" unless retained_credential?(boundary)
+
+    end
     puts "P1.6 revalidator self-test: PASS"
   end
 end
 
-begin
-  if ARGV == ["--self-test"] || ARGV == ["self-test"]
-    P16Revalidate.self_test
-  elsif ARGV.length == 2
-    P16Revalidate.validate(ARGV[0], ARGV[1])
-  elsif ARGV.length == 3
-    P16Revalidate.validate(ARGV[0], ARGV[1], ARGV[2])
-  else
-    warn "usage: #{File.basename($PROGRAM_NAME)} RUN COMBINED [EXPECTED_INVENTORY_SHA256] | --self-test"
-    exit 2
+if $PROGRAM_NAME == __FILE__
+  begin
+    if ARGV == ["--self-test"] || ARGV == ["self-test"]
+      P16Revalidate.self_test
+    elsif ARGV.length == 2
+      P16Revalidate.validate(ARGV[0], ARGV[1])
+    elsif ARGV.length == 3
+      P16Revalidate.validate(ARGV[0], ARGV[1], ARGV[2])
+    else
+      warn "usage: #{File.basename($PROGRAM_NAME)} RUN COMBINED [EXPECTED_INVENTORY_SHA256] | --self-test"
+      exit 2
+    end
+  rescue StandardError => e
+    warn e.message
+    exit 1
   end
-rescue StandardError => e
-  warn e.message
-  exit 1
 end

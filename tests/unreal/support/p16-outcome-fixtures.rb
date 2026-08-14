@@ -301,6 +301,7 @@ module P16OutcomeFixtures
       File.write(File.join(cooked, "Mac", "AssetRegistry.bin"), "registry")
       app = File.join(package, "Mac", "MagiUnrealAXIPackageFixture.app")
       FileUtils.mkdir_p(app)
+      File.write(File.join(app, "artifact.txt"), "app")
       File.write(File.join(package, "Mac", "MagiUnrealAXIPackageFixture-Mac.utoc"), "utoc")
       cook = read("project.cook", {"operation" => {"id" => "proc-cook", "kind" => "cook", "status" => "passed", "project" => project, "exitCode" => 0}, "artifacts" => [{"kind" => "cooked-output", "path" => cooked, "exists" => true}]}, argv: ["project", "cook", "--output", cooked])
       view(cook)

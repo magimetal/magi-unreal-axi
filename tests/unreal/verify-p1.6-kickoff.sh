@@ -61,6 +61,8 @@ jq -e --arg cell "$cell" 'length == 79 and all(.[]; .engineSupport.certified == 
 if [[ ${1-} == --self-test ]]; then
   ruby "$repo_root/tests/unreal/support/p16-proofs.rb" self-test || fail "strict operation proof verifier self-test"
   ruby "$repo_root/tests/unreal/support/p16-archive.rb" self-test || fail "strict archive verifier self-test"
+  ruby "$repo_root/tests/unreal/support/p16-evidence-path.rb" self-test || fail "exact evidence path self-test"
+  ruby "$repo_root/tests/unreal/support/p16-workflow-contracts.rb" || fail "workflow contract self-test"
   printf 'P1.6 kickoff strict proof and archive verifier self-tests: PASS\n'
   exit 0
 fi

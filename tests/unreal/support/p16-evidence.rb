@@ -176,6 +176,7 @@ module EvidenceTree
   end
 end
 
+if $PROGRAM_NAME == __FILE__
 begin
   case ARGV[0]
   when "write" then raise "usage" unless ARGV.length == 3; EvidenceTree.write(ARGV[1], ARGV[2])
@@ -186,4 +187,5 @@ begin
 rescue StandardError => error
   warn "p16-evidence: #{error.message}"
   exit 1
+end
 end
