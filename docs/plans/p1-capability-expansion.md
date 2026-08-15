@@ -377,6 +377,7 @@ P1.6 freezes one 79-record traceability partition: 34 baseline operations plus 1
 - Record command count, avoidable retries, structured-output failures, token estimate, persistence evidence, and runtime outcome.
 - Reconcile capability catalog, generated docs, README, skill/guidance, engine support, verification, changelog, and parent plan.
 - Independent review covers correctness, safety metadata, failure atomicity claims, capability/fixture traceability, retained evidence, and unsupported domains.
+- P1.6 execution is local. GitHub does not build P1.6 candidate, transport its evidence, ingest its review, assemble its closure, or publish its release. Hosted CI still performs release-mode verification builds; historical/manual `unreal-live.yml` may build, sign, package, and certify M8 regression artifacts, never P1.6 evidence.
 
 ### Acceptance
 

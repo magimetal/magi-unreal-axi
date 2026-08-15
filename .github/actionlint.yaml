@@ -1,4 +1,0 @@
-self-hosted-runner:
-  labels:
-    - unreal-5.8.1
-    - p16-review

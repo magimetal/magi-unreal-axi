@@ -5,10 +5,13 @@ repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
 manifest="$repo_root/tests/unreal/p1.6-manifest.json"
 p15_manifest="$repo_root/tests/unreal/p1.5-manifest.json"
 catalog="$repo_root/capabilities/catalog.json"
+closure_script="$repo_root/tests/unreal/close-p1.6.sh"
+closure_schema="$repo_root/tests/unreal/p1.6-closure.schema.json"
+review_schema="$repo_root/tests/unreal/p1.6-independent-review.schema.json"
 catalog_hash=a1f1906449ba158584f4b07f0adc0cccb4dba27df12f371e04aadb88452aae8f
 cell=5.8.1-macos-arm64-56057345
 fail() { echo "P1.6 kickoff verification failed: $*" >&2; exit 1; }
-[[ -f "$manifest" && -f "$p15_manifest" && -f "$catalog" ]] || fail "manifest, P1.5 manifest, or catalog missing"
+[[ -f "$manifest" && -f "$p15_manifest" && -f "$catalog" && -f "$closure_script" && -f "$closure_schema" && -f "$review_schema" ]] || fail "manifest, P1.5 manifest, catalog, closure script, or closure schema missing"
 command -v jq >/dev/null || fail "jq missing"
 command -v shasum >/dev/null || fail "shasum missing"
 command -v ruby >/dev/null || fail "ruby missing"
@@ -41,8 +44,18 @@ jq -e --slurpfile p15 "$p15_manifest" '
     maxTotalUncompressedBytes:134217728,
     allowlist:["magi-unreal-axi-{version}-macos-arm64/","magi-unreal-axi-{version}-macos-arm64/magi-unreal-axi","magi-unreal-axi-{version}-macos-arm64/README.md","magi-unreal-axi-{version}-macos-arm64/LICENSE","magi-unreal-axi-{version}-macos-arm64/THIRD_PARTY_NOTICES.md","magi-unreal-axi-{version}-macos-arm64/CHANGELOG.md","magi-unreal-axi-{version}-macos-arm64/Cargo.lock","magi-unreal-axi-{version}-macos-arm64/skills/","magi-unreal-axi-{version}-macos-arm64/skills/magi-unreal-axi/","magi-unreal-axi-{version}-macos-arm64/skills/magi-unreal-axi/SKILL.md","magi-unreal-axi-{version}-macos-arm64/docs/","magi-unreal-axi-{version}-macos-arm64/docs/engine-support.md","magi-unreal-axi-{version}-macos-arm64/docs/agent-evaluation.md"]
   } and
+  .closureOracle == {
+    script:"tests/unreal/close-p1.6.sh",
+    schema:"magi-unreal-axi/p1.6-closure/v1",
+    independentReviewSchema:"magi-unreal-axi/p1.6-independent-review/v1",
+    trustedIdentityEnvs:["P16_EXPECTED_ARTIFACT_SHA256","P16_EXPECTED_SOURCE_COMMIT","P16_EXPECTED_RUN_INVENTORY_SHA256","P16_EXPECTED_COMBINED_EVIDENCE_TREE_SHA256","P16_EXPECTED_REVIEW_SHA256","P16_EXPECTED_REVIEWER_ID"],
+    execution:"local",
+    certificateExternal:true
+  } and
   (.remainingGates|index("independent review is clean")) != null
 ' "$manifest" >/dev/null || fail "manifest shape or frozen contract"
+jq -e '."$id" == "magi-unreal-axi/p1.6-closure/v1"' "$closure_schema" >/dev/null || fail "closure schema id"
+jq -e '."$id" == "magi-unreal-axi/p1.6-independent-review/v1"' "$review_schema" >/dev/null || fail "independent review schema id"
 
 actual_catalog_hash=$(shasum -a 256 "$catalog" | awk '{print $1}')
 [[ "$actual_catalog_hash" == "$catalog_hash" ]] || fail "catalog hash changed"
@@ -62,8 +75,7 @@ if [[ ${1-} == --self-test ]]; then
   ruby "$repo_root/tests/unreal/support/p16-proofs.rb" self-test || fail "strict operation proof verifier self-test"
   ruby "$repo_root/tests/unreal/support/p16-archive.rb" self-test || fail "strict archive verifier self-test"
   ruby "$repo_root/tests/unreal/support/p16-evidence-path.rb" self-test || fail "exact evidence path self-test"
-  ruby "$repo_root/tests/unreal/support/p16-workflow-contracts.rb" || fail "workflow contract self-test"
-  printf 'P1.6 kickoff strict proof and archive verifier self-tests: PASS\n'
+  printf 'P1.6 kickoff strict proof, archive, and evidence-path self-tests: PASS\n'
   exit 0
 fi
 artifact=${1-}

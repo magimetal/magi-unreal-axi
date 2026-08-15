@@ -113,7 +113,7 @@ Broad action count is not success. A smaller set that completes and verifies thi
 - Current 56 library, 6 xtask, and 44 real-binary integration tests pass: 106 Rust tests total.
 - Full Unreal automation passes exact 38/38 through P1.5. All five P1.5 tests are zero-warning; five prior regression tests retain an exact 10-warning baseline.
 
-P1.6 kickoff is active, certification is incomplete, P1 remains active, and support certification remains through P1.5 only. Kickoff manifest/verifier: `tests/unreal/p1.6-manifest.json`, `tests/unreal/verify-p1.6-kickoff.sh`.
+P1.6 kickoff is active, certification is incomplete, P1 remains active, and support certification remains through P1.5 only. P1.6 certification, representative-agent evidence, independent review, closure, and release preparation execute locally; GitHub does not automate them. Kickoff manifest/verifier: `tests/unreal/p1.6-manifest.json`, `tests/unreal/verify-p1.6-kickoff.sh`.
 
 Implementation must re-read current versions before public contract is frozen:
 
@@ -761,9 +761,10 @@ magi-axi-unreal/
 |  |- capabilities.md
 |  |- engine-support.md
 |  `- verification.md
-`- .github/workflows/
-   |- ci.yml
-   `- release.yml
+`- .github/
+   `- workflows/
+      |- ci.yml                 # hosted Rust checks
+      `- unreal-live.yml        # historical/manual M8 live regression only; not P1.6
 ```
 
 Release binary embeds or ships a version-matched plugin source payload. Ordinary commands never download code. Plugin build/install occurs only through explicit setup.
@@ -1060,8 +1061,8 @@ Work:
 Completed evidence:
 
 - Staged with rollback on write/commit error, idempotent setup supports Claude Code, Codex, and OpenCode target selection. Claude receives SessionStart context; Codex/OpenCode receive Agent Skills with documented ambient-context N/A reasons.
-- Guidance and release checks are wired into hosted CI and release workflow.
-- Tagged release workflow builds once, ad-hoc signs, packages archive/checksum, certifies exact artifact on approved self-hosted UE host, then publishes with GitHub provenance.
+- Guidance and release checks are wired into hosted CI; exact-artifact certification and release preparation run locally.
+- Local release preparation builds once, ad-hoc signs, packages archive/checksum, and certifies exact bytes on the UE 5.8.1/macOS arm64 host. Publication remains manual and outside repository automation.
 - Hardened exact-artifact clean-install pass: `~/Library/Caches/magi-unreal-axi/m8/live/evidence.8v8UFv` (current archive SHA-256 `663fe3e1db383c1b1d021de34398ff5f1af653292d15df801b6c3b583b10720f`).
 - Representative jobs 1–8: `~/Library/Caches/magi-unreal-axi/m8/agent-evaluation/run.Gy9dcQ/evidence`; jobs 2–7 succeeded for intent, job 1 was partial orientation, C++ source job 8 exposed pre-fix 14/15 automation and game-target arm64 link failure/no package, and distinct Blueprint-only job 8b packaged 37 files/1,389,331,062 bytes.
 - Concrete input-action fixture correction followed by source build and full 15/15 automation: `~/Library/Caches/magi-unreal-axi/read-fixture-fix.KGV2FR/evidence`.
@@ -1237,7 +1238,7 @@ Release gate also requires:
 - package metadata, license, notices, checksums, and provenance;
 - installed `--version`, home, setup, read, mutation, restart, build.
 
-Tagged release workflow builds archive once. Exact archive and checksum pass approved self-hosted UE 5.8.1/macOS arm64 live gate before publish. Binary is ad-hoc signed, not Developer ID signed or notarized; publish adds GitHub build provenance.
+Local release preparation builds the archive once. Exact archive and checksum pass the UE 5.8.1/macOS arm64 live gate before any manual publication. Binary is ad-hoc signed, not Developer ID signed or notarized; repository emits no GitHub build provenance.
 
 Keep Rust dependencies narrow. Expected initial crates:
 

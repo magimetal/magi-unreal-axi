@@ -35,13 +35,9 @@ This directory is text-owned. Certification copies fixtures to canonical cache w
 
 - `evaluate-p1.6-agents.sh`: prepare, record, finalize, and portable-revalidate five sequential representative-agent jobs. Prepare requires trusted artifact/source/combined-tree identities and clean source bytes matching commit inventory. Finalization seals immutable inputs and full run inventory. Revalidation requires externally trusted run-inventory SHA plus downloaded combined evidence, snapshots inventory-bound run bytes before semantic checks, and verifies combined evidence tree/provenance without Git. Script never runs agents or Unreal. Each construction transcript must include exactly nine selected durable `operation view` readbacks: domain creation, compile, asset save, level save/open, post-restart no-op, second `play.stop` after final editor stop for offline journal recovery, cook, and package; each readback must exactly equal source receipt or process summary.
 - `support/p16-agent-lifecycle-fixtures.rb`: hermetic prepare-shaped five-job lifecycle fixture; self-test drives public record/finalize/relocate/revalidate and tamper negatives without Unreal, agents, network, or release tooling.
-- `support/p16-evidence-path.rb` and `support/p16-workflow-contracts.rb`: hermetic exact combined-evidence path handoff tests plus static workflow/action/runner/environment/artifact contract validation.
+- `support/p16-evidence-path.rb`: hermetic exact combined-evidence path handoff with no-overwrite and mode checks.
 - `close-p1.6.sh`: externally trusted closure gate joining exact artifact bytes, combined evidence tree/provenance, finalized agent run inventory, clean reviewed source commit/tree/inventory, and canonical independent-review attestation. `write` emits an external no-overwrite closure certificate; `verify` re-derives it. Closure alone does not change repository support claims.
 - `p1.6-independent-review.schema.json` and `p1.6-closure.schema.json`: strict portable contracts for evidence-scoped clean review and final external closure certificate.
-- `.github/workflows/p16-evidence-assembly.yml`: manually dispatched from exact immutable certification tag with four source run IDs. It accepts only successful same-tag runs at trusted commit, keeps independent review in a distinct run, checks exact live artifact identities, revalidates archive/agent/combined evidence, writes and verifies closure, and uploads only five exact P1.6 artifact names. `p16-release-gate` must permit selected immutable `v*` tags only, require independent approval, prevent self-review, and disallow bypass. Workflow does not run agents, Unreal, packaging, or publication.
-- `.github/workflows/p16-certification.yml`: protected trusted self-hosted UE runner; exact manual tag/ref binding; builds, signs, packages, kickoff-verifies, and runs combined certification on one archive. Certification returns its exact evidence path through a private runner-temporary file, revalidates copied bytes, and uploads only release archive and combined evidence.
-- `.github/workflows/p16-agent-evidence.yml`: protected trusted runner; accepts trusted certification run ID and finalized path confined under `P16_AGENT_EVIDENCE_ROOT`, materializes exact inventory-bound files, revalidates those upload bytes against protected combined evidence identity, uploads only agent run, and never executes agents.
-- `.github/workflows/p16-independent-review.yml`: protected self-hosted review-ingestion runner; accepts canonical review JSON confined under `P16_INDEPENDENT_REVIEW_ROOT`, binds exact source tag/ref/commit, copies and validates expected SHA/reviewer through `p16-closure`, and uploads only independent review. It does not perform or rewrite review.
 - `certify-m8-live.sh`: verifies checksum binding, allowlisted archive inventory/path safety, arm64 binary and ad-hoc codesign, clean extraction/install, isolated-HOME agent setup/idempotency/context, plugin lifecycle, project build, full 27-test MagiUnrealAXI automation, editor read/mutation/save/restart persistence, uninstall, and retained-evidence token scan.
 
 Run current gates from repository root:
@@ -68,17 +64,105 @@ Run current gates from repository root:
 P16_EXPECTED_ARTIFACT_SHA256=<trusted-sha256> ./tests/unreal/verify-p1.6-kickoff.sh target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
 ```
 
-P1.6 agent harness usage:
+## Local P1.6 closure runbook
+
+Run from repository root in one Bash shell, using a committed, clean checkout. Keep agent session exports, independent review, and closure certificate outside repository so source provenance remains clean. Commands below build and bind one archive to one source commit. They do not publish a release or prove reviewer independence.
+
+1. Build, ad-hoc sign, package, and capture exact artifact/source identities:
 
 ```sh
-P16_EXPECTED_ARTIFACT_SHA256=<trusted-sha256> P16_EXPECTED_SOURCE_COMMIT=<trusted-commit> P16_EXPECTED_COMBINED_EVIDENCE_TREE_SHA256=<trusted-sha256> ./tests/unreal/evaluate-p1.6-agents.sh prepare target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz
-./tests/unreal/evaluate-p1.6-agents.sh job-context <run> unknown-project-orientation
-./tests/unreal/evaluate-p1.6-agents.sh record <run> <job> SESSION_JSONL
-./tests/unreal/evaluate-p1.6-agents.sh finalize <run>
-./tests/unreal/close-p1.6.sh --self-test
-P16_EXPECTED_RUN_INVENTORY_SHA256=<trusted-sha256> ./tests/unreal/evaluate-p1.6-agents.sh revalidate <downloaded-run> <downloaded-combined-evidence>
-P16_EXPECTED_ARTIFACT_SHA256=<trusted-sha256> P16_EXPECTED_SOURCE_COMMIT=<trusted-commit> P16_EXPECTED_RUN_INVENTORY_SHA256=<trusted-sha256> P16_EXPECTED_COMBINED_EVIDENCE_TREE_SHA256=<trusted-sha256> P16_EXPECTED_REVIEW_SHA256=<trusted-sha256> P16_EXPECTED_REVIEWER_ID=<trusted-reviewer> ./tests/unreal/close-p1.6.sh verify <artifact> <downloaded-run> <downloaded-combined-evidence> <independent-review.json> <closure.json>
+set -euo pipefail
+test -z "$(git status --porcelain=v1 --untracked-files=all)"
+export DOTNET_ROOT="/Users/Shared/Epic Games/UE_5.8/Engine/Binaries/ThirdParty/DotNet/10.0/mac-arm64"
+export PATH="$DOTNET_ROOT:$PATH"
+cargo build --release --locked
+codesign --force --sign - --timestamp=none target/release/magi-unreal-axi
+codesign --verify --strict target/release/magi-unreal-axi
+cargo run --locked --bin xtask -- release package
+export P16_EXPECTED_SOURCE_COMMIT="$(git rev-parse HEAD)"
+export ARTIFACT="$PWD/target/release/magi-unreal-axi-0.1.0-macos-arm64.tar.gz"
+export P16_EXPECTED_ARTIFACT_SHA256="$(shasum -a 256 "$ARTIFACT" | awk '{print $1}')"
+grep -Fx "$P16_EXPECTED_ARTIFACT_SHA256  $(basename "$ARTIFACT")" "$(dirname "$ARTIFACT")/SHA256SUMS"
 ```
+
+2. Run combined local certification and bind its exact evidence tree:
+
+```sh
+./tests/unreal/certify-p1.6.sh "$ARTIFACT"
+export COMBINED="$(cat "$HOME/Library/Caches/magi-unreal-axi/p1.6/combined/latest")"
+export P16_EXPECTED_COMBINED_EVIDENCE_TREE_SHA256="$(jq -r '.treeSha256' "$COMBINED/evidence-tree.json")"
+```
+
+3. Prepare five-job run:
+
+```sh
+export RUN="$(./tests/unreal/evaluate-p1.6-agents.sh prepare "$ARTIFACT")"
+export P16_EXTERNAL_SESSION_ROOT="$HOME/Library/Caches/magi-unreal-axi/p1.6/external-sessions"
+mkdir -p "$P16_EXTERNAL_SESSION_ROOT"
+```
+
+4. Execute and record all jobs sequentially in exact order. For each job, `job-context` only prints prompt. It does not launch agent. Give printed prompt to external agent, run agent from exact prepared project path printed in prompt, export host's complete session JSONL to shown `SESSION_JSONL`, and require agent's final tool call to create `$RUN/jobs/<job>/agent-outcome.json`. Then run matching `record` command before starting next job.
+
+```sh
+./tests/unreal/evaluate-p1.6-agents.sh job-context "$RUN" unknown-project-orientation
+export SESSION_JSONL="$P16_EXTERNAL_SESSION_ROOT/unknown-project-orientation.session.jsonl"
+# Run external agent now; it must produce $SESSION_JSONL and $RUN/jobs/unknown-project-orientation/agent-outcome.json.
+./tests/unreal/evaluate-p1.6-agents.sh record "$RUN" unknown-project-orientation "$SESSION_JSONL"
+
+./tests/unreal/evaluate-p1.6-agents.sh job-context "$RUN" interaction-loop
+export SESSION_JSONL="$P16_EXTERNAL_SESSION_ROOT/interaction-loop.session.jsonl"
+# Run external agent now; it must produce $SESSION_JSONL and $RUN/jobs/interaction-loop/agent-outcome.json.
+./tests/unreal/evaluate-p1.6-agents.sh record "$RUN" interaction-loop "$SESSION_JSONL"
+
+./tests/unreal/evaluate-p1.6-agents.sh job-context "$RUN" ui-state-loop
+export SESSION_JSONL="$P16_EXTERNAL_SESSION_ROOT/ui-state-loop.session.jsonl"
+# Run external agent now; it must produce $SESSION_JSONL and $RUN/jobs/ui-state-loop/agent-outcome.json.
+./tests/unreal/evaluate-p1.6-agents.sh record "$RUN" ui-state-loop "$SESSION_JSONL"
+
+./tests/unreal/evaluate-p1.6-agents.sh job-context "$RUN" ai-navigation-loop
+export SESSION_JSONL="$P16_EXTERNAL_SESSION_ROOT/ai-navigation-loop.session.jsonl"
+# Run external agent now; it must produce $SESSION_JSONL and $RUN/jobs/ai-navigation-loop/agent-outcome.json.
+./tests/unreal/evaluate-p1.6-agents.sh record "$RUN" ai-navigation-loop "$SESSION_JSONL"
+
+./tests/unreal/evaluate-p1.6-agents.sh job-context "$RUN" animation-state-loop
+export SESSION_JSONL="$P16_EXTERNAL_SESSION_ROOT/animation-state-loop.session.jsonl"
+# Run external agent now; it must produce $SESSION_JSONL and $RUN/jobs/animation-state-loop/agent-outcome.json.
+./tests/unreal/evaluate-p1.6-agents.sh record "$RUN" animation-state-loop "$SESSION_JSONL"
+```
+
+5. Finalize run, capture inventory digest for trusted-channel confirmation, and revalidate portable evidence:
+
+```sh
+FINALIZE_OUTPUT="$(./tests/unreal/evaluate-p1.6-agents.sh finalize "$RUN")"
+printf '%s\n' "$FINALIZE_OUTPUT"
+export P16_EXPECTED_RUN_INVENTORY_SHA256="$(printf '%s\n' "$FINALIZE_OUTPUT" | sed -n 's/^inventorySha256=\([0-9a-f]\{64\}\) treeSha256=.*/\1/p')"
+test ${#P16_EXPECTED_RUN_INVENTORY_SHA256} -eq 64
+./tests/unreal/evaluate-p1.6-agents.sh revalidate "$RUN" "$COMBINED"
+```
+
+6. Obtain independent review. Reviewer must inspect exact artifact, finalized run, combined evidence, and source commit; return canonical JSON matching `p1.6-independent-review.schema.json`; and communicate expected review SHA-256 plus reviewer ID through trusted channel. Do not author or approve own review. Keep review outside repository. Reviewer output must equal compact, recursively key-sorted JSON plus one trailing newline.
+
+```bash
+export REVIEW="$HOME/Library/Caches/magi-unreal-axi/p1.6/review/p1.6-independent-review.json"
+export P16_EXPECTED_REVIEW_SHA256="REPLACE_WITH_TRUSTED_64_HEX_SHA256"
+export P16_EXPECTED_REVIEWER_ID="REPLACE_WITH_TRUSTED_REVIEWER_ID"
+cmp -s "$REVIEW" <(jq -cS . "$REVIEW")
+test "$(shasum -a 256 "$REVIEW" | awk '{print $1}')" = "$P16_EXPECTED_REVIEW_SHA256"
+test "$(jq -r '.reviewerId' "$REVIEW")" = "$P16_EXPECTED_REVIEWER_ID"
+```
+
+7. Write then independently re-derive closure certificate. Output parent must exist and certificate must not exist before `write`:
+
+```sh
+export CLOSURE_DIR="$HOME/Library/Caches/magi-unreal-axi/p1.6/closure"
+export CLOSURE="$CLOSURE_DIR/p1.6-closure.json"
+mkdir -p "$CLOSURE_DIR"
+test ! -e "$CLOSURE"
+./tests/unreal/close-p1.6.sh write "$ARTIFACT" "$RUN" "$COMBINED" "$REVIEW" "$CLOSURE"
+./tests/unreal/close-p1.6.sh verify "$ARTIFACT" "$RUN" "$COMBINED" "$REVIEW" "$CLOSURE"
+```
+
+Closure consumes six exported trust roots: `P16_EXPECTED_ARTIFACT_SHA256`, `P16_EXPECTED_SOURCE_COMMIT`, `P16_EXPECTED_RUN_INVENTORY_SHA256`, `P16_EXPECTED_COMBINED_EVIDENCE_TREE_SHA256`, `P16_EXPECTED_REVIEW_SHA256`, and `P16_EXPECTED_REVIEWER_ID`.
 
 Latest M6 evidence: `~/Library/Caches/magi-unreal-axi/m6/native/evidence.T25zpG` and `~/Library/Caches/magi-unreal-axi/m6/live/evidence.m9J5dO`.
 

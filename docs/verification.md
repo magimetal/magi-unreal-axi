@@ -135,7 +135,7 @@ After concrete `UInputAction` fixture correction, source fixture built and full 
 
 Representative agent evaluation jobs 1–8 are complete at `~/Library/Caches/magi-unreal-axi/m8/agent-evaluation/run.Gy9dcQ/evidence`; full findings and token estimates are in `docs/agent-evaluation.md`. Jobs 2–7 succeeded for intent, job 1 was partial orientation, job 8 retained pre-fix 14/15 automation plus C++ game-target arm64 link failure/no package, and distinct Blueprint-only job 8b packaged 37 files totaling 1,389,331,062 bytes.
 
-Release workflow builds and packages once, passes exact downloaded archive to approved self-hosted UE 5.8.1/macOS arm64 certification, then publishes with checksum and GitHub provenance. Binary uses ad-hoc codesign, not Developer ID signing or notarization.
+Release preparation is local: build and package once, pass the exact archive through UE 5.8.1/macOS arm64 certification, then retain checksum and local provenance for any later manual publication. Binary uses ad-hoc codesign, not Developer ID signing or notarization.
 
 ## M8 completion
 
