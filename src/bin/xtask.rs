@@ -327,8 +327,6 @@ fn release(mode: &str) -> Result<(), String> {
         .args(["-czf"])
         .arg(&archive)
         .args([
-            "-b",
-            "1",
             "--format=ustar",
             "--uid=0",
             "--gid=0",

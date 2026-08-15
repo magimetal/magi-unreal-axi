@@ -164,6 +164,8 @@ module P16Archive
       "order" => make_tar(paths.reverse),
       "pax" => mutate(tar, 156, "x"),
       "padding" => mutate(tar, 1025, "y"),
+      "gzip-trailing-zero" => valid + "\0",
+      "gzip-concatenated-member" => valid + valid,
       "gzip-name" => begin
         named = valid.dup
         named.setbyte(3, 8)
